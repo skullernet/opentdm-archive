@@ -19,40 +19,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 #include "g_local.h"
 
-
-/*
-=================
-check_dodge
-
-This is a support routine used when a client is firing
-a non-instant attack weapon.  It checks to see if a
-monster's dodge function should be called.
-=================
-*/
-static void check_dodge (edict_t *self, vec3_t start, vec3_t dir, int speed)
-{
-	vec3_t	end;
-	vec3_t	v;
-	trace_t	tr;
-	float	eta;
-
-	// easy mode only ducks one quarter the time
-	if (skill->value == 0)
-	{
-		if (random() > 0.25)
-			return;
-	}
-	VectorMA (start, 8192, dir, end);
-	tr = gi.trace (start, NULL, NULL, end, self, MASK_SHOT);
-	if ((tr.ent) && (tr.ent->svflags & SVF_MONSTER) && (tr.ent->health > 0) && (tr.ent->monsterinfo.dodge) && infront(tr.ent, self))
-	{
-		VectorSubtract (tr.endpos, start, v);
-		eta = (VectorLength(v) - tr.ent->maxs[0]) / speed;
-		tr.ent->monsterinfo.dodge (tr.ent, self, eta);
-	}
-}
-
-
 /*
 =================
 fire_hit
@@ -372,9 +338,6 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 		bolt->spawnflags = 1;
 	gi.linkentity (bolt);
 
-	if (self->client)
-		check_dodge (self, bolt->s.origin, dir, speed);
-
 	tr = gi.trace (self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
 	if (tr.fraction < 1.0)
 	{
@@ -503,6 +466,7 @@ void fire_grenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
 	grenade->dmg = damage;
 	grenade->dmg_radius = damage_radius;
 	grenade->classname = "grenade";
+	grenade->enttype = ENT_GRENADE;
 
 	gi.linkentity (grenade);
 }
@@ -630,9 +594,6 @@ void fire_rocket (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 	rocket->dmg_radius = damage_radius;
 	rocket->s.sound = gi.soundindex ("weapons/rockfly.wav");
 	rocket->classname = "rocket";
-
-	if (self->client)
-		check_dodge (self, rocket->s.origin, dir, speed);
 
 	gi.linkentity (rocket);
 }
@@ -890,9 +851,6 @@ void fire_bfg (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, f
 	bfg->nextthink = level.time + FRAMETIME;
 	bfg->teammaster = bfg;
 	bfg->teamchain = NULL;
-
-	if (self->client)
-		check_dodge (self, bfg->s.origin, dir, speed);
 
 	gi.linkentity (bfg);
 }

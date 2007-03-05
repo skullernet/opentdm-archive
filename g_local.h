@@ -106,6 +106,44 @@ typedef enum
 	AMMO_SLUGS
 } ammo_t;
 
+typedef enum
+{
+	ITEM_NULL,
+	ITEM_ITEM_ARMOR_BODY,
+	ITEM_ITEM_ARMOR_COMBAT,
+	ITEM_ITEM_ARMOR_JACKET,
+	ITEM_ITEM_ARMOR_SHARD,
+	ITEM_ITEM_POWER_SCREEN,
+	ITEM_ITEM_POWER_SHIELD,
+	ITEM_WEAPON_BLASTER,
+	ITEM_WEAPON_SHOTGUN,
+	ITEM_WEAPON_SUPERSHOTGUN,
+	ITEM_WEAPON_MACHINEGUN,
+	ITEM_WEAPON_CHAINGUN,
+	ITEM_AMMO_GRENADES,
+	ITEM_WEAPON_GRENADELAUNCHER,
+	ITEM_WEAPON_ROCKETLAUNCHER,
+	ITEM_WEAPON_HYPERBLASTER,
+	ITEM_WEAPON_RAILGUN,
+	ITEM_WEAPON_BFG,
+	ITEM_AMMO_SHELLS,
+	ITEM_AMMO_BULLETS,
+	ITEM_AMMO_CELLS,
+	ITEM_AMMO_ROCKETS,
+	ITEM_AMMO_SLUGS,
+	ITEM_ITEM_QUAD,
+	ITEM_ITEM_INVULNERABILITY,
+	ITEM_ITEM_SILENCER,
+	ITEM_ITEM_BREATHER,
+	ITEM_ITEM_ENVIRO,
+	ITEM_ITEM_ANCIENT_HEAD,
+	ITEM_ITEM_ADRENALINE,
+	ITEM_ITEM_BANDOLIER,
+	ITEM_ITEM_PACK,
+	ITEM_ITEM_HEALTH,
+} itemindices_t;
+
+#define GETITEM(x) (itemlist + (x))
 
 //deadflag
 #define DEAD_NO					0
@@ -233,23 +271,24 @@ typedef struct
 
 typedef struct gitem_s
 {
-	char		*classname;	// spawning name
+	const char	*classname;	// spawning name
 	qboolean	(*pickup)(struct edict_s *ent, struct edict_s *other);
-	void		(*use)(struct edict_s *ent, struct gitem_s *item);
-	void		(*drop)(struct edict_s *ent, struct gitem_s *item);
+	void		(*use)(struct edict_s *ent, const struct gitem_s *item);
+	void		(*drop)(struct edict_s *ent, const struct gitem_s *item);
 	void		(*weaponthink)(struct edict_s *ent);
-	char		*pickup_sound;
-	char		*world_model;
+	const char	*pickup_sound;
+	const char	*world_model;
 	int			world_model_flags;
-	char		*view_model;
+	const char	*view_model;
 
 	// client side info
-	char		*icon;
-	char		*pickup_name;	// for printing on pickup
+	const char	*icon;
+	const char	*pickup_name;	// for printing on pickup
 	int			count_width;		// number of digits to display by icon
 
 	int			quantity;		// for ammo how much, for weapons how much is used per shot
-	char		*ammo;			// for weapons
+	//const char	*ammo;			// for weapons
+	int			ammoindex;
 	int			flags;			// IT_* flags
 
 	int			weapmodel;		// weapon model index (for weapons)
@@ -257,7 +296,7 @@ typedef struct gitem_s
 	void		*info;
 	int			tag;
 
-	char		*precaches;		// string of all models, sounds, and images this item will use
+	const char	*precaches;		// string of all models, sounds, and images this item will use
 } gitem_t;
 
 
@@ -458,9 +497,9 @@ extern	spawn_temp_t	st;
 extern	int	sm_meat_index;
 extern	int	snd_fry;
 
-extern	int	jacket_armor_index;
+/*extern	int	jacket_armor_index;
 extern	int	combat_armor_index;
-extern	int	body_armor_index;
+extern	int	body_armor_index;*/
 
 
 // means of death
@@ -597,7 +636,7 @@ typedef struct
 
 
 extern	field_t fields[];
-extern	gitem_t	itemlist[];
+extern	const gitem_t	itemlist[];
 
 
 //
@@ -609,21 +648,21 @@ void Cmd_Score_f (edict_t *ent);
 //
 // g_items.c
 //
-void PrecacheItem (gitem_t *it);
+void PrecacheItem (const gitem_t *it);
 void InitItems (void);
 void SetItemNames (void);
-gitem_t	*FindItem (char *pickup_name);
-gitem_t	*FindItemByClassname (char *classname);
+const gitem_t	*FindItem (const char *pickup_name);
+//const gitem_t	*FindItemByClassname (const char *classname);
 #define	ITEM_INDEX(x) ((x)-itemlist)
-edict_t *Drop_Item (edict_t *ent, gitem_t *item);
+edict_t *Drop_Item (edict_t *ent, const gitem_t *item);
 void SetRespawn (edict_t *ent, float delay);
 void ChangeWeapon (edict_t *ent);
-void SpawnItem (edict_t *ent, gitem_t *item);
+void SpawnItem (edict_t *ent, const gitem_t *item);
 void Think_Weapon (edict_t *ent);
 int ArmorIndex (edict_t *ent);
 int PowerArmorType (edict_t *ent);
-gitem_t	*GetItemByIndex (int index);
-qboolean Add_Ammo (edict_t *ent, gitem_t *item, int count);
+const gitem_t	*GetItemByIndex (int index);
+qboolean Add_Ammo (edict_t *ent, const gitem_t *item, int count);
 void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
 
 //
@@ -823,7 +862,7 @@ struct gclient_s
 
 	qboolean	weapon_thunk;
 
-	gitem_t		*newweapon;
+	const gitem_t		*newweapon;
 
 	// sum up damage over an entire frame, so
 	// shotgun blasts give a single big kick
@@ -896,8 +935,8 @@ struct gclient_s
 	int			max_cells;
 	int			max_slugs;
 
-	gitem_t		*weapon;
-	gitem_t		*lastweapon;
+	const gitem_t		*weapon;
+	const gitem_t		*lastweapon;
 
 	int			power_cubes;	// used for tracking the cubes in coop games
 	int			score;			// for calculating total unit score in coop games
@@ -908,6 +947,15 @@ struct gclient_s
 	qboolean	spectator;			// client is a spectator
 };
 
+typedef enum
+{
+	ENT_INVALID,
+	ENT_FUNC_DOOR,
+	ENT_FUNC_DOOR_ROTATING,
+	ENT_FUNC_AREAPORTAL,
+	ENT_GRENADE,
+	ENT_FUNC_TRAIN,
+} enttype_t;
 
 struct edict_s
 {
@@ -945,14 +993,14 @@ struct edict_s
 	int			movetype;
 	int			flags;
 
-	char		*model;
+	const char	*model;
 	float		freetime;			// sv.time when the object was freed
 	
 	//
 	// only used locally in game, not by server
 	//
 	char		*message;
-	char		*classname;
+	const char	*classname;
 	int			spawnflags;
 
 	float		timestamp;
@@ -1051,10 +1099,12 @@ struct edict_s
 
 	int			style;			// also used as areaportal number
 
-	gitem_t		*item;			// for bonus items
+	const gitem_t		*item;			// for bonus items
 
 	// common data blocks
 	moveinfo_t		moveinfo;
-	monsterinfo_t	monsterinfo;
+	//monsterinfo_t	monsterinfo;
+
+	enttype_t	enttype;
 };
 

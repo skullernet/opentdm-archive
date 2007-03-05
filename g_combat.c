@@ -96,20 +96,6 @@ void Killed (edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, v
 
 	targ->enemy = attacker;
 
-	if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEAD_DEAD))
-	{
-//		targ->svflags |= SVF_DEADMONSTER;	// now treat as a different content type
-		if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY))
-		{
-			level.killed_monsters++;
-			if (coop->value && attacker->client)
-				attacker->client->score++;
-			// medics won't heal monsters that they kill themselves
-			if (strcmp(attacker->classname, "monster_medic") == 0)
-				targ->owner = attacker;
-		}
-	}
-
 	if (targ->movetype == MOVETYPE_PUSH || targ->movetype == MOVETYPE_STOP || targ->movetype == MOVETYPE_NONE)
 	{	// doors, triggers, etc
 		targ->die (targ, inflictor, attacker, damage, point);
@@ -188,14 +174,8 @@ static int CheckPowerArmor (edict_t *ent, vec3_t point, vec3_t normal, int damag
 		power_armor_type = PowerArmorType (ent);
 		if (power_armor_type != POWER_ARMOR_NONE)
 		{
-			index = ITEM_INDEX(FindItem("Cells"));
-			power = client->inventory[index];
+			power = client->inventory[ITEM_AMMO_CELLS];
 		}
-	}
-	else if (ent->svflags & SVF_MONSTER)
-	{
-		power_armor_type = ent->monsterinfo.power_armor_type;
-		power = ent->monsterinfo.power_armor_power;
 	}
 	else
 		return 0;
@@ -244,17 +224,15 @@ static int CheckPowerArmor (edict_t *ent, vec3_t point, vec3_t normal, int damag
 
 	if (client)
 		client->inventory[index] -= power_used;
-	else
-		ent->monsterinfo.power_armor_power -= power_used;
 	return save;
 }
 
 static int CheckArmor (edict_t *ent, vec3_t point, vec3_t normal, int damage, int te_sparks, int dflags)
 {
-	gclient_t	*client;
-	int			save;
-	int			index;
-	gitem_t		*armor;
+	gclient_t		*client;
+	int				save;
+	int				index;
+	const gitem_t	*armor;
 
 	if (!damage)
 		return 0;

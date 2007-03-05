@@ -58,7 +58,7 @@ field_t fields[] = {
 	{"angles", FOFS(s.angles), F_VECTOR},
 	{"angle", FOFS(s.angles), F_ANGLEHACK},
 
-	{"goalentity", FOFS(goalentity), F_EDICT, FFL_NOSPAWN},
+/*	{"goalentity", FOFS(goalentity), F_EDICT, FFL_NOSPAWN},
 	{"movetarget", FOFS(movetarget), F_EDICT, FFL_NOSPAWN},
 	{"enemy", FOFS(enemy), F_EDICT, FFL_NOSPAWN},
 	{"oldenemy", FOFS(oldenemy), F_EDICT, FFL_NOSPAWN},
@@ -92,7 +92,7 @@ field_t fields[] = {
 	{"checkattack", FOFS(monsterinfo.checkattack), F_FUNCTION, FFL_NOSPAWN},
 	{"currentmove", FOFS(monsterinfo.currentmove), F_MMOVE, FFL_NOSPAWN},
 
-	{"endfunc", FOFS(moveinfo.endfunc), F_FUNCTION, FFL_NOSPAWN},
+	{"endfunc", FOFS(moveinfo.endfunc), F_FUNCTION, FFL_NOSPAWN},*/
 
 	// temp spawn vars -- only valid when the spawn function is called
 	{"lip", STOFS(lip), F_INT, FFL_SPAWNTEMP},
@@ -361,9 +361,9 @@ void ReadField (FILE *f, field_t *field, byte *base)
 	case F_ITEM:
 		index = *(int *)p;
 		if ( index == -1 )
-			*(gitem_t **)p = NULL;
+			*(const gitem_t **)p = NULL;
 		else
-			*(gitem_t **)p = &itemlist[index];
+			*(const gitem_t **)p = &itemlist[index];
 		break;
 
 	//relative to code segment

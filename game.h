@@ -157,7 +157,7 @@ typedef struct
 	// and misc data like the sky definition and cdtrack.
 	// All of the current configstrings are sent to clients when
 	// they connect, and changes are sent to all connected clients.
-	void	(EXPORT *configstring) (int num, char *string);
+	void	(EXPORT *configstring) (int num, const char *string);
 
 #if __GNUC__ > 2
 	void	(EXPORT *error) (const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));

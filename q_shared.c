@@ -1148,11 +1148,11 @@ COM_Parse
 Parse a token out of a string
 ==============
 */
-const char *COM_Parse (char **data_p)
+const char *COM_Parse (const char **data_p)
 {
-	int		c;
-	int		len;
-	char	*data;
+	int			c;
+	int			len;
+	const char	*data;
 
 	data = *data_p;
 	len = 0;

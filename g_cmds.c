@@ -65,9 +65,9 @@ qboolean OnSameTeam (edict_t *ent1, edict_t *ent2)
 
 void SelectNextItem (edict_t *ent, int itflags)
 {
-	gclient_t	*cl;
-	int			i, index;
-	gitem_t		*it;
+	gclient_t		*cl;
+	int				i, index;
+	const gitem_t	*it;
 
 	cl = ent->client;
 
@@ -97,9 +97,9 @@ void SelectNextItem (edict_t *ent, int itflags)
 
 void SelectPrevItem (edict_t *ent, int itflags)
 {
-	gclient_t	*cl;
-	int			i, index;
-	gitem_t		*it;
+	gclient_t		*cl;
+	int				i, index;
+	const gitem_t	*it;
 
 	cl = ent->client;
 
@@ -151,12 +151,12 @@ Give items to a client
 */
 void Cmd_Give_f (edict_t *ent)
 {
-	char		*name;
-	gitem_t		*it;
-	int			index;
-	int			i;
-	qboolean	give_all;
-	edict_t		*it_ent;
+	char			*name;
+	const gitem_t	*it;
+	int				index;
+	int				i;
+	qboolean		give_all;
+	edict_t			*it_ent;
 
 	if (deathmatch->value && !sv_cheats->value)
 	{
@@ -215,15 +215,12 @@ void Cmd_Give_f (edict_t *ent)
 	{
 		gitem_armor_t	*info;
 
-		it = FindItem("Jacket Armor");
-		ent->client->inventory[ITEM_INDEX(it)] = 0;
+		ent->client->inventory[ITEM_ITEM_ARMOR_JACKET] = 0;
+		ent->client->inventory[ITEM_ITEM_ARMOR_COMBAT] = 0;
 
-		it = FindItem("Combat Armor");
-		ent->client->inventory[ITEM_INDEX(it)] = 0;
-
-		it = FindItem("Body Armor");
+		it = GETITEM(ITEM_ITEM_ARMOR_BODY);
 		info = (gitem_armor_t *)it->info;
-		ent->client->inventory[ITEM_INDEX(it)] = info->max_count;
+		ent->client->inventory[ITEM_ITEM_ARMOR_BODY] = info->max_count;
 
 		if (!give_all)
 			return;
@@ -231,7 +228,7 @@ void Cmd_Give_f (edict_t *ent)
 
 	if (give_all || Q_stricmp(name, "Power Shield") == 0)
 	{
-		it = FindItem("Power Shield");
+		it = GETITEM(ITEM_ITEM_POWER_SHIELD);
 		it_ent = G_Spawn();
 		it_ent->classname = it->classname;
 		SpawnItem (it_ent, it);
@@ -395,9 +392,9 @@ Use an inventory item
 */
 void Cmd_Use_f (edict_t *ent)
 {
-	int			index;
-	gitem_t		*it;
-	char		*s;
+	int				index;
+	const gitem_t	*it;
+	char			*s;
 
 	s = gi.args();
 	it = FindItem (s);
@@ -431,9 +428,9 @@ Drop an inventory item
 */
 void Cmd_Drop_f (edict_t *ent)
 {
-	int			index;
-	gitem_t		*it;
-	char		*s;
+	int				index;
+	const gitem_t	*it;
+	char			*s;
 
 	s = gi.args();
 	it = FindItem (s);
@@ -496,7 +493,7 @@ Cmd_InvUse_f
 */
 void Cmd_InvUse_f (edict_t *ent)
 {
-	gitem_t		*it;
+	const gitem_t		*it;
 
 	ValidateSelectedItem (ent);
 
@@ -522,10 +519,10 @@ Cmd_WeapPrev_f
 */
 void Cmd_WeapPrev_f (edict_t *ent)
 {
-	gclient_t	*cl;
-	int			i, index;
-	gitem_t		*it;
-	int			selected_weapon;
+	gclient_t		*cl;
+	int				i, index;
+	const gitem_t	*it;
+	int				selected_weapon;
 
 	cl = ent->client;
 
@@ -558,10 +555,10 @@ Cmd_WeapNext_f
 */
 void Cmd_WeapNext_f (edict_t *ent)
 {
-	gclient_t	*cl;
-	int			i, index;
-	gitem_t		*it;
-	int			selected_weapon;
+	gclient_t		*cl;
+	int				i, index;
+	const gitem_t	*it;
+	int				selected_weapon;
 
 	cl = ent->client;
 
@@ -594,9 +591,9 @@ Cmd_WeapLast_f
 */
 void Cmd_WeapLast_f (edict_t *ent)
 {
-	gclient_t	*cl;
-	int			index;
-	gitem_t		*it;
+	gclient_t			*cl;
+	int					index;
+	const gitem_t		*it;
 
 	cl = ent->client;
 
@@ -621,7 +618,7 @@ Cmd_InvDrop_f
 */
 void Cmd_InvDrop_f (edict_t *ent)
 {
-	gitem_t		*it;
+	const gitem_t		*it;
 
 	ValidateSelectedItem (ent);
 

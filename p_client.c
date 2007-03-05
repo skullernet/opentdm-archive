@@ -409,10 +409,10 @@ void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf
 
 void TossClientWeapon (edict_t *self)
 {
-	gitem_t		*item;
-	edict_t		*drop;
-	qboolean	quad;
-	float		spread;
+	const gitem_t		*item;
+	edict_t			*drop;
+	qboolean		quad;
+	float			spread;
 
 	if (!deathmatch->value)
 		return;
@@ -444,7 +444,7 @@ void TossClientWeapon (edict_t *self)
 	if (quad)
 	{
 		self->client->v_angle[YAW] += spread;
-		drop = Drop_Item (self, FindItemByClassname ("item_quad"));
+		drop = Drop_Item (self, GETITEM(ITEM_ITEM_QUAD));
 		self->client->v_angle[YAW] -= spread;
 		drop->spawnflags |= DROPPED_PLAYER_ITEM;
 
@@ -604,9 +604,9 @@ but is called after each death and level change in deathmatch
 */
 void SetClientRespawnValues (gclient_t *client)
 {
-	gitem_t		*item;
+	const gitem_t		*item;
 
-	item = FindItem("Blaster");
+	item = GETITEM (ITEM_WEAPON_BLASTER);
 
 	client->selected_item = ITEM_INDEX(item);
 	client->inventory[client->selected_item] = 1;

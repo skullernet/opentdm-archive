@@ -858,7 +858,7 @@ void door_use_areaportals (edict_t *self, qboolean open)
 
 	while ((t = G_Find (t, FOFS(targetname), self->target)))
 	{
-		if (Q_stricmp(t->classname, "func_areaportal") == 0)
+		if (t->enttype == ENT_FUNC_AREAPORTAL)
 		{
 			gi.SetAreaPortalState (t->style, open);
 		}
@@ -912,9 +912,9 @@ void door_go_down (edict_t *self)
 	}
 	
 	self->moveinfo.state = STATE_DOWN;
-	if (strcmp(self->classname, "func_door") == 0)
+	if (self->enttype == ENT_FUNC_DOOR)
 		Move_Calc (self, self->moveinfo.start_origin, door_hit_bottom);
-	else if (strcmp(self->classname, "func_door_rotating") == 0)
+	else if (self->enttype == ENT_FUNC_DOOR_ROTATING)
 		AngleMove_Calc (self, door_hit_bottom);
 }
 
@@ -937,9 +937,9 @@ void door_go_up (edict_t *self, edict_t *activator)
 		self->s.sound = self->moveinfo.sound_middle;
 	}
 	self->moveinfo.state = STATE_UP;
-	if (strcmp(self->classname, "func_door") == 0)
+	if (self->enttype == ENT_FUNC_DOOR)
 		Move_Calc (self, self->moveinfo.end_origin, door_hit_top);
-	else if (strcmp(self->classname, "func_door_rotating") == 0)
+	else if (self->enttype == ENT_FUNC_DOOR_ROTATING)
 		AngleMove_Calc (self, door_hit_top);
 
 	G_UseTargets (self, activator);
@@ -1215,6 +1215,8 @@ void SP_func_door (edict_t *ent)
 	if (ent->spawnflags & 64)
 		ent->s.effects |= EF_ANIM_ALLFAST;
 
+	ent->enttype = ENT_FUNC_DOOR;
+
 	// to simplify logic elsewhere, make non-teamed doors into a team of one
 	if (!ent->team)
 		ent->teammaster = ent;
@@ -1350,6 +1352,8 @@ void SP_func_door_rotating (edict_t *ent)
 	if (!ent->team)
 		ent->teammaster = ent;
 
+	ent->enttype = ENT_FUNC_DOOR_ROTATING;
+
 	gi.linkentity (ent);
 
 	ent->nextthink = level.time + FRAMETIME;
@@ -1437,6 +1441,7 @@ void SP_func_water (edict_t *self)
 		self->spawnflags |= DOOR_TOGGLE;
 
 	self->classname = "func_door";
+	self->enttype = ENT_FUNC_DOOR;
 
 	gi.linkentity (self);
 }
@@ -1678,6 +1683,8 @@ void SP_func_train (edict_t *self)
 
 	self->use = train_use;
 
+	self->enttype = ENT_FUNC_TRAIN;
+
 	gi.linkentity (self);
 
 	if (self->target)
@@ -1736,7 +1743,7 @@ void trigger_elevator_init (edict_t *self)
 		gi.dprintf("trigger_elevator unable to find target %s\n", self->target);
 		return;
 	}
-	if (strcmp(self->movetarget->classname, "func_train") != 0)
+	if (self->movetarget->enttype != ENT_FUNC_TRAIN)
 	{
 		gi.dprintf("trigger_elevator target %s is not a train\n", self->target);
 		return;
@@ -2026,6 +2033,7 @@ void SP_func_door_secret (edict_t *ent)
 	}
 	
 	ent->classname = "func_door";
+	ent->enttype = ENT_FUNC_DOOR;
 
 	gi.linkentity (ent);
 }

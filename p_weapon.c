@@ -117,8 +117,8 @@ void PlayerNoise(edict_t *who, vec3_t where, int type)
 
 qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 {
-	int			index;
-	gitem_t		*ammo;
+	int				index;
+	const gitem_t	*ammo;
 
 	index = ITEM_INDEX(ent->item);
 
@@ -134,7 +134,7 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 	if (!(ent->spawnflags & DROPPED_ITEM) )
 	{
 		// give them some ammo with it
-		ammo = FindItem (ent->item->ammo);
+		ammo = GETITEM (ent->item->ammoindex);
 		if ( (int)dmflags->value & DF_INFINITE_AMMO )
 			Add_Ammo (other, ammo, 1000);
 		else
@@ -156,7 +156,7 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 
 	if (other->client->weapon != ent->item && 
 		(other->client->inventory[index] == 1) &&
-		( !deathmatch->value || other->client->weapon == FindItem("blaster") ) )
+		( !deathmatch->value || other->client->weapon == GETITEM (ITEM_WEAPON_BLASTER) ) )
 		other->client->newweapon = ent->item;
 
 	return true;
@@ -197,8 +197,8 @@ void ChangeWeapon (edict_t *ent)
 		ent->s.skinnum = (ent - g_edicts - 1) | i;
 	}
 
-	if (ent->client->weapon && ent->client->weapon->ammo)
-		ent->client->ammo_index = ITEM_INDEX(FindItem(ent->client->weapon->ammo));
+	if (ent->client->weapon && ent->client->weapon->ammoindex)
+		ent->client->ammo_index = ent->client->weapon->ammoindex;
 	else
 		ent->client->ammo_index = 0;
 
@@ -233,43 +233,43 @@ NoAmmoWeaponChange
 */
 void NoAmmoWeaponChange (edict_t *ent)
 {
-	if ( ent->client->inventory[ITEM_INDEX(FindItem("slugs"))]
-		&&  ent->client->inventory[ITEM_INDEX(FindItem("railgun"))] )
+	if ( ent->client->inventory[ITEM_AMMO_SLUGS]
+		&&  ent->client->inventory[ITEM_WEAPON_RAILGUN] )
 	{
-		ent->client->newweapon = FindItem ("railgun");
+		ent->client->newweapon = GETITEM (ITEM_WEAPON_RAILGUN);
 		return;
 	}
-	if ( ent->client->inventory[ITEM_INDEX(FindItem("cells"))]
-		&&  ent->client->inventory[ITEM_INDEX(FindItem("hyperblaster"))] )
+	if ( ent->client->inventory[ITEM_AMMO_CELLS]
+		&&  ent->client->inventory[ITEM_WEAPON_HYPERBLASTER] )
 	{
-		ent->client->newweapon = FindItem ("hyperblaster");
+		ent->client->newweapon = GETITEM (ITEM_WEAPON_HYPERBLASTER);
 		return;
 	}
-	if ( ent->client->inventory[ITEM_INDEX(FindItem("bullets"))]
-		&&  ent->client->inventory[ITEM_INDEX(FindItem("chaingun"))] )
+	if ( ent->client->inventory[ITEM_AMMO_BULLETS]
+		&&  ent->client->inventory[ITEM_WEAPON_CHAINGUN] )
 	{
-		ent->client->newweapon = FindItem ("chaingun");
+		ent->client->newweapon = GETITEM (ITEM_WEAPON_CHAINGUN);
 		return;
 	}
-	if ( ent->client->inventory[ITEM_INDEX(FindItem("bullets"))]
-		&&  ent->client->inventory[ITEM_INDEX(FindItem("machinegun"))] )
+	if ( ent->client->inventory[ITEM_AMMO_BULLETS]
+		&&  ent->client->inventory[ITEM_WEAPON_MACHINEGUN] )
 	{
-		ent->client->newweapon = FindItem ("machinegun");
+		ent->client->newweapon = GETITEM (ITEM_WEAPON_MACHINEGUN);
 		return;
 	}
-	if ( ent->client->inventory[ITEM_INDEX(FindItem("shells"))] > 1
-		&&  ent->client->inventory[ITEM_INDEX(FindItem("super shotgun"))] )
+	if ( ent->client->inventory[ITEM_AMMO_SHELLS] > 1
+		&&  ent->client->inventory[ITEM_WEAPON_SUPERSHOTGUN] )
 	{
-		ent->client->newweapon = FindItem ("super shotgun");
+		ent->client->newweapon = GETITEM (ITEM_WEAPON_SUPERSHOTGUN);
 		return;
 	}
-	if ( ent->client->inventory[ITEM_INDEX(FindItem("shells"))]
-		&&  ent->client->inventory[ITEM_INDEX(FindItem("shotgun"))] )
+	if ( ent->client->inventory[ITEM_AMMO_SHELLS]
+		&&  ent->client->inventory[ITEM_WEAPON_SHOTGUN] )
 	{
-		ent->client->newweapon = FindItem ("shotgun");
+		ent->client->newweapon = GETITEM (ITEM_WEAPON_SHOTGUN);
 		return;
 	}
-	ent->client->newweapon = FindItem ("blaster");
+	ent->client->newweapon = GETITEM (ITEM_WEAPON_BLASTER);
 }
 
 /*
@@ -308,19 +308,19 @@ Use_Weapon
 Make the weapon ready if there is ammo
 ================
 */
-void Use_Weapon (edict_t *ent, gitem_t *item)
+void Use_Weapon (edict_t *ent, const gitem_t *item)
 {
-	int			ammo_index;
-	gitem_t		*ammo_item;
+	int				ammo_index;
+	const gitem_t	*ammo_item;
 
 	// see if we're already using it
 	if (item == ent->client->weapon)
 		return;
 
-	if (item->ammo && !g_select_empty->value && !(item->flags & IT_AMMO))
+	if (item->ammoindex && !g_select_empty->value && !(item->flags & IT_AMMO))
 	{
-		ammo_item = FindItem(item->ammo);
-		ammo_index = ITEM_INDEX(ammo_item);
+		ammo_item = GETITEM (item->ammoindex);
+		ammo_index = item->ammoindex;
 
 		if (!ent->client->inventory[ammo_index])
 		{
@@ -346,7 +346,7 @@ void Use_Weapon (edict_t *ent, gitem_t *item)
 Drop_Weapon
 ================
 */
-void Drop_Weapon (edict_t *ent, gitem_t *item)
+void Drop_Weapon (edict_t *ent, const gitem_t *item)
 {
 	int		index;
 

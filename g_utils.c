@@ -232,8 +232,8 @@ void G_UseTargets (edict_t *ent, edict_t *activator)
 		while ((t = G_Find (t, FOFS(targetname), ent->target)))
 		{
 			// doors fire area portals in a specific way
-			if (!Q_stricmp(t->classname, "func_areaportal") &&
-				(!Q_stricmp(ent->classname, "func_door") || !Q_stricmp(ent->classname, "func_door_rotating")))
+			if (t->enttype == ENT_FUNC_AREAPORTAL &&
+				(ent->enttype == ENT_FUNC_DOOR || ent->enttype == ENT_FUNC_DOOR_ROTATING))
 				continue;
 
 			if (t == ent)

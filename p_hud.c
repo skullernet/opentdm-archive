@@ -376,9 +376,9 @@ G_SetStats
 */
 void G_SetStats (edict_t *ent)
 {
-	gitem_t		*item;
-	int			index, cells;
-	int			power_armor_type;
+	const gitem_t	*item;
+	int				index, cells;
+	int				power_armor_type;
 
 	cells = 0;
 	
@@ -409,7 +409,7 @@ void G_SetStats (edict_t *ent)
 	power_armor_type = PowerArmorType (ent);
 	if (power_armor_type)
 	{
-		cells = ent->client->inventory[ITEM_INDEX(FindItem ("cells"))];
+		cells = ent->client->inventory[ITEM_AMMO_CELLS];
 		if (cells == 0)
 		{	// ran out of cells for power armor
 			ent->flags &= ~FL_POWER_ARMOR;

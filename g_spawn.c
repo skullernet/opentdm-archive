@@ -60,7 +60,7 @@ void SP_trigger_multiple (edict_t *ent);
 void SP_trigger_relay (edict_t *ent);
 void SP_trigger_push (edict_t *ent);
 void SP_trigger_hurt (edict_t *ent);
-void SP_trigger_key (edict_t *ent);
+//void SP_trigger_key (edict_t *ent);
 void SP_trigger_counter (edict_t *ent);
 void SP_trigger_elevator (edict_t *ent);
 void SP_trigger_gravity (edict_t *ent);
@@ -93,7 +93,7 @@ void SP_light_mine1 (edict_t *ent);
 void SP_light_mine2 (edict_t *ent);
 void SP_info_null (edict_t *self);
 void SP_info_notnull (edict_t *self);
-void SP_path_corner (edict_t *self);
+//void SP_path_corner (edict_t *self);
 //void SP_point_combat (edict_t *self);
 
 void SP_misc_banner (edict_t *self);
@@ -103,7 +103,7 @@ void SP_misc_gib_arm (edict_t *self);
 void SP_misc_gib_leg (edict_t *self);
 void SP_misc_gib_head (edict_t *self);
 //void SP_misc_insane (edict_t *self);
-void SP_misc_deadsoldier (edict_t *self);
+//void SP_misc_deadsoldier (edict_t *self);
 void SP_misc_viper (edict_t *self);
 void SP_misc_viper_bomb (edict_t *self);
 void SP_misc_bigviper (edict_t *self);
@@ -150,7 +150,7 @@ spawn_t	spawns[] = {
 	{"trigger_relay", SP_trigger_relay},
 	{"trigger_push", SP_trigger_push},
 	{"trigger_hurt", SP_trigger_hurt},
-	{"trigger_key", SP_trigger_key},
+	//{"trigger_key", SP_trigger_key},
 	{"trigger_counter", SP_trigger_counter},
 	{"trigger_elevator", SP_trigger_elevator},
 	{"trigger_gravity", SP_trigger_gravity},
@@ -184,7 +184,7 @@ spawn_t	spawns[] = {
 	{"info_null", SP_info_null},
 	{"func_group", SP_info_null},
 	{"info_notnull", SP_info_notnull},
-	{"path_corner", SP_path_corner},
+//	{"path_corner", SP_path_corner},
 //	{"point_combat", SP_point_combat},
 
 //	{"misc_explobox", SP_misc_explobox},
@@ -195,7 +195,7 @@ spawn_t	spawns[] = {
 	{"misc_gib_leg", SP_misc_gib_leg},
 	{"misc_gib_head", SP_misc_gib_head},
 	//{"misc_insane", SP_misc_insane},
-	{"misc_deadsoldier", SP_misc_deadsoldier},
+	//{"misc_deadsoldier", SP_misc_deadsoldier},
 	{"misc_viper", SP_misc_viper},
 	{"misc_viper_bomb", SP_misc_viper_bomb},
 	{"misc_bigviper", SP_misc_bigviper},
@@ -219,9 +219,9 @@ Finds the spawn function for the entity and calls it
 */
 void ED_CallSpawn (edict_t *ent)
 {
-	spawn_t	*s;
-	gitem_t	*item;
-	int		i;
+	spawn_t			*s;
+	const gitem_t	*item;
+	int				i;
 
 	if (!ent->classname)
 	{
@@ -353,7 +353,7 @@ Parses an edict out of the given string, returning the new position
 ed should be a properly initialized empty edict.
 ====================
 */
-char *ED_ParseEdict (char *data, edict_t *ent)
+const char *ED_ParseEdict (const char *data, edict_t *ent)
 {
 	qboolean	init;
 	char		keyname[256];
@@ -795,7 +795,7 @@ void SP_worldspawn (edict_t *ent)
 
 	snd_fry = gi.soundindex ("player/fry.wav");	// standing in lava / slime
 
-	PrecacheItem (FindItem ("Blaster"));
+	PrecacheItem (GETITEM (ITEM_WEAPON_BLASTER));
 
 	gi.soundindex ("player/lava1.wav");
 	gi.soundindex ("player/lava2.wav");

@@ -21,11 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "g_local.h"
 
 
-void	Svcmd_Test_f (void)
-{
-	gi.cprintf (NULL, PRINT_HIGH, "Svcmd_Test_f()\n");
-}
-
 /*
 ==============================================================================
 
@@ -122,10 +117,10 @@ SV_FilterPacket
 */
 qboolean SV_FilterPacket (const char *from)
 {
-	int		i;
+	int			i;
 	unsigned	in;
-	byte m[4];
-	char *p;
+	byte		m[4];
+	const char *p;
 
 	i = 0;
 	p = from;
@@ -274,6 +269,18 @@ void SVCmd_WriteIP_f (void)
 	fclose (f);
 }
 
+
+void Svcmd_Itemlist_f (void)
+{
+	const gitem_t	*i;
+	int				j;
+	for (j = 1; j < game.num_items; j++)
+	{
+		i = &itemlist[j];
+		gi.cprintf (NULL, PRINT_HIGH, "ITEM_%s,\n", i->classname);
+	}
+}
+
 /*
 =================
 ServerCommand
@@ -288,8 +295,8 @@ void	ServerCommand (void)
 	char	*cmd;
 
 	cmd = gi.argv(1);
-	if (Q_stricmp (cmd, "test") == 0)
-		Svcmd_Test_f ();
+	if (Q_stricmp (cmd, "itemlist") == 0)
+		Svcmd_Itemlist_f ();
 	else if (Q_stricmp (cmd, "addip") == 0)
 		SVCmd_AddIP_f ();
 	else if (Q_stricmp (cmd, "removeip") == 0)
