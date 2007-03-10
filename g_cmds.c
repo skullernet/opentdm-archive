@@ -71,7 +71,13 @@ void SelectNextItem (edict_t *ent, int itflags)
 
 	cl = ent->client;
 
-	if (cl->chase_target) {
+	if (cl->menu.active)
+	{
+		PMenu_Next(ent);
+		return;
+	}
+	else if (cl->chase_target)
+	{
 		ChaseNext(ent);
 		return;
 	}
@@ -103,7 +109,13 @@ void SelectPrevItem (edict_t *ent, int itflags)
 
 	cl = ent->client;
 
-	if (cl->chase_target) {
+	if (cl->menu.active)
+	{
+		PMenu_Prev(ent);
+		return;
+	}
+	else if (cl->chase_target)
+	{
 		ChasePrev(ent);
 		return;
 	}
@@ -476,6 +488,17 @@ void Cmd_Inven_f (edict_t *ent)
 		return;
 	}
 
+	if (cl->menu.active)
+	{
+		PMenu_Close (ent);
+		return;
+	}
+	else if (cl->resp.team == TEAM_SPEC)
+	{
+		TDM_ShowTeamMenu (ent);
+		return;
+	}
+
 	cl->showinventory = true;
 
 	gi.WriteByte (svc_inventory);
@@ -494,6 +517,15 @@ Cmd_InvUse_f
 void Cmd_InvUse_f (edict_t *ent)
 {
 	const gitem_t		*it;
+
+	if (ent->client->menu.active)
+	{
+		PMenu_Select (ent);
+		return;
+	}
+
+	if (ent->health <= 0)
+		return;
 
 	ValidateSelectedItem (ent);
 
@@ -662,6 +694,9 @@ void Cmd_PutAway_f (edict_t *ent)
 	ent->client->showscores = false;
 	ent->client->showhelp = false;
 	ent->client->showinventory = false;
+
+	if (ent->client->menu.active)
+		PMenu_Close (ent);
 }
 
 
@@ -827,24 +862,24 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	if (flood_msgs->value) {
 		cl = ent->client;
 
-        if (level.time < cl->flood_locktill) {
+        if (level.time < cl->resp.flood_locktill) {
 			gi.cprintf(ent, PRINT_HIGH, "You can't talk for %d more seconds\n",
-				(int)(cl->flood_locktill - level.time));
+				(int)(cl->resp.flood_locktill - level.time));
             return;
         }
-        i = cl->flood_whenhead - flood_msgs->value + 1;
+        i = cl->resp.flood_whenhead - flood_msgs->value + 1;
         if (i < 0)
-            i = (sizeof(cl->flood_when)/sizeof(cl->flood_when[0])) + i;
-		if (cl->flood_when[i] && 
-			level.time - cl->flood_when[i] < flood_persecond->value) {
-			cl->flood_locktill = level.time + flood_waitdelay->value;
+            i = (sizeof(cl->resp.flood_when)/sizeof(cl->resp.flood_when[0])) + i;
+		if (cl->resp.flood_when[i] && 
+			level.time - cl->resp.flood_when[i] < flood_persecond->value) {
+			cl->resp.flood_locktill = level.time + flood_waitdelay->value;
 			gi.cprintf(ent, PRINT_CHAT, "Flood protection:  You can't talk for %d seconds.\n",
 				(int)flood_waitdelay->value);
             return;
         }
-		cl->flood_whenhead = (cl->flood_whenhead + 1) %
-			(sizeof(cl->flood_when)/sizeof(cl->flood_when[0]));
-		cl->flood_when[cl->flood_whenhead] = level.time;
+		cl->resp.flood_whenhead = (cl->resp.flood_whenhead + 1) %
+			(sizeof(cl->resp.flood_when)/sizeof(cl->resp.flood_when[0]));
+		cl->resp.flood_when[cl->resp.flood_whenhead] = level.time;
 	}
 
 	if (dedicated->value)
@@ -868,25 +903,27 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 
 void Cmd_PlayerList_f(edict_t *ent)
 {
-	int i;
-	char st[80];
-	char text[1400];
-	edict_t *e2;
+	int		i;
+	char	st[80];
+	char	text[1400];
+	edict_t	*e2;
 
 	// connect time, ping, score, name
 	*text = 0;
-	for (i = 0, e2 = g_edicts + 1; i < maxclients->value; i++, e2++) {
+	for (i = 0, e2 = g_edicts + 1; i < maxclients->value; i++, e2++)
+	{
 		if (!e2->inuse)
 			continue;
 
 		sprintf(st, "%02d:%02d %4d %3d %s%s\n",
-			(level.framenum - e2->client->pers.enterframe) / 600,
-			((level.framenum - e2->client->pers.enterframe) % 600)/10,
+			(level.framenum - e2->client->resp.enterframe) / 600,
+			((level.framenum - e2->client->resp.enterframe) % 600)/10,
 			e2->client->ping,
-			e2->client->score,
+			e2->client->resp.score,
 			e2->client->pers.netname,
-			e2->client->spectator ? " (spectator)" : "");
-		if (strlen(text) + strlen(st) > sizeof(text) - 50) {
+			e2->client->resp.team ? " (spectator)" : "");
+		if (strlen(text) + strlen(st) > sizeof(text) - 50)
+		{
 			sprintf(text+strlen(text), "And more...\n");
 			gi.cprintf(ent, PRINT_HIGH, "%s", text);
 			return;

@@ -30,11 +30,12 @@ void UpdateChaseCam(edict_t *ent)
 	vec3_t angles;
 
 	// is our chase target gone?
-	if (!ent->client->chase_target->inuse
-		|| ent->client->chase_target->client->spectator) {
+	if (!ent->client->chase_target->inuse || !ent->client->chase_target->client->resp.team)
+	{
 		edict_t *old = ent->client->chase_target;
 		ChaseNext(ent);
-		if (ent->client->chase_target == old) {
+		if (ent->client->chase_target == old)
+		{
 			ent->client->chase_target = NULL;
 			ent->client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
 			return;
@@ -92,7 +93,7 @@ void UpdateChaseCam(edict_t *ent)
 
 	VectorCopy(goal, ent->s.origin);
 	for (i=0 ; i<3 ; i++)
-		ent->client->ps.pmove.delta_angles[i] = ANGLE2SHORT(targ->client->v_angle[i] - ent->client->pers.cmd_angles[i]);
+		ent->client->ps.pmove.delta_angles[i] = ANGLE2SHORT(targ->client->v_angle[i] - ent->client->resp.cmd_angles[i]);
 
 	if (targ->deadflag) {
 		ent->client->ps.viewangles[ROLL] = 40;
@@ -117,14 +118,18 @@ void ChaseNext(edict_t *ent)
 		return;
 
 	i = ent->client->chase_target - g_edicts;
-	do {
+	do
+	{
 		i++;
 		if (i > maxclients->value)
 			i = 1;
+
 		e = g_edicts + i;
+
 		if (!e->inuse)
 			continue;
-		if (!e->client->spectator)
+
+		if (e->client->resp.team)
 			break;
 	} while (e != ent->client->chase_target);
 
@@ -147,9 +152,11 @@ void ChasePrev(edict_t *ent)
 		if (i < 1)
 			i = maxclients->value;
 		e = g_edicts + i;
+
 		if (!e->inuse)
 			continue;
-		if (!e->client->spectator)
+
+		if (e->client->resp.team)
 			break;
 	} while (e != ent->client->chase_target);
 
@@ -162,9 +169,11 @@ void GetChaseTarget(edict_t *ent)
 	int i;
 	edict_t *other;
 
-	for (i = 1; i <= maxclients->value; i++) {
+	for (i = 1; i <= maxclients->value; i++)
+	{
 		other = g_edicts + i;
-		if (other->inuse && !other->client->spectator) {
+		if (other->inuse && other->client->resp.team)
+		{
 			ent->client->chase_target = other;
 			ent->client->update_chase = true;
 			UpdateChaseCam(ent);

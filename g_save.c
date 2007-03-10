@@ -205,6 +205,8 @@ void InitGame (void)
 	// items
 	InitItems ();
 
+	TDM_Init ();
+
 	game.helpmessage1[0] = game.helpmessage2[0] = 0;
 
 	// initialize all entities for this game

@@ -812,20 +812,6 @@ void G_SetClientSound (edict_t *ent)
 {
 	const char	*weap;
 
-	if (ent->client->game_helpchanged != game.helpchanged)
-	{
-		ent->client->game_helpchanged = game.helpchanged;
-		ent->client->helpchanged = 1;
-	}
-
-	// help beep (no more than three times)
-	if (ent->client->helpchanged && ent->client->helpchanged <= 3 && !(level.framenum&63) )
-	{
-		ent->client->helpchanged++;
-		gi.sound (ent, CHAN_VOICE, gi.soundindex ("misc/pc_up.wav"), 1, ATTN_STATIC, 0);
-	}
-
-
 	if (ent->client->weapon)
 		weap = ent->client->weapon->classname;
 	else
@@ -1052,10 +1038,11 @@ void ClientEndServerFrame (edict_t *ent)
 	SV_CalcBlend (ent);
 
 	// chase cam stuff
-	if (ent->client->spectator)
+	if (!ent->client->resp.team)
 		G_SetSpectatorStats(ent);
 	else
 		G_SetStats (ent);
+
 	G_CheckChaseStats(ent);
 
 	G_SetClientEvent (ent);

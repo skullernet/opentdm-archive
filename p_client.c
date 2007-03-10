@@ -305,7 +305,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 		{
 			gi.bprintf (PRINT_MEDIUM, "%s %s.\n", self->client->pers.netname, message);
 			if (deathmatch->value)
-				self->client->score--;
+				self->client->resp.score--;
 			self->enemy = NULL;
 			return;
 		}
@@ -390,9 +390,9 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				if (deathmatch->value)
 				{
 					if (ff)
-						attacker->client->score--;
+						attacker->client->resp.score--;
 					else
-						attacker->client->score++;
+						attacker->client->resp.score++;
 				}
 				return;
 			}
@@ -401,7 +401,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 
 	gi.bprintf (PRINT_MEDIUM,"%s died.\n", self->client->pers.netname);
 	if (deathmatch->value)
-		self->client->score--;
+		self->client->resp.score--;
 }
 
 
@@ -536,6 +536,8 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 		{
 			self->client->inventory[n] = 0;
 		}
+
+		ValidateSelectedItem (self);
 	}
 
 	// remove powerups
@@ -594,34 +596,6 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 //=======================================================================
 
-/*
-==============
-SetClientRespawnValues
-
-This is only called when the game first initializes in single player,
-but is called after each death and level change in deathmatch
-==============
-*/
-void SetClientRespawnValues (gclient_t *client)
-{
-	const gitem_t		*item;
-
-	item = GETITEM (ITEM_WEAPON_BLASTER);
-
-	client->selected_item = ITEM_INDEX(item);
-	client->inventory[client->selected_item] = 1;
-
-	client->weapon = item;
-
-	client->max_bullets		= 200;
-	client->max_shells		= 100;
-	client->max_rockets		= 50;
-	client->max_grenades	= 50;
-	client->max_cells		= 200;
-	client->max_slugs		= 50;
-
-	//client->pers.connected = true;
-}
 
 
 /*
@@ -898,8 +872,16 @@ void CopyToBodyQue (edict_t *ent)
 	body = &g_edicts[(int)maxclients->value + level.body_que + 1];
 	level.body_que = (level.body_que + 1) % BODY_QUEUE_SIZE;
 
-	// FIXME: send an effect on the removed body
+	// send an effect on the removed body
+	if (body->s.modelindex)
+	{
+		gi.WriteByte (svc_temp_entity);
+		gi.WriteByte (TE_BLOOD);
+		gi.WritePosition (body->s.origin);
+		gi.multicast (body->s.origin, MULTICAST_PVS);
 
+		body->s.event = EV_OTHER_TELEPORT;
+	}
 	gi.unlinkentity (ent);
 
 	gi.unlinkentity (body);
@@ -950,85 +932,6 @@ void respawn (edict_t *self)
 	gi.AddCommandString ("menu_loadgame\n");
 }
 
-/* 
- * only called when pers.spectator changes
- * note that resp.spectator should be the opposite of pers.spectator here
- */
-void spectator_respawn (edict_t *ent)
-{
-	int i, numspec;
-
-	// if the user wants to become a spectator, make sure he doesn't
-	// exceed max_spectators
-
-	if (ent->client->pers.spectator) {
-		char *value = Info_ValueForKey (ent->client->pers.userinfo, "spectator");
-		if (*spectator_password->string && 
-			strcmp(spectator_password->string, "none") && 
-			strcmp(spectator_password->string, value)) {
-			gi.cprintf(ent, PRINT_HIGH, "Spectator password incorrect.\n");
-			ent->client->pers.spectator = false;
-			gi.WriteByte (svc_stufftext);
-			gi.WriteString ("spectator 0\n");
-			gi.unicast(ent, true);
-			return;
-		}
-
-		// count spectators
-		for (i = 1, numspec = 0; i <= maxclients->value; i++)
-			if (g_edicts[i].inuse && g_edicts[i].client->pers.spectator)
-				numspec++;
-
-		if (numspec >= maxspectators->value) {
-			gi.cprintf(ent, PRINT_HIGH, "Server spectator limit is full.");
-			ent->client->pers.spectator = false;
-			// reset his spectator var
-			gi.WriteByte (svc_stufftext);
-			gi.WriteString ("spectator 0\n");
-			gi.unicast(ent, true);
-			return;
-		}
-	} else {
-		// he was a spectator and wants to join the game
-		// he must have the right password
-		char *value = Info_ValueForKey (ent->client->pers.userinfo, "password");
-		if (*password->string && strcmp(password->string, "none") && 
-			strcmp(password->string, value)) {
-			gi.cprintf(ent, PRINT_HIGH, "Password incorrect.\n");
-			ent->client->pers.spectator = true;
-			gi.WriteByte (svc_stufftext);
-			gi.WriteString ("spectator 1\n");
-			gi.unicast(ent, true);
-			return;
-		}
-	}
-
-	// clear score on respawn
-	ent->client->pers.score = ent->client->score = 0;
-
-	ent->svflags &= ~SVF_NOCLIENT;
-	PutClientInServer (ent);
-
-	// add a teleportation effect
-	if (!ent->client->pers.spectator)  {
-		// send effect
-		gi.WriteByte (svc_muzzleflash);
-		gi.WriteShort (ent-g_edicts);
-		gi.WriteByte (MZ_LOGIN);
-		gi.multicast (ent->s.origin, MULTICAST_PVS);
-
-		// hold in place briefly
-		ent->client->ps.pmove.pm_flags = PMF_TIME_TELEPORT;
-		ent->client->ps.pmove.pm_time = 14;
-	}
-
-	ent->client->respawn_time = level.time;
-
-	if (ent->client->pers.spectator) 
-		gi.bprintf (PRINT_HIGH, "%s has moved to the sidelines\n", ent->client->pers.netname);
-	else
-		gi.bprintf (PRINT_HIGH, "%s joined the game\n", ent->client->pers.netname);
-}
 
 //==============================================================
 
@@ -1050,7 +953,10 @@ void PutClientInServer (edict_t *ent)
 	gclient_t	*client;
 	int		i;
 	client_persistant_t	saved;
-	char		userinfo[MAX_INFO_STRING];
+	client_respawn_t	respsaved;
+	const gitem_t		*item;
+
+	//char		userinfo[MAX_INFO_STRING];
 
 	// find a spawn point
 	// do it before setting health back up, so farthest
@@ -1061,20 +967,16 @@ void PutClientInServer (edict_t *ent)
 	client = ent->client;
 
 	// deathmatch wipes most client data every spawn
-	strcpy (userinfo, client->pers.userinfo);
+	//strcpy (userinfo, client->pers.userinfo);
 	//InitClientPersistant (client);
-	ClientUserinfoChanged (ent, userinfo);
+	//ClientUserinfoChanged (ent, userinfo);
 
 	// clear everything but the persistant data
 	saved = client->pers;
+	respsaved = client->resp;
 	memset (client, 0, sizeof(*client));
+	client->resp = respsaved;
 	client->pers = saved;
-
-	if (ent->health <= 0)
-		SetClientRespawnValues (client);
-
-	ent->health			= 100;
-	ent->max_health		= 100;
 
 	// copy some data from the client to the entity
 	//FetchClientEntData (ent);
@@ -1107,6 +1009,26 @@ void PutClientInServer (edict_t *ent)
 	// clear playerstate values
 	memset (&ent->client->ps, 0, sizeof(client->ps));
 
+	if (ent->client->resp.team)
+	{
+		item = GETITEM (ITEM_WEAPON_BLASTER);
+
+		client->selected_item = ITEM_INDEX(item);
+		client->inventory[client->selected_item] = 1;
+
+		client->weapon = item;
+	}
+
+	ent->health			= 100;
+	ent->max_health		= 100;
+
+	client->max_bullets		= 200;
+	client->max_shells		= 100;
+	client->max_rockets		= 50;
+	client->max_grenades	= 50;
+	client->max_cells		= 200;
+	client->max_slugs		= 50;
+
 	client->ps.pmove.origin[0] = spawn_origin[0]*8;
 	client->ps.pmove.origin[1] = spawn_origin[1]*8;
 	client->ps.pmove.origin[2] = spawn_origin[2]*8;
@@ -1124,7 +1046,8 @@ void PutClientInServer (edict_t *ent)
 			client->ps.fov = 160;
 	}
 
-	client->ps.gunindex = gi.modelindex(client->weapon->view_model);
+	if (client->weapon)
+		client->ps.gunindex = gi.modelindex(client->weapon->view_model);
 
 	// clear entity state values
 	ent->s.effects = 0;
@@ -1141,7 +1064,7 @@ void PutClientInServer (edict_t *ent)
 
 	// set the delta angle
 	for (i=0 ; i<3 ; i++)
-		client->ps.pmove.delta_angles[i] = ANGLE2SHORT(spawn_angles[i] - client->pers.cmd_angles[i]);
+		client->ps.pmove.delta_angles[i] = ANGLE2SHORT(spawn_angles[i] - client->resp.cmd_angles[i]);
 
 	ent->s.angles[PITCH] = 0;
 	ent->s.angles[YAW] = spawn_angles[YAW];
@@ -1149,12 +1072,16 @@ void PutClientInServer (edict_t *ent)
 	VectorCopy (ent->s.angles, client->ps.viewangles);
 	VectorCopy (ent->s.angles, client->v_angle);
 
+	if (ent->client->resp.joinstate == JS_FIRST_JOIN)
+	{
+		TDM_SetupClient (ent);
+		ent->client->resp.joinstate = JS_JOINED;
+	}
+
 	// spawn a spectator
-	if (client->pers.spectator)
+	if (!client->resp.team)
 	{
 		client->chase_target = NULL;
-
-		client->spectator = true;
 
 		ent->movetype = MOVETYPE_NOCLIP;
 		ent->solid = SOLID_NOT;
@@ -1163,8 +1090,6 @@ void PutClientInServer (edict_t *ent)
 		gi.linkentity (ent);
 		return;
 	}
-	else
-		client->spectator = false;
 
 	if (!KillBox (ent))
 	{	// could't spawn in?
@@ -1193,7 +1118,9 @@ void ClientBeginDeathmatch (edict_t *ent)
 
 	client = ent->client;
 
-	client->pers.enterframe = level.framenum;
+	client->resp.enterframe = level.framenum;
+
+	client->resp.joinstate = JS_FIRST_JOIN;
 
 	// locate ent at a spawn point
 	PutClientInServer (ent);
@@ -1237,8 +1164,8 @@ The game can override any of the settings in place
 */
 void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 {
-	char	*s;
-	int		playernum;
+	const char	*s;
+	int			playernum;
 
 	// check for malformed or illegal info strings
 	if (!Info_Validate(userinfo))
@@ -1251,12 +1178,12 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	strncpy (ent->client->pers.netname, s, sizeof(ent->client->pers.netname)-1);
 
 	// set spectator
-	s = Info_ValueForKey (userinfo, "spectator");
+	/*s = Info_ValueForKey (userinfo, "spectator");
 	// spectators are only supported in deathmatch
 	if (deathmatch->value && *s && strcmp(s, "0"))
 		ent->client->pers.spectator = true;
 	else
-		ent->client->pers.spectator = false;
+		ent->client->pers.spectator = false;*/
 
 	// set skin
 	s = Info_ValueForKey (userinfo, "skin");
@@ -1264,7 +1191,7 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	playernum = ent-g_edicts-1;
 
 	// combine name and skin into a configstring
-	gi.configstring (CS_PLAYERSKINS+playernum, va("%s\\%s", ent->client->pers.netname, s) );
+	gi.configstring (CS_PLAYERSKINS+playernum, va("%s\\%.32s", ent->client->pers.netname, s) );
 
 	// fov
 	if (deathmatch->value && ((int)dmflags->value & DF_FIXED_FOV))
@@ -1282,10 +1209,8 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 
 	// handedness
 	s = Info_ValueForKey (userinfo, "hand");
-	if (strlen(s))
-	{
+	if (s[0])
 		ent->client->pers.hand = atoi(s);
-	}
 
 	// save off the userinfo in case we want to check something later
 	strncpy (ent->client->pers.userinfo, userinfo, sizeof(ent->client->pers.userinfo)-1);
@@ -1331,7 +1256,7 @@ qboolean ClientConnect (edict_t *ent, char *userinfo)
 	}
 
 	// check for a spectator
-	value = Info_ValueForKey (userinfo, "spectator");
+	/*value = Info_ValueForKey (userinfo, "spectator");
 	if (deathmatch->value && *value && strcmp(value, "0"))
 	{
 		int i, numspec;
@@ -1347,7 +1272,7 @@ qboolean ClientConnect (edict_t *ent, char *userinfo)
 		// count spectators
 		for (i = numspec = 0; i < maxclients->value; i++)
 		{
-			if (g_edicts[i+1].inuse && g_edicts[i+1].client->pers.spectator)
+			if (g_edicts[i+1].inuse && g_edicts[i+1].client->resp.team == TEAM_SPEC)
 				numspec++;
 		}
 
@@ -1357,7 +1282,7 @@ qboolean ClientConnect (edict_t *ent, char *userinfo)
 			return false;
 		}
 	}
-	else
+	else*/
 	{
 		// check for a password
 		value = Info_ValueForKey (userinfo, "password");
@@ -1484,9 +1409,9 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 
 	if (ent->client->chase_target)
 	{
-		client->pers.cmd_angles[0] = SHORT2ANGLE(ucmd->angles[0]);
-		client->pers.cmd_angles[1] = SHORT2ANGLE(ucmd->angles[1]);
-		client->pers.cmd_angles[2] = SHORT2ANGLE(ucmd->angles[2]);
+		client->resp.cmd_angles[0] = SHORT2ANGLE(ucmd->angles[0]);
+		client->resp.cmd_angles[1] = SHORT2ANGLE(ucmd->angles[1]);
+		client->resp.cmd_angles[2] = SHORT2ANGLE(ucmd->angles[2]);
 	}
 	else
 	{
@@ -1538,9 +1463,9 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		VectorCopy (pm.mins, ent->mins);
 		VectorCopy (pm.maxs, ent->maxs);
 
-		client->pers.cmd_angles[0] = SHORT2ANGLE(ucmd->angles[0]);
-		client->pers.cmd_angles[1] = SHORT2ANGLE(ucmd->angles[1]);
-		client->pers.cmd_angles[2] = SHORT2ANGLE(ucmd->angles[2]);
+		client->resp.cmd_angles[0] = SHORT2ANGLE(ucmd->angles[0]);
+		client->resp.cmd_angles[1] = SHORT2ANGLE(ucmd->angles[1]);
+		client->resp.cmd_angles[2] = SHORT2ANGLE(ucmd->angles[2]);
 
 		if (ent->groundentity && !pm.groundentity && (pm.cmd.upmove >= 10) && (pm.waterlevel == 0))
 		{
@@ -1598,19 +1523,12 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	// fire weapon from final position if needed
 	if (client->latched_buttons & BUTTON_ATTACK)
 	{
-		if (client->spectator)
+		if (client->resp.team == TEAM_SPEC)
 		{
+			if (client->menu.active)
+				return;
 
-			client->latched_buttons = 0;
-
-			if (client->chase_target)
-			{
-				client->chase_target = NULL;
-				client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
-			}
-			else
-				GetChaseTarget(ent);
-
+			TDM_ShowTeamMenu (ent);
 		}
 		else if (!client->weapon_thunk)
 		{
@@ -1619,15 +1537,19 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		}
 	}
 
-	if (client->spectator)
+	if (client->resp.team == TEAM_SPEC)
 	{
 		if (ucmd->upmove >= 10)
 		{
 			if (!(client->ps.pmove.pm_flags & PMF_JUMP_HELD))
 			{
 				client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
+
 				if (client->chase_target)
-					ChaseNext(ent);
+				{
+					client->chase_target = NULL;
+					client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
+				}
 				else
 					GetChaseTarget(ent);
 			}
@@ -1664,16 +1586,8 @@ void ClientBeginServerFrame (edict_t *ent)
 
 	client = ent->client;
 
-	if (deathmatch->value &&
-		client->pers.spectator != client->spectator &&
-		(level.time - client->respawn_time) >= 5)
-	{
-		spectator_respawn(ent);
-		return;
-	}
-
 	// run weapon animations if it hasn't been done by a ucmd_t
-	if (!client->weapon_thunk && !client->spectator)
+	if (!client->weapon_thunk && client->resp.team)
 		Think_Weapon (ent);
 	else
 		client->weapon_thunk = false;

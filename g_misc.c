@@ -333,6 +333,11 @@ void BecomeExplosion2 (edict_t *self)
 	G_FreeEdict (self);
 }
 
+void SP_path_corner (edict_t *self)
+{
+	self->svflags |= SVF_NOCLIENT;
+}
+
 /*QUAKED info_null (0 0.5 0) (-4 -4 -4) (4 4 4)
 Used as a positional target for spotlights, etc.
 */
@@ -349,6 +354,7 @@ void SP_info_notnull (edict_t *self)
 {
 	VectorCopy (self->s.origin, self->absmin);
 	VectorCopy (self->s.origin, self->absmax);
+	self->svflags |= SVF_NOCLIENT;
 };
 
 
@@ -1432,7 +1438,7 @@ void teleporter_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_
 
 	// set angles
 	for (i=0 ; i<3 ; i++)
-		other->client->ps.pmove.delta_angles[i] = ANGLE2SHORT(dest->s.angles[i] - other->client->pers.cmd_angles[i]);
+		other->client->ps.pmove.delta_angles[i] = ANGLE2SHORT(dest->s.angles[i] - other->client->resp.cmd_angles[i]);
 
 	VectorClear (other->s.angles);
 	VectorClear (other->client->ps.viewangles);

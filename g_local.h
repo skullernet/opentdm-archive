@@ -28,7 +28,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "game.h"
 
 // the "gameversion" client command will print this plus compile date
-#define	GAMEVERSION	"baseq2"
+#define	GAMEVERSION	"OpenTDM"
+
+#define	OPENTDM_VERSION	"0.1 beta"
 
 // protocol bytes that can be directly added to messages
 #define	svc_muzzleflash		1
@@ -38,11 +40,95 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	svc_inventory		5
 #define	svc_stufftext		11
 
+
+// player_state->stats[] indexes
+#define STAT_HEALTH_ICON		0
+#define	STAT_HEALTH				1
+#define	STAT_AMMO_ICON			2
+#define	STAT_AMMO				3
+#define	STAT_ARMOR_ICON			4
+#define	STAT_ARMOR				5
+#define	STAT_SELECTED_ICON		6
+#define	STAT_PICKUP_ICON		7
+#define	STAT_PICKUP_STRING		8
+#define	STAT_TIMER_ICON			9
+#define	STAT_TIMER				10
+#define	STAT_HELPICON			11
+#define	STAT_SELECTED_ITEM		12
+#define	STAT_LAYOUTS			13
+#define	STAT_FRAGS				14
+#define	STAT_FLASHES			15		// cleared each frame, 1 = health, 2 = armor
+#define STAT_CHASE				16
+#define STAT_SPECTATOR			17
+
+#define STAT_TEAM_A_NAME_INDEX		18
+#define STAT_TEAM_B_NAME_INDEX		19
+
+
+// dmflags->value flags
+#define	DF_NO_HEALTH		0x00000001	// 1
+#define	DF_NO_ITEMS			0x00000002	// 2
+#define	DF_WEAPONS_STAY		0x00000004	// 4
+#define	DF_NO_FALLING		0x00000008	// 8
+#define	DF_INSTANT_ITEMS	0x00000010	// 16
+#define	DF_SAME_LEVEL		0x00000020	// 32
+#define DF_SKINTEAMS		0x00000040	// 64
+#define DF_MODELTEAMS		0x00000080	// 128
+#define DF_NO_FRIENDLY_FIRE	0x00000100	// 256
+#define	DF_SPAWN_FARTHEST	0x00000200	// 512
+#define DF_FORCE_RESPAWN	0x00000400	// 1024
+#define DF_NO_ARMOR			0x00000800	// 2048
+#define DF_ALLOW_EXIT		0x00001000	// 4096
+#define DF_INFINITE_AMMO	0x00002000	// 8192
+#define DF_QUAD_DROP		0x00004000	// 16384
+#define DF_FIXED_FOV		0x00008000	// 32768
+
+// RAFAEL
+#define	DF_QUADFIRE_DROP	0x00010000	// 65536
+
+//ROGUE
+#define DF_NO_MINES			0x00020000
+#define DF_NO_STACK_DOUBLE	0x00040000
+#define DF_NO_NUKES			0x00080000
+#define DF_NO_SPHERES		0x00100000
+//ROGUE
+
+enum
+{
+	PMENU_ALIGN_LEFT,
+	PMENU_ALIGN_CENTER,
+	PMENU_ALIGN_RIGHT
+};
+
+typedef struct pmenu_s
+{
+	char	*text;
+	int		align;
+	void	*arg;
+	void	(*SelectFunc)(edict_t *ent);
+} pmenu_t;
+
+typedef struct pmenuhnd_s
+{
+	pmenu_t			*entries;
+	int				cur;
+	int				num;
+	qboolean		dynamic;
+	qboolean		active;
+} pmenuhnd_t;
+
+void PMenu_Open(edict_t *ent, pmenu_t *entries, int cur, int num, qboolean dynamic);
+void PMenu_Close(edict_t *ent);
+void PMenu_Update(edict_t *ent);
+void PMenu_Next(edict_t *ent);
+void PMenu_Prev(edict_t *ent);
+void PMenu_Select(edict_t *ent);
+
 //==================================================================
 
 // view pitching times
-#define DAMAGE_TIME		0.5
-#define	FALL_TIME		0.3
+#define DAMAGE_TIME		0.5f
+#define	FALL_TIME		0.3f
 
 
 // edict->spawnflags
@@ -806,6 +892,16 @@ void ChaseNext(edict_t *ent);
 void ChasePrev(edict_t *ent);
 void GetChaseTarget(edict_t *ent);
 
+//opentdm
+
+void TDM_Init (void);
+void TDM_SetupClient (edict_t *ent);
+void TDM_TeamsChanged (void);
+void TDM_ShowTeamMenu (edict_t *ent);
+
+extern pmenu_t joinmenu[];
+#define MENUSIZE_JOINMENU 17
+
 //============================================================================
 
 // client_t->anim_priority
@@ -817,6 +913,26 @@ void GetChaseTarget(edict_t *ent);
 #define	ANIM_DEATH		5
 #define	ANIM_REVERSE	6
 
+#define	TEAM_SPEC	0
+#define TEAM_A		1
+#define TEAM_B		2
+#define	MAX_TEAMS	3
+
+typedef struct
+{
+	int		players;
+	char	name[32];
+	char	skin[32];
+	char	statname[32];
+} teaminfo_t;
+
+typedef enum
+{
+	JS_FIRST_JOIN,
+	JS_JOINED,
+} joinstate_t;
+
+extern teaminfo_t	teaminfo[MAX_TEAMS];
 
 // client data that stays across multiple level loads
 typedef struct
@@ -827,14 +943,21 @@ typedef struct
 
 	qboolean	connected;			// a loadgame will leave valid entities that
 									// just don't have a connection yet
+} client_persistant_t;
 
+typedef struct
+{
 	int			enterframe;			// level.framenum the client entered the game
 	int			score;				// frags, etc
 	vec3_t		cmd_angles;			// angles sent over in the last command
 
-	qboolean	spectator;			// client is a spectator
+	float		flood_locktill;		// locked from talking
+	float		flood_when[10];		// when messages were said
+	int			flood_whenhead;		// head pointer for when said
 
-} client_persistant_t;
+	int			team;
+	joinstate_t	joinstate;
+} client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),
 // except for 'client->pers'
@@ -846,6 +969,7 @@ struct gclient_s
 
 	// private to game
 	client_persistant_t	pers;
+	client_respawn_t	resp;
 
 	pmove_state_t		old_pmove;	// for detecting out-of-pmove changes
 
@@ -912,10 +1036,6 @@ struct gclient_s
 
 	float		pickup_msg_time;
 
-	float		flood_locktill;		// locked from talking
-	float		flood_when[10];		// when messages were said
-	int			flood_whenhead;		// head pointer for when said
-
 	float		respawn_time;		// can respawn when time > this
 
 	edict_t		*chase_target;		// player we are chasing
@@ -935,16 +1055,10 @@ struct gclient_s
 	int			max_cells;
 	int			max_slugs;
 
-	const gitem_t		*weapon;
-	const gitem_t		*lastweapon;
+	const gitem_t	*weapon;
+	const gitem_t	*lastweapon;
 
-	int			power_cubes;	// used for tracking the cubes in coop games
-	int			score;			// for calculating total unit score in coop games
-
-	int			game_helpchanged;
-	int			helpchanged;
-
-	qboolean	spectator;			// client is a spectator
+	pmenuhnd_t	menu;
 };
 
 typedef enum

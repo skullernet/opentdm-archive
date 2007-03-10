@@ -93,7 +93,7 @@ void SP_light_mine1 (edict_t *ent);
 void SP_light_mine2 (edict_t *ent);
 void SP_info_null (edict_t *self);
 void SP_info_notnull (edict_t *self);
-//void SP_path_corner (edict_t *self);
+void SP_path_corner (edict_t *self);
 //void SP_point_combat (edict_t *self);
 
 void SP_misc_banner (edict_t *self);
@@ -184,7 +184,7 @@ spawn_t	spawns[] = {
 	{"info_null", SP_info_null},
 	{"func_group", SP_info_null},
 	{"info_notnull", SP_info_notnull},
-//	{"path_corner", SP_path_corner},
+	{"path_corner", SP_path_corner},
 //	{"point_combat", SP_point_combat},
 
 //	{"misc_explobox", SP_misc_explobox},
@@ -583,65 +583,7 @@ void SpawnEntities (const char *mapname, const char *entities, const char *spawn
 
 #endif
 
-char *single_statusbar = 
-"yb	-24 "
-
-// health
-"xv	0 "
-"hnum "
-"xv	50 "
-"pic 0 "
-
-// ammo
-"if 2 "
-"	xv	100 "
-"	anum "
-"	xv	150 "
-"	pic 2 "
-"endif "
-
-// armor
-"if 4 "
-"	xv	200 "
-"	rnum "
-"	xv	250 "
-"	pic 4 "
-"endif "
-
-// selected item
-"if 6 "
-"	xv	296 "
-"	pic 6 "
-"endif "
-
-"yb	-50 "
-
-// picked up item
-"if 7 "
-"	xv	0 "
-"	pic 7 "
-"	xv	26 "
-"	yb	-42 "
-"	stat_string 8 "
-"	yb	-50 "
-"endif "
-
-// timer
-"if 9 "
-"	xv	262 "
-"	num	2	10 "
-"	xv	296 "
-"	pic	9 "
-"endif "
-
-//  help / weapon icon 
-"if 11 "
-"	xv	148 "
-"	pic	11 "
-"endif "
-;
-
-char *dm_statusbar =
+const char *dm_statusbar =
 "yb	-24 "
 
 // health
@@ -697,6 +639,10 @@ char *dm_statusbar =
 "	xv	148 "
 "	pic	11 "
 "endif "
+
+"xr -256 "
+"yt 50 "
+"stat_string 18 "
 
 //  frags
 "xr	-50 "
@@ -774,10 +720,7 @@ void SP_worldspawn (edict_t *ent)
 	gi.configstring (CS_MAXCLIENTS, va("%i", (int)(maxclients->value) ) );
 
 	// status bar program
-	if (deathmatch->value)
-		gi.configstring (CS_STATUSBAR, dm_statusbar);
-	else
-		gi.configstring (CS_STATUSBAR, single_statusbar);
+	gi.configstring (CS_STATUSBAR, dm_statusbar);
 
 	//---------------
 

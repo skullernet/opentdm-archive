@@ -153,6 +153,7 @@ qboolean Pickup_Powerup (edict_t *ent, edict_t *other)
 		{
 			if ((ent->item->use == Use_Quad) && (ent->spawnflags & DROPPED_PLAYER_ITEM))
 				quad_drop_timeout_hack = (ent->nextthink - level.time) / FRAMETIME;
+
 			ent->item->use (other, ent->item);
 		}
 	}
@@ -397,23 +398,6 @@ void	Use_Silencer (edict_t *ent, const gitem_t *item)
 
 qboolean Pickup_Key (edict_t *ent, edict_t *other)
 {
-	if (coop->value)
-	{
-		if (strcmp(ent->classname, "key_power_cube") == 0)
-		{
-			if (other->client->power_cubes & ((ent->spawnflags & 0x0000ff00)>> 8))
-				return false;
-			other->client->inventory[ITEM_INDEX(ent->item)]++;
-			other->client->power_cubes |= ((ent->spawnflags & 0x0000ff00) >> 8);
-		}
-		else
-		{
-			if (other->client->inventory[ITEM_INDEX(ent->item)])
-				return false;
-			other->client->inventory[ITEM_INDEX(ent->item)] = 1;
-		}
-		return true;
-	}
 	other->client->inventory[ITEM_INDEX(ent->item)]++;
 	return true;
 }
@@ -755,7 +739,9 @@ void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf
 		other->client->pickup_msg_time = level.time + 3.0;
 
 		// change selected item
-		if (ent->item->use)
+
+		// r1: may have been used already (instant powerups)
+		if (ent->item->use && other->client->inventory[ITEM_INDEX(ent->item)])
 			other->client->selected_item = other->client->ps.stats[STAT_SELECTED_ITEM] = ITEM_INDEX(ent->item);
 
 		if (ent->item->pickup == Pickup_Health)
