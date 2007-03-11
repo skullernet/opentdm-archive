@@ -202,10 +202,20 @@ void InitGame (void)
 	// dm map list
 	sv_maplist = gi.cvar ("sv_maplist", "", 0);
 
-	// items
-	InitItems ();
+	// r1: opentdm cvars
+	g_team_a_name = gi.cvar ("g_team_a_name", "Hometeam", 0);
+	g_team_b_name = gi.cvar ("g_team_b_name", "Visitors", 0);
+	g_locked_names = gi.cvar ("g_locked_names", "0", 0);
 
-	TDM_Init ();
+	g_team_a_skin = gi.cvar ("g_team_a_skin", "male/grunt", 0);
+	g_team_b_skin = gi.cvar ("g_team_b_skin", "female/athena", 0);
+	g_locked_skins = gi.cvar ("g_locked_skins", "0", 0);
+
+	g_admin_password = gi.cvar ("g_admin_password", "", 0);
+	g_match_time = gi.cvar ("g_match_time", "600", 0);
+
+	// items
+	InitItems ();	
 
 	game.helpmessage1[0] = game.helpmessage2[0] = 0;
 
@@ -219,6 +229,8 @@ void InitGame (void)
 	game.maxclients = maxclients->value;
 	game.clients = gi.TagMalloc (game.maxclients * sizeof(game.clients[0]), TAG_GAME);
 	globals.num_edicts = game.maxclients+1;
+
+	TDM_Init ();
 }
 
 //=========================================================

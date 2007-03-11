@@ -64,6 +64,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STAT_TEAM_A_NAME_INDEX		18
 #define STAT_TEAM_B_NAME_INDEX		19
 
+#define STAT_TEAM_A_STATUS_INDEX		20
+#define STAT_TEAM_B_STATUS_INDEX		21
+
+#define STAT_TIME_REMAINING				22
 
 // dmflags->value flags
 #define	DF_NO_HEALTH		0x00000001	// 1
@@ -463,6 +467,11 @@ typedef struct
 	int			body_que;			// dead bodies
 
 	int			power_cubes;		// ugly necessity for coop
+
+	//tdm stuff
+	int			match_start_framenum;
+	int			match_end_framenum;
+	const char	*entity_string;
 } level_locals_t;
 
 
@@ -679,6 +688,17 @@ extern	cvar_t	*flood_waitdelay;
 
 extern	cvar_t	*sv_maplist;
 
+extern	cvar_t	*g_team_a_name;
+extern	cvar_t	*g_team_b_name;
+extern	cvar_t	*g_locked_names;
+
+extern	cvar_t	*g_team_a_skin;
+extern	cvar_t	*g_team_b_skin;
+extern	cvar_t	*g_locked_skins;
+
+extern	cvar_t	*g_admin_password;
+extern	cvar_t	*g_match_time;
+
 #define world	(&g_edicts[0])
 
 // item spawnflags
@@ -894,10 +914,19 @@ void GetChaseTarget(edict_t *ent);
 
 //opentdm
 
+void ParseEntityString (qboolean respawn);
+
 void TDM_Init (void);
 void TDM_SetupClient (edict_t *ent);
 void TDM_TeamsChanged (void);
 void TDM_ShowTeamMenu (edict_t *ent);
+void TDM_UpdateConfigStrings (void);
+void TDM_SetInitialItems (edict_t *ent);
+void TDM_SetCaptain (int team, edict_t *ent);
+qboolean TDM_Command (const char *cmd, edict_t *ent);
+void TDM_CheckMatchStart (void);
+void TDM_CheckTimes (void);
+void TDM_ResetGameState (void);
 
 extern pmenu_t joinmenu[];
 #define MENUSIZE_JOINMENU 17
@@ -921,9 +950,12 @@ extern pmenu_t joinmenu[];
 typedef struct
 {
 	int		players;
+	int		score;
 	char	name[32];
 	char	skin[32];
 	char	statname[32];
+	char	statstatus[16];
+	edict_t	*captain;
 } teaminfo_t;
 
 typedef enum
@@ -931,6 +963,16 @@ typedef enum
 	JS_FIRST_JOIN,
 	JS_JOINED,
 } joinstate_t;
+
+typedef enum
+{
+	MM_INVALID,
+	MM_WARMUP,
+	MM_PLAYING,
+	MM_TIMEOUT,
+	MM_OVERTIME,
+	MM_SUDDENDEATH,
+} matchmode_t;
 
 extern teaminfo_t	teaminfo[MAX_TEAMS];
 
@@ -943,6 +985,7 @@ typedef struct
 
 	qboolean	connected;			// a loadgame will leave valid entities that
 									// just don't have a connection yet
+	qboolean	admin;
 } client_persistant_t;
 
 typedef struct
@@ -957,6 +1000,7 @@ typedef struct
 
 	int			team;
 	joinstate_t	joinstate;
+	qboolean	ready;
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),
@@ -1069,6 +1113,8 @@ typedef enum
 	ENT_FUNC_AREAPORTAL,
 	ENT_GRENADE,
 	ENT_FUNC_TRAIN,
+	ENT_DOOR_TRIGGER,
+	ENT_PLAT_TRIGGER,
 } enttype_t;
 
 struct edict_s

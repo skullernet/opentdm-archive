@@ -71,6 +71,17 @@ cvar_t	*flood_waitdelay;
 
 cvar_t	*sv_maplist;
 
+cvar_t	*g_team_a_name;
+cvar_t	*g_team_b_name;
+cvar_t	*g_locked_names;
+
+cvar_t	*g_team_a_skin;
+cvar_t	*g_team_b_skin;
+cvar_t	*g_locked_skins;
+
+cvar_t	*g_admin_password;
+cvar_t	*g_match_time;
+
 void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint);
 void ClientThink (edict_t *ent, usercmd_t *cmd);
 qboolean ClientConnect (edict_t *ent, char *userinfo);
@@ -394,6 +405,10 @@ void G_RunFrame (void)
 
 		G_RunEntity (ent);
 	}
+
+	TDM_UpdateConfigStrings ();
+
+	TDM_CheckTimes ();
 
 	// see if it is time to end a deathmatch
 	CheckDMRules ();

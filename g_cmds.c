@@ -977,6 +977,9 @@ void ClientCommand (edict_t *ent)
 	if (level.intermissiontime)
 		return;
 
+	if (TDM_Command (cmd, ent))
+		return;
+
 	if (Q_stricmp (cmd, "use") == 0)
 		Cmd_Use_f (ent);
 	else if (Q_stricmp (cmd, "drop") == 0)

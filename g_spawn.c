@@ -451,45 +451,22 @@ void G_FindTeams (void)
 	gi.dprintf ("%i teams with %i entities\n", c, c2);
 }
 
-/*
-==============
-SpawnEntities
+edict_t *spawned_entities[MAX_EDICTS];
+int		num_spawned_entities;
 
-Creates a server's entity / program execution context by
-parsing textual entity definitions out of an ent file.
-==============
-*/
-void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint)
+void ParseEntityString (qboolean respawn)
 {
 	edict_t		*ent;
 	int			inhibit;
 	const char	*com_token;
+	const char	*entities;
 	int			i;
-	float		skill_level;
 
-	skill_level = floor (skill->value);
-	if (skill_level < 0)
-		skill_level = 0;
-	if (skill_level > 3)
-		skill_level = 3;
-	if (skill->value != skill_level)
-		gi.cvar_forceset("skill", va("%f", skill_level));
-
-	gi.FreeTags (TAG_LEVEL);
-
-	memset (&level, 0, sizeof(level));
-	memset (g_edicts, 0, game.maxentities * sizeof (g_edicts[0]));
-
-	strncpy (level.mapname, mapname, sizeof(level.mapname)-1);
-	strncpy (game.spawnpoint, spawnpoint, sizeof(game.spawnpoint)-1);
-
-	// set client fields on player ents
-	for (i=0 ; i<game.maxclients ; i++)
-		g_edicts[i+1].client = game.clients + i;
+	entities = level.entity_string;
 
 	ent = NULL;
 	inhibit = 0;
-
+	i = 0;
 // parse ents
 	while (1)
 	{
@@ -500,10 +477,23 @@ void SpawnEntities (const char *mapname, const char *entities, const char *spawn
 		if (com_token[0] != '{')
 			gi.error ("ED_LoadFromFile: found %s when expecting {",com_token);
 
-		if (!ent)
-			ent = g_edicts;
+		if (respawn)
+		{
+			ent = spawned_entities[i];
+			if (ent != world)
+			{
+				G_FreeEdict (ent);
+				G_InitEdict (ent);
+			}
+			i++;
+		}
 		else
-			ent = G_Spawn ();
+		{
+			if (!ent)
+				ent = g_edicts;
+			else
+				ent = G_Spawn ();
+		}
 		entities = ED_ParseEdict (entities, ent);
 
 		// yet another map hack
@@ -538,9 +528,13 @@ void SpawnEntities (const char *mapname, const char *entities, const char *spawn
 
 			ent->spawnflags &= ~(SPAWNFLAG_NOT_EASY|SPAWNFLAG_NOT_MEDIUM|SPAWNFLAG_NOT_HARD|SPAWNFLAG_NOT_COOP|SPAWNFLAG_NOT_DEATHMATCH);
 		}
+		else if (respawn)
+			continue;
 
 		ED_CallSpawn (ent);
-	}	
+		if (!respawn)
+			spawned_entities[num_spawned_entities++] = ent;
+	}
 
 	gi.dprintf ("%i entities inhibited\n", inhibit);
 
@@ -555,6 +549,46 @@ void SpawnEntities (const char *mapname, const char *entities, const char *spawn
 #endif
 
 	G_FindTeams ();
+}
+
+/*
+==============
+SpawnEntities
+
+Creates a server's entity / program execution context by
+parsing textual entity definitions out of an ent file.
+==============
+*/
+void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint)
+{
+	int			i;
+	float		skill_level;
+
+	num_spawned_entities = 0;
+
+	skill_level = floor (skill->value);
+	if (skill_level < 0)
+		skill_level = 0;
+	if (skill_level > 3)
+		skill_level = 3;
+	if (skill->value != skill_level)
+		gi.cvar_forceset("skill", va("%f", skill_level));
+
+	gi.FreeTags (TAG_LEVEL);
+
+	memset (&level, 0, sizeof(level));
+	memset (g_edicts, 0, game.maxentities * sizeof (g_edicts[0]));
+
+	strncpy (level.mapname, mapname, sizeof(level.mapname)-1);
+	strncpy (game.spawnpoint, spawnpoint, sizeof(game.spawnpoint)-1);
+
+	level.entity_string = entities;
+
+	// set client fields on player ents
+	for (i=0 ; i<game.maxclients ; i++)
+		g_edicts[i+1].client = game.clients + i;
+
+	ParseEntityString (false);
 }
 
 
@@ -640,14 +674,40 @@ const char *dm_statusbar =
 "	pic	11 "
 "endif "
 
-"xr -256 "
-"yt 50 "
+// Team A name
+"xr -250 "
+"yt 2 "
 "stat_string 18 "
 
+// Team A score / status
+"xr -122 "
+"yt 10 "
+"stat_string 20 "
+
+// Team B name
+"xr -250 "
+"yt 26 "
+"stat_string 19 "
+
+// Team B score / status
+"xr -122 "
+"yt 34 "
+"stat_string 21 "
+
+// Time
+"xr -34 "
+"yt 50 "
+"string \"Time\" "
+
+// Time
+"xr -42 "
+"yt 58 "
+"stat_string 22 "
+
 //  frags
-"xr	-50 "
+/*"xr	-50 "
 "yt 2 "
-"num 3 14 "
+"num 3 14 "*/
 
 // spectator
 "if 17 "
@@ -724,6 +784,7 @@ void SP_worldspawn (edict_t *ent)
 
 	//---------------
 
+	TDM_UpdateConfigStrings ();
 
 	// help icon for statusbar
 	gi.imageindex ("i_help");

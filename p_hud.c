@@ -425,7 +425,7 @@ void G_SetStats (edict_t *ent)
 	//
 	// selected item
 	//
-	if (ent->client->selected_item == -1)
+	if (ent->client->selected_item == -1 || itemlist[ent->client->selected_item].icon == NULL)
 		ent->client->ps.stats[STAT_SELECTED_ICON] = 0;
 	else
 		ent->client->ps.stats[STAT_SELECTED_ICON] = gi.imageindex (itemlist[ent->client->selected_item].icon);
@@ -449,8 +449,12 @@ void G_SetStats (edict_t *ent)
 	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 
 	ent->client->ps.stats[STAT_TEAM_A_NAME_INDEX] = CS_GENERAL + 0;
-	ent->client->ps.stats[STAT_TEAM_B_NAME_INDEX] = CS_GENERAL + 0;
+	ent->client->ps.stats[STAT_TEAM_B_NAME_INDEX] = CS_GENERAL + 1;
 
+	ent->client->ps.stats[STAT_TEAM_A_STATUS_INDEX] = CS_GENERAL + 2;
+	ent->client->ps.stats[STAT_TEAM_B_STATUS_INDEX] = CS_GENERAL + 3;
+
+	ent->client->ps.stats[STAT_TIME_REMAINING] = CS_GENERAL + 4;
 	//
 	// help icon / current weapon if not shown
 	//

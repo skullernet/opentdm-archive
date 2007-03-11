@@ -1939,7 +1939,9 @@ void SetItemNames (void)
 	for (i=0 ; i<game.num_items ; i++)
 	{
 		it = &itemlist[i];
-		gi.configstring (CS_ITEMS+i, it->pickup_name);
+
+		if (it->pickup_name && it->pickup_name[0])
+			gi.configstring (CS_ITEMS+i, it->pickup_name);
 	}
 
 	/*jacket_armor_index = ITEM_INDEX(FindItem("Jacket Armor"));

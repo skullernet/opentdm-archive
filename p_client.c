@@ -306,6 +306,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 			gi.bprintf (PRINT_MEDIUM, "%s %s.\n", self->client->pers.netname, message);
 			if (deathmatch->value)
 				self->client->resp.score--;
+			teaminfo[self->client->resp.team].score--;
 			self->enemy = NULL;
 			return;
 		}
@@ -390,9 +391,15 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				if (deathmatch->value)
 				{
 					if (ff)
+					{
 						attacker->client->resp.score--;
+						teaminfo[attacker->client->resp.team].score--;
+					}
 					else
+					{
 						attacker->client->resp.score++;
+						teaminfo[attacker->client->resp.team].score++;
+					}
 				}
 				return;
 			}
@@ -401,7 +408,10 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 
 	gi.bprintf (PRINT_MEDIUM,"%s died.\n", self->client->pers.netname);
 	if (deathmatch->value)
+	{
 		self->client->resp.score--;
+		teaminfo[self->client->resp.team].score--;
+	}
 }
 
 
@@ -911,7 +921,7 @@ void respawn (edict_t *self)
 	if (deathmatch->value || coop->value)
 	{
 		// spectator's don't leave bodies
-		if (self->movetype != MOVETYPE_NOCLIP)
+		if (self->movetype != MOVETYPE_NOCLIP && self->movetype != MOVETYPE_WALK)
 			CopyToBodyQue (self);
 		self->svflags &= ~SVF_NOCLIENT;
 		PutClientInServer (self);
@@ -954,7 +964,6 @@ void PutClientInServer (edict_t *ent)
 	int		i;
 	client_persistant_t	saved;
 	client_respawn_t	respsaved;
-	const gitem_t		*item;
 
 	//char		userinfo[MAX_INFO_STRING];
 
@@ -1001,6 +1010,8 @@ void PutClientInServer (edict_t *ent)
 	ent->watertype = 0;
 	ent->flags &= ~FL_NO_KNOCKBACK;
 	ent->svflags = 0;
+	ent->health = 100;
+	ent->max_health = 100;
 
 	VectorCopy (mins, ent->mins);
 	VectorCopy (maxs, ent->maxs);
@@ -1010,24 +1021,7 @@ void PutClientInServer (edict_t *ent)
 	memset (&ent->client->ps, 0, sizeof(client->ps));
 
 	if (ent->client->resp.team)
-	{
-		item = GETITEM (ITEM_WEAPON_BLASTER);
-
-		client->selected_item = ITEM_INDEX(item);
-		client->inventory[client->selected_item] = 1;
-
-		client->weapon = item;
-	}
-
-	ent->health			= 100;
-	ent->max_health		= 100;
-
-	client->max_bullets		= 200;
-	client->max_shells		= 100;
-	client->max_rockets		= 50;
-	client->max_grenades	= 50;
-	client->max_cells		= 200;
-	client->max_slugs		= 50;
+		TDM_SetInitialItems (ent);
 
 	client->ps.pmove.origin[0] = spawn_origin[0]*8;
 	client->ps.pmove.origin[1] = spawn_origin[1]*8;
@@ -1165,7 +1159,9 @@ The game can override any of the settings in place
 void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 {
 	const char	*s;
+	const char	*old_name, *old_skin;
 	int			playernum;
+	qboolean	name_changed;
 
 	// check for malformed or illegal info strings
 	if (!Info_Validate(userinfo))
@@ -1173,9 +1169,18 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 		strcpy (userinfo, "\\name\\badinfo\\skin\\male/grunt");
 	}
 
+	name_changed = false;
+
+	old_name = Info_ValueForKey (ent->client->pers.userinfo, "name");
+
 	// set name
 	s = Info_ValueForKey (userinfo, "name");
-	strncpy (ent->client->pers.netname, s, sizeof(ent->client->pers.netname)-1);
+	
+	if (strcmp (old_name, s))
+	{
+		name_changed = true;
+		strncpy (ent->client->pers.netname, s, sizeof(ent->client->pers.netname)-1);
+	}
 
 	// set spectator
 	/*s = Info_ValueForKey (userinfo, "spectator");
@@ -1190,8 +1195,11 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 
 	playernum = ent-g_edicts-1;
 
+	old_skin = Info_ValueForKey (ent->client->pers.userinfo, "skin");
+
 	// combine name and skin into a configstring
-	gi.configstring (CS_PLAYERSKINS+playernum, va("%s\\%.32s", ent->client->pers.netname, s) );
+	if (name_changed || strcmp (s, old_skin))
+		gi.configstring (CS_PLAYERSKINS+playernum, va("%s\\%.32s", ent->client->pers.netname, s) );
 
 	// fov
 	if (deathmatch->value && ((int)dmflags->value & DF_FIXED_FOV))
@@ -1301,10 +1309,12 @@ qboolean ClientConnect (edict_t *ent, char *userinfo)
 	//InitClientResp (ent->client);
 	//InitClientPersistant (ent->client);
 
-	ClientUserinfoChanged (ent, userinfo);
+	//ClientUserinfoChanged (ent, userinfo);
+
+	value = Info_ValueForKey (userinfo, "name");
 
 	if (game.maxclients > 1)
-		gi.dprintf ("%s connected\n", ent->client->pers.netname);
+		gi.dprintf ("%s[%s] connected\n", value, ipa);
 
 	ent->client->pers.connected = true;
 	return true;
@@ -1340,6 +1350,10 @@ void ClientDisconnect (edict_t *ent)
 	ent->inuse = false;
 	ent->classname = "disconnected";
 	ent->client->pers.connected = false;
+
+	if (teaminfo[ent->client->resp.team].captain == ent)
+		TDM_SetCaptain (ent->client->resp.team, NULL);
+	TDM_TeamsChanged ();
 
 	playernum = ent-g_edicts-1;
 	gi.configstring (CS_PLAYERSKINS+playernum, "");

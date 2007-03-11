@@ -461,6 +461,7 @@ void plat_spawn_inside_trigger (edict_t *ent)
 	trigger->movetype = MOVETYPE_NONE;
 	trigger->solid = SOLID_TRIGGER;
 	trigger->enemy = ent;
+	trigger->enttype = ENT_PLAT_TRIGGER;
 	
 	tmin[0] = ent->mins[0] + 25;
 	tmin[1] = ent->mins[1] + 25;
@@ -1059,6 +1060,7 @@ void Think_SpawnDoorTrigger (edict_t *ent)
 	maxs[1] += 60;
 
 	other = G_Spawn ();
+	other->enttype = ENT_DOOR_TRIGGER;
 	VectorCopy (mins, other->mins);
 	VectorCopy (maxs, other->maxs);
 	other->owner = ent;
