@@ -33,7 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifdef _WIN32
 #define ZEXPORT __cdecl
 #endif
-#include <zlib.h>
+//#include <zlib.h>
 #ifdef _WIN32
 #undef ZEXPORT
 #endif

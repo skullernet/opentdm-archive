@@ -471,6 +471,7 @@ typedef struct
 	//tdm stuff
 	int			match_start_framenum;
 	int			match_end_framenum;
+	int			match_score_end_framenum;
 	const char	*entity_string;
 } level_locals_t;
 
@@ -698,6 +699,7 @@ extern	cvar_t	*g_locked_skins;
 
 extern	cvar_t	*g_admin_password;
 extern	cvar_t	*g_match_time;
+extern	cvar_t	*g_match_countdown;
 
 #define world	(&g_edicts[0])
 
@@ -927,6 +929,7 @@ qboolean TDM_Command (const char *cmd, edict_t *ent);
 void TDM_CheckMatchStart (void);
 void TDM_CheckTimes (void);
 void TDM_ResetGameState (void);
+void TDM_ScoreBoardMessage (edict_t *ent);
 
 extern pmenu_t joinmenu[];
 #define MENUSIZE_JOINMENU 17

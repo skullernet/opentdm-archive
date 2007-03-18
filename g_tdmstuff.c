@@ -5,6 +5,82 @@ matchmode_t	tdm_match_status;
 
 void droptofloor (edict_t *ent);
 
+void JoinTeam1 (edict_t *ent);
+void JoinTeam2 (edict_t *ent);
+void ToggleChaseCam (edict_t *ent);
+void SelectNextHelpPage (edict_t *ent);
+
+static char teamStatus[MAX_TEAMS][32];
+static char teamJoinText[MAX_TEAMS][32];
+const int	teamJoinEntries[MAX_TEAMS] = {9, 3, 6};
+
+pmenu_t joinmenu[] =
+{
+	{ "*Quake II - OpenTDM",PMENU_ALIGN_CENTER, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, JoinTeam1 },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, JoinTeam2 },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*Spectate",			PMENU_ALIGN_LEFT, NULL, ToggleChaseCam },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Use [ and ] to move cursor",	PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "ENTER to select",	PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "ESC to Exit Menu",	PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "v" OPENTDM_VERSION,	PMENU_ALIGN_RIGHT, NULL, NULL },
+};
+
+/*const pmenu_t helpmenu[][] =
+{
+	{ "*Quake II - OpenTDM",PMENU_ALIGN_CENTER, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Console Commands",	PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*menu",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Open the OpenTDM menu",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*team <name>",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Join the team <name>",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*vote <vote command>",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Start a vote to change the",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "server settings (see p.2)",			PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*ready",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Toggle your ready status",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*forceready",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Force all your team ready",	PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*timeout",	PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Request a time out",	PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*(Continued...)",	PMENU_ALIGN_RIGHT, NULL, SelectNextHelpPage },
+},
+{
+	{ "*Quake II - OpenTDM",PMENU_ALIGN_CENTER, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Voting Commands",	PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*vote kick <player>",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Kick <player>",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*vote map <map>",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Change to <map>",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*vote timelimit <x>",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Set timelimit to x",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*vote overtime <mode>",			PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Set overtime mode, one of",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "sd or extend",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*vote weapons",					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Show weapon vote menu",	PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*vote powerups",	PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Show powerups vote menu",	PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*(Continued...)",	PMENU_ALIGN_RIGHT, NULL, SelectNextHelpPage },
+},
+{
+	{0}
+};*/
+
 /*
 ==============
 TDM_ResetLevel
@@ -78,16 +154,87 @@ void TDM_BeginMatch (void)
 
 /*
 ==============
+TDM_ScoreBoardMessage
+==============
+Display TDM scoreboard. Must be unicast or multicast after calling this
+function.
+*/
+void TDM_ScoreBoardMessage (edict_t *ent)
+{
+	//TODO: implement scoreboard
+}
+
+/*
+==============
 TDM_BeginCountdown
 ==============
 All players are ready so start the countdown
 */
 void TDM_BeginCountdown (void)
 {
-	gi.bprintf (PRINT_CHAT, "All players ready! Starting countdown...\n");
+	gi.bprintf (PRINT_CHAT, "All players ready! Starting countdown (%g secs...\n", g_match_countdown->value);
 
-	level.match_start_framenum = level.framenum + (int)(12.5f / FRAMETIME);
+	level.match_start_framenum = level.framenum + (int)(g_match_countdown->value / FRAMETIME);
 }
+
+/*
+==============
+TDM_EndIntermission
+==============
+Intermission timer expired or all clients are ready. Reset for another game.
+*/
+void TDM_EndIntermission (void)
+{
+	level.match_score_end_framenum = 0;
+	TDM_ResetGameState ();
+}
+
+/*
+==============
+TDM_BeginIntermission
+==============
+Match has ended, move all clients to spectator mode and set origin, note this
+is not the same as EndDMLevel since we aren't changing maps.
+*/
+void TDM_BeginIntermission (void)
+{
+	int		i;
+	edict_t	*ent, *client;
+
+	level.intermissiontime = level.time;
+
+	// find an intermission spot
+	ent = G_Find (NULL, FOFS(classname), "info_player_intermission");
+	if (!ent)
+	{	// the map creator forgot to put in an intermission point...
+		ent = G_Find (NULL, FOFS(classname), "info_player_start");
+		if (!ent)
+			ent = G_Find (NULL, FOFS(classname), "info_player_deathmatch");
+	}
+	else
+	{	// chose one of four spots
+		i = rand() & 3;
+		while (i--)
+		{
+			ent = G_Find (ent, FOFS(classname), "info_player_intermission");
+			if (!ent)	// wrap around the list
+				ent = G_Find (ent, FOFS(classname), "info_player_intermission");
+		}
+	}
+
+	VectorCopy (ent->s.origin, level.intermission_origin);
+	VectorCopy (ent->s.angles, level.intermission_angle);
+
+	// move all clients to the intermission point
+	for (i=0 ; i<maxclients->value ; i++)
+	{
+		client = g_edicts + 1 + i;
+		if (!client->inuse)
+			continue;
+		MoveClientToIntermission (client);
+	}
+}
+
 
 /*
 ==============
@@ -121,7 +268,9 @@ void TDM_EndMatch (void)
 		gi.bprintf (PRINT_HIGH, "%s wins, %d to %d.\n", teaminfo[winner].name, teaminfo[winner].score, teaminfo[loser].score);
 	}
 
-	TDM_ResetGameState ();
+	level.match_score_end_framenum = level.framenum + (10.0f / FRAMETIME);
+	TDM_BeginIntermission ();
+	//TDM_ResetGameState ();
 }
 
 /*
@@ -170,6 +319,16 @@ void TDM_CheckTimes (void)
 		{
 			TDM_EndMatch ();
 		}
+	}
+
+	if (level.match_score_end_framenum)
+	{
+		int	remaining;
+
+		remaining = level.match_score_end_framenum - level.framenum;
+
+		if (remaining == 0)
+			TDM_EndIntermission ();
 	}
 }
 
@@ -236,18 +395,138 @@ void TDM_Ready_f (edict_t *ent)
 
 /*
 ==============
+LookupPlayer
+==============
+Look up a player by partial subnamem, full name or client id. If multiple
+matches, show a list. Return 0 on failure. Case insensitive.
+*/
+int LookupPlayer (const char *match, edict_t **out, edict_t *ent)
+{
+	int		i;
+	int		matchcount;
+	int		numericMatch;
+	edict_t	*p;
+	char	lowered[32];
+	char	lowermatch[32];
+
+	matchcount = 0;
+	numericMatch = 0;
+
+	while (match[0])
+	{
+		if (!isdigit (match[0]))
+		{
+			numericMatch = -1;
+			break;
+		}
+		match++;
+	}
+
+	if (numericMatch == 0)
+	{
+		numericMatch = strtoul (match, NULL, 10);
+
+		if (numericMatch < 0 || numericMatch >= maxclients->value)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Invalid client id %d.\n", numericMatch);
+			return 0;
+		}
+	}
+
+	if (numericMatch == -1)
+	{
+		Q_strncpy (lowermatch, match, sizeof(lowermatch)-1);
+		strlwr (lowermatch);
+
+		for (p = g_edicts + 1; p <= g_edicts + (int)maxclients->value; p++)
+		{
+			if (!p->inuse)
+				continue;
+
+			Q_strncpy (lowered, p->client->pers.netname, sizeof(lowered)-1);
+			strlwr (lowered);
+
+			if (!strcmp (lowered, lowermatch))
+			{
+				*out = p;
+				return 1;
+			}
+
+			if (strstr (lowered, lowermatch))
+			{
+				matchcount++;
+				*out = p;
+				continue;
+			}
+		}
+
+		if (matchcount == 1)
+		{
+			return 1;
+		}
+		else if (matchcount > 1)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "'%s' matches multiple players.\n", match);
+			return 0;
+		}
+	}
+	else
+	{
+		p = g_edicts + 1 + numericMatch;
+
+		if (!p->inuse)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Client %d is not active.\n", numericMatch);
+			return 0;
+		}
+
+		*out = p;
+		return 1;
+	}
+
+	gi.cprintf (ent, PRINT_HIGH, "No player match found for '%s'\n", match);
+	return 0;
+}
+
+/*
+==============
 TDM_KickPlayer_f
 ==============
 Kick a player from a team
 */
 void TDM_KickPlayer_f (edict_t *ent)
 {
+	edict_t	*victim;
+
 	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can kick players.\n");
 		return;
 	}
 
+	if (LookupPlayer (gi.args(), &victim, ent))
+	{
+		if (!victim->client->resp.team)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "%s is not on a team.\n", victim->client->pers.netname);
+			return;
+		}
+
+		if (victim->client->resp.team != ent->client->resp.team)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "%s is not on your team.\n", victim->client->pers.netname);
+			return;
+		}
+
+		if (victim->client->pers.admin)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You can't kick an admin!\n");
+			return;
+		}
+
+		gi.cprintf (victim, PRINT_HIGH, "You were removed from the %s team by %s.\n", teaminfo[victim->client->resp.team], ent->client->pers.netname);
+		ToggleChaseCam (victim);
+	}
 }
 
 /*
@@ -279,6 +558,45 @@ void TDM_Admin_f (edict_t *ent)
 
 /*
 ==============
+TDM_Kick_f
+==============
+Kick a player from the server (admin only)
+*/
+void TDM_Kick_f (edict_t *ent)
+{
+	edict_t	*victim;
+
+	if (LookupPlayer (gi.args(), &victim, ent))
+	{
+		if (victim->client->pers.admin)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You cannot kick an admin!\n");
+			return;
+		}
+
+		gi.AddCommandString (va ("kick %d\n", victim - g_edicts - 1));
+	}
+}
+
+/*
+==============
+TDM_Ban_f
+==============
+Kick and ban a player from the server. Defaults to one hour.
+*/
+void TDM_Ban_f (edict_t *ent)
+{
+	//TODO: Implement banning functions
+}
+
+void TDM_Forceteam_f (edict_t *ent)
+{
+	//TODO: Force team
+}
+
+
+/*
+==============
 TDM_Command
 ==============
 Process TDM commands (from ClientCommand)
@@ -290,6 +608,26 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 		if (!Q_stricmp (cmd, "!forcestart"))
 		{
 			TDM_BeginCountdown ();
+			return true;
+		}
+		else if (!Q_stricmp (cmd, "!kickplayer"))
+		{
+			TDM_KickPlayer_f (ent);
+			return true;
+		}
+		else if (!Q_stricmp (cmd, "!kick"))
+		{
+			TDM_Kick_f (ent);
+			return true;
+		}
+		else if (!Q_stricmp (cmd, "!ban"))
+		{
+			TDM_Ban_f (ent);
+			return true;
+		}
+		else if (!Q_stricmp (cmd, "!forceteam"))
+		{
+			TDM_Forceteam_f (ent);
 			return true;
 		}
 	}
@@ -381,6 +719,8 @@ void JoinedTeam (edict_t *ent)
 {
 	gi.bprintf (PRINT_HIGH, "%s joined team '%s'\n", ent->client->pers.netname, teaminfo[ent->client->resp.team].name);
 
+	ent->client->resp.ready = false;
+
 	if (!teaminfo[ent->client->resp.team].captain)
 		TDM_SetCaptain (ent->client->resp.team, ent);
 
@@ -451,32 +791,36 @@ void ToggleChaseCam (edict_t *ent)
 
 	PMenu_Close (ent);
 }
-
-static char teamStatus[MAX_TEAMS][32];
-static char teamJoinText[MAX_TEAMS][32];
-const int	teamJoinEntries[MAX_TEAMS] = {9, 3, 6};
-
-pmenu_t joinmenu[] =
+/*
+==============
+SelectNextHelpPage
+==============
+Select the next page of help from the help menu. If help
+menu is not open, opens on the first page of help.
+*/
+void SelectNextHelpPage (edict_t *ent)
 {
-	{ "*Quake II - OpenTDM",PMENU_ALIGN_CENTER, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, JoinTeam1 },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, JoinTeam2 },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ "*Spectate",			PMENU_ALIGN_LEFT, NULL, ToggleChaseCam },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ "Use [ and ] to move cursor",	PMENU_ALIGN_LEFT, NULL, NULL },
-	{ "ENTER to select",	PMENU_ALIGN_LEFT, NULL, NULL },
-	{ "ESC to Exit Menu",	PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ "v" OPENTDM_VERSION,	PMENU_ALIGN_RIGHT, NULL, NULL },
-};
+/*	int		i;
+
+	if (!ent->client->menu.active)
+	{
+		PMenu_Open (ent, helpmenu[0], 0, 0, false);
+		return;
+	}
+
+	for (i = 0; i < 3; i++)
+	{
+		if (ent->client->menu.entries = helpmenu[i])
+		{
+			PMenu_Close (ent);
+			PMenu_Open (ent, helpmenu[i+1], 0, 0, false);
+			return;
+		}
+	}
+
+	PMenu_Close (ent);
+	*/
+}
 
 /*
 ==============

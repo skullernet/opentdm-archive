@@ -61,13 +61,8 @@ void MoveClientToIntermission (edict_t *ent)
 	ent->solid = SOLID_NOT;
 
 	// add the layout
-
-	if (deathmatch->value || coop->value)
-	{
-		DeathmatchScoreboardMessage (ent, NULL);
-		gi.unicast (ent, true);
-	}
-
+	TDM_ScoreBoardMessage (ent);
+	gi.unicast (ent, true);
 }
 
 void BeginIntermission (edict_t *targ)

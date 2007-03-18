@@ -1300,7 +1300,7 @@ int Com_sprintf (char /*@out@*/*dest, int size, const char *fmt, ...)
 	len = Q_vsnprintf (bigbuffer, sizeof(bigbuffer), fmt, argptr);
 	va_end (argptr);
 
-	if (len == -1 || len == size)
+	if (len == -1 || len >= size)
 	{
 		Com_Printf ("Com_sprintf: overflow of size %d\n", LOG_GENERAL, size);
 		len = size-1;
