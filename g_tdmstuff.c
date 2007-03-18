@@ -247,6 +247,7 @@ void TDM_EndMatch (void)
 	int		winner, loser;
 
 	winner = 0;
+	loser = 0;
 
 	if (teaminfo[TEAM_A].score > teaminfo[TEAM_B].score)
 	{
@@ -270,7 +271,6 @@ void TDM_EndMatch (void)
 
 	level.match_score_end_framenum = level.framenum + (10.0f / FRAMETIME);
 	TDM_BeginIntermission ();
-	//TDM_ResetGameState ();
 }
 
 /*
@@ -436,7 +436,7 @@ int LookupPlayer (const char *match, edict_t **out, edict_t *ent)
 	if (numericMatch == -1)
 	{
 		Q_strncpy (lowermatch, match, sizeof(lowermatch)-1);
-		strlwr (lowermatch);
+		Q_strlwr (lowermatch);
 
 		for (p = g_edicts + 1; p <= g_edicts + (int)maxclients->value; p++)
 		{
@@ -444,7 +444,7 @@ int LookupPlayer (const char *match, edict_t **out, edict_t *ent)
 				continue;
 
 			Q_strncpy (lowered, p->client->pers.netname, sizeof(lowered)-1);
-			strlwr (lowered);
+			Q_strlwr (lowered);
 
 			if (!strcmp (lowered, lowermatch))
 			{
@@ -524,7 +524,7 @@ void TDM_KickPlayer_f (edict_t *ent)
 			return;
 		}
 
-		gi.cprintf (victim, PRINT_HIGH, "You were removed from the %s team by %s.\n", teaminfo[victim->client->resp.team], ent->client->pers.netname);
+		gi.cprintf (victim, PRINT_HIGH, "You were removed from the %s team by %s.\n", teaminfo[victim->client->resp.team].name, ent->client->pers.netname);
 		ToggleChaseCam (victim);
 	}
 }
@@ -574,7 +574,7 @@ void TDM_Kick_f (edict_t *ent)
 			return;
 		}
 
-		gi.AddCommandString (va ("kick %d\n", victim - g_edicts - 1));
+		gi.AddCommandString (va ("kick %d\n", (int)(victim - g_edicts - 1)));
 	}
 }
 

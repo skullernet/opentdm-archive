@@ -426,6 +426,6 @@ void Sys_DebugBreak (void)
 #else
 void Sys_DebugBreak (void)
 {
-	__asm "int $3"
+	asm ("int $3");
 }
 #endif
