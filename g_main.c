@@ -82,6 +82,7 @@ cvar_t	*g_locked_skins;
 cvar_t	*g_admin_password;
 cvar_t	*g_match_time;
 cvar_t	*g_match_countdown;
+cvar_t	*g_vote_time;
 
 void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint);
 void ClientThink (edict_t *ent, usercmd_t *cmd);

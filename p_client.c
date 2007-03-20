@@ -888,6 +888,7 @@ void CopyToBodyQue (edict_t *ent)
 		gi.WriteByte (svc_temp_entity);
 		gi.WriteByte (TE_BLOOD);
 		gi.WritePosition (body->s.origin);
+		gi.WriteDir (vec3_origin);
 		gi.multicast (body->s.origin, MULTICAST_PVS);
 
 		body->s.event = EV_OTHER_TELEPORT;

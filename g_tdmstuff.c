@@ -3,6 +3,67 @@
 teaminfo_t	teaminfo[MAX_TEAMS];
 matchmode_t	tdm_match_status;
 
+#define VOTE_TIMELIMIT	0x1
+#define VOTE_MAP		0x2
+#define	VOTE_KICK		0x4
+#define VOTE_WEAPONS	0x8
+#define VOTE_POWERUPS	0x10
+
+#define WEAPON_SHOTGUN			(1<<1)
+#define	WEAPON_SSHOTGUN			(1<<2)
+#define	WEAPON_MACHINEGUN		(1<<3)
+#define	WEAPON_CHAINGUN			(1<<4)
+#define WEAPON_GRENADES			(1<<5)
+#define WEAPON_GRENADELAUNCHER	(1<<6)
+#define	WEAPON_ROCKETLAUNCHER	(1<<7)
+#define WEAPON_RAILGUN			(1<<8)
+#define WEAPON_BFG10K			(1<<9)
+#define	WEAPON_HYPERBLASTER		(1<<10)
+
+#define POWERUP_QUAD			(1<<1)
+#define POWERUP_INVULN			(1<<2)
+#define POWERUP_POWERSHIELD		(1<<3)
+#define POWERUP_POWERSCREEN		(1<<4)
+#define POWERUP_SILENCER		(1<<5)
+#define POWERUP_REBREATHER		(1<<6)
+#define	POWERUP_ENVIROSUIT		(1<<7)
+
+typedef struct weaponvote_s
+{
+	const char		*names[2];
+	unsigned		value;
+	int				itemindex;
+} weaponinfo_t;
+
+weaponinfo_t	weaponvotes[] = 
+{
+	{{"shot", "sg"}, WEAPON_SHOTGUN, ITEM_WEAPON_SHOTGUN},
+	{{"sup", "ssg"}, WEAPON_SSHOTGUN, ITEM_WEAPON_SUPERSHOTGUN},
+	{{"mac", "mg"}, WEAPON_MACHINEGUN, ITEM_WEAPON_MACHINEGUN},
+	{{"cha", "cg"}, WEAPON_CHAINGUN, ITEM_WEAPON_CHAINGUN},
+	{{"han", "hg"}, WEAPON_GRENADES, ITEM_AMMO_GRENADES},
+	{{"gre", "gl"}, WEAPON_GRENADELAUNCHER, ITEM_WEAPON_GRENADELAUNCHER},
+	{{"roc", "rl"}, WEAPON_ROCKETLAUNCHER, ITEM_WEAPON_ROCKETLAUNCHER},
+	{{"hyper", "hb"}, WEAPON_HYPERBLASTER, ITEM_WEAPON_HYPERBLASTER},
+	{{"rail", "rg"}, WEAPON_RAILGUN, ITEM_WEAPON_RAILGUN},
+	{{"bfg", "10k"}, WEAPON_BFG10K, ITEM_WEAPON_BFG},
+};
+
+typedef struct vote_s
+{
+	unsigned		flags;
+	unsigned		newtimelimit;
+	unsigned		newweaponflags;
+	unsigned		newpowerupflags;
+	char			newmap[MAX_QPATH];
+	edict_t			*victim;
+	edict_t			*initiator;
+	unsigned		end_frame;
+	qboolean		active;
+} vote_t;
+
+vote_t	vote;
+
 void droptofloor (edict_t *ent);
 
 void JoinTeam1 (edict_t *ent);
@@ -172,8 +233,9 @@ All players are ready so start the countdown
 */
 void TDM_BeginCountdown (void)
 {
-	gi.bprintf (PRINT_CHAT, "All players ready! Starting countdown (%g secs...\n", g_match_countdown->value);
+	gi.bprintf (PRINT_CHAT, "All players ready! Starting countdown (%g secs)...\n", g_match_countdown->value);
 
+	tdm_match_status = MM_COUNTDOWN;
 	level.match_start_framenum = level.framenum + (int)(g_match_countdown->value / FRAMETIME);
 }
 
@@ -368,6 +430,7 @@ void TDM_CheckMatchStart (void)
 		{
 			gi.bprintf (PRINT_CHAT, "Countdown aborted!\n");
 			level.match_start_framenum = 0;
+			tdm_match_status = MM_WARMUP;
 		}
 	}
 }
@@ -402,24 +465,29 @@ matches, show a list. Return 0 on failure. Case insensitive.
 */
 int LookupPlayer (const char *match, edict_t **out, edict_t *ent)
 {
-	int		i;
-	int		matchcount;
-	int		numericMatch;
-	edict_t	*p;
-	char	lowered[32];
-	char	lowermatch[32];
+	int			matchcount;
+	int			numericMatch;
+	edict_t		*p;
+	char		lowered[32];
+	char		lowermatch[32];
+	const char	*m;
+
+	if (!match[0])
+		return 0;
 
 	matchcount = 0;
 	numericMatch = 0;
 
-	while (match[0])
+	m = match;
+
+	while (m[0])
 	{
-		if (!isdigit (match[0]))
+		if (!isdigit (m[0]))
 		{
 			numericMatch = -1;
 			break;
 		}
-		match++;
+		m++;
 	}
 
 	if (numericMatch == 0)
@@ -498,6 +566,12 @@ void TDM_KickPlayer_f (edict_t *ent)
 {
 	edict_t	*victim;
 
+	if (gi.argc() < 2)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: kickplayer <name/id>");
+		return;
+	}
+
 	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can kick players.\n");
@@ -521,6 +595,12 @@ void TDM_KickPlayer_f (edict_t *ent)
 		if (victim->client->pers.admin)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "You can't kick an admin!\n");
+			return;
+		}
+
+		if (victim == ent)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You can't kick yourself!\n");
 			return;
 		}
 
@@ -594,6 +674,157 @@ void TDM_Forceteam_f (edict_t *ent)
 	//TODO: Force team
 }
 
+static void TDM_AnnounceVote (void)
+{
+	char	message[1400];
+	char	what[1400];
+
+	message[0] = 0;
+	what[0] = 0;
+
+	strcpy (message, vote.initiator->client->pers.netname);
+	strcat (message, " started a vote: ");
+
+	if (vote.flags & VOTE_TIMELIMIT)
+		strcat (what, va("timelimit %d", vote.newtimelimit));
+
+	if (vote.flags & VOTE_MAP)
+		strcat (what, va ("%smap %s", what[0] ? ", " : "", vote.newmap));
+
+	gi.bprintf (PRINT_CHAT, "%s%s\n", message, what);
+}
+
+static void TDM_Vote_f (edict_t *ent)
+{
+	const char *cmd;
+	const char *value;
+
+	if (gi.argc() < 2)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: vote <timelimit/map/kick/powerups/weapons> <value>\n"
+			"For weapon/powerup votes, specify multiple combinations of + or -, eg -bfg, +quad -invuln, etc\n");
+		return;
+	}
+
+	if (tdm_match_status != MM_WARMUP)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "You can only propose new settings during warmup.\n");
+		return;
+	}
+
+	cmd = gi.argv(1);
+
+	if (!Q_stricmp (cmd, "timelimit"))
+	{
+		int		limit;
+
+		value = gi.argv(2);
+		if (!value[0])
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Usage: vote timelimit <mins>\n");
+			return;
+		}
+
+		limit = atoi (value);
+		if (!limit)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Invalid timelimit value.\n");
+			return;
+		}
+
+		vote.flags |= VOTE_TIMELIMIT;
+		vote.newtimelimit = limit;
+		vote.initiator = ent;
+		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
+		vote.active = true;
+		TDM_AnnounceVote ();
+	}
+	else if (!Q_stricmp (cmd, "map"))
+	{
+		value = gi.argv(2);
+
+		if (!value[0])
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Usage: vote map <mapname>\n");
+			return;
+		}
+
+		if (strlen (value) >= MAX_QPATH - 1)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Invalid map name.\n");
+			return;
+		}
+
+		strcpy (vote.newmap, value);
+
+		vote.flags |= VOTE_MAP;
+		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
+		vote.initiator = ent;
+		vote.active = true;
+		TDM_AnnounceVote ();
+	}
+	else if (!Q_stricmp (cmd, "weapons"))
+	{
+		char		modifier;
+		unsigned	flags;
+		int			i, j;
+		qboolean	found;
+
+		//example weapons string, -ssg -bfg +rl
+		//special string "all" sets all, eg -all +rg
+
+		for (i = 2; i < gi.argc(); i++)
+		{
+			value = gi.argv (i);
+
+			if (!value[0])
+				break;
+
+			modifier = value[0];
+			if (modifier == '+' || modifier == '-')
+				value++;
+			else
+				modifier = '+';
+
+			found = false;
+
+			for (j = 0; j < sizeof(weaponvotes) / sizeof(weaponvotes[0]); j++)
+			{
+				if (!Q_stricmp (value, weaponvotes[j].names[0]) ||
+					!Q_stricmp (value, weaponvotes[j].names[1]))
+				{
+					if (modifier == '+')
+						flags |= weaponvotes[j].value;
+					else if (modifier == '-')
+						flags &= ~weaponvotes[j].value;
+
+					found = true;
+					break;
+				}
+			}
+
+			if (!found)
+			{
+				if (!Q_stricmp (value, "all"))
+				{
+					if (modifier == '+')
+						flags = 0xFFFFFFFFU;
+					else
+						flags = 0;
+				}
+				else
+				{
+					gi.cprintf (ent, PRINT_HIGH, "Unknown weapon '%s'\n", value);
+					return;
+				}
+			}
+		}
+	}
+	else
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Unknown vote action '%s'\n", cmd);
+	}
+}
 
 /*
 ==============
@@ -638,6 +869,8 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 		TDM_KickPlayer_f (ent);
 	else if (!Q_stricmp (cmd, "admin"))
 		TDM_Admin_f (ent);
+	else if (!Q_stricmp (cmd, "vote"))
+		TDM_Vote_f (ent);
 	else
 		return false;
 
@@ -781,6 +1014,13 @@ Player hit Spectator menu option
 */
 void ToggleChaseCam (edict_t *ent)
 {
+	if (ent->client->resp.team)
+	{
+		ent->client->resp.team = TEAM_SPEC;
+		respawn (ent);
+		TDM_TeamsChanged ();
+	}
+
 	if (ent->client->chase_target)
 	{
 		ent->client->chase_target = NULL;
@@ -1031,6 +1271,7 @@ void TDM_UpdateConfigStrings (void)
 
 		switch (tdm_match_status)
 		{
+			case MM_COUNTDOWN:
 			case MM_WARMUP:
 				sprintf (teaminfo[TEAM_A].statstatus, "%15s", "WARMUP");
 				sprintf (teaminfo[TEAM_B].statstatus, "%15s", "WARMUP");
@@ -1062,7 +1303,11 @@ void TDM_UpdateConfigStrings (void)
 			}
 		}
 
-		time_remaining = level.match_end_framenum - level.framenum;
+		if (tdm_match_status == MM_COUNTDOWN)
+			time_remaining = level.match_start_framenum - level.framenum;
+		else
+			time_remaining = level.match_end_framenum - level.framenum;
+
 		if (time_remaining != last_time_remaining)
 		{
 			static int	last_secs = -1;
@@ -1071,6 +1316,9 @@ void TDM_UpdateConfigStrings (void)
 			last_time_remaining = time_remaining;
 
 			secs = ceil((float)time_remaining * FRAMETIME);
+
+			if (secs < 0)
+				secs = 0;
 
 			if (secs != last_secs)
 			{

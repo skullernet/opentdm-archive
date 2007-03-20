@@ -387,6 +387,7 @@ typedef struct gitem_s
 	int			tag;
 
 	const char	*precaches;		// string of all models, sounds, and images this item will use
+	const char	*shortname;
 } gitem_t;
 
 
@@ -700,6 +701,7 @@ extern	cvar_t	*g_locked_skins;
 extern	cvar_t	*g_admin_password;
 extern	cvar_t	*g_match_time;
 extern	cvar_t	*g_match_countdown;
+extern	cvar_t	*g_vote_time;
 
 #define world	(&g_edicts[0])
 
@@ -971,6 +973,7 @@ typedef enum
 {
 	MM_INVALID,
 	MM_WARMUP,
+	MM_COUNTDOWN,
 	MM_PLAYING,
 	MM_TIMEOUT,
 	MM_OVERTIME,
