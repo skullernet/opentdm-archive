@@ -70,7 +70,7 @@ void BeginIntermission (edict_t *targ)
 	int		i, n;
 	edict_t	*ent, *client;
 
-	if (level.intermissiontime)
+	if (level.intermissionframe)
 		return;		// already activated
 
 	game.autosaved = false;
@@ -85,7 +85,7 @@ void BeginIntermission (edict_t *targ)
 			respawn(client);
 	}
 
-	level.intermissiontime = level.time;
+	level.intermissionframe = level.framenum;
 	level.changemap = targ->map;
 
 	if (strstr(level.changemap, "*"))
@@ -432,7 +432,7 @@ void G_SetStats (edict_t *ent)
 	//
 	ent->client->ps.stats[STAT_LAYOUTS] = 0;
 
-	if (ent->health <= 0 || level.intermissiontime || ent->client->showscores || ent->client->menu.active)
+	if (ent->health <= 0 || level.intermissionframe || ent->client->showscores || ent->client->menu.active)
 		ent->client->ps.stats[STAT_LAYOUTS] |= 1;
 
 	if (ent->client->showinventory && ent->health > 0)
@@ -498,7 +498,7 @@ void G_SetSpectatorStats (edict_t *ent)
 	// layouts are independant in spectator
 	cl->ps.stats[STAT_LAYOUTS] = 0;
 
-	if (ent->health <= 0 || level.intermissiontime || cl->menu.active)
+	if (ent->health <= 0 || level.intermissionframe || cl->menu.active)
 		cl->ps.stats[STAT_LAYOUTS] |= 1;
 
 	if (cl->showinventory && ent->health > 0)

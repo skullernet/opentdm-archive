@@ -94,17 +94,20 @@ Runs thinking code for this frame if necessary
 */
 qboolean SV_RunThink (edict_t *ent)
 {
-	float	thinktime;
+	unsigned	thinktime;
 
 	thinktime = ent->nextthink;
+
 	if (thinktime <= 0)
 		return true;
-	if (thinktime > level.time+0.001)
+
+	if (thinktime > level.time)
 		return true;
 	
 	ent->nextthink = 0;
 	if (!ent->think)
 		gi.error ("NULL ent->think");
+
 	ent->think (ent);
 
 	return false;

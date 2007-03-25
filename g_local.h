@@ -131,8 +131,8 @@ void PMenu_Select(edict_t *ent);
 //==================================================================
 
 // view pitching times
-#define DAMAGE_TIME		0.5f
-#define	FALL_TIME		0.3f
+#define DAMAGE_TIME		(0.5f * (1 / FRAMETIME))
+#define	FALL_TIME		(0.3f * (1 / FRAMETIME))
 
 
 // edict->spawnflags
@@ -431,14 +431,14 @@ typedef struct
 typedef struct
 {
 	int			framenum;
-	float		time;
+	unsigned	time;
 
 	char		level_name[MAX_QPATH];	// the descriptive name (Outer Base, etc)
 	char		mapname[MAX_QPATH];		// the server name (base1, etc)
 	char		nextmap[MAX_QPATH];		// go here when fraglimit is hit
 
 	// intermission state
-	float		intermissiontime;		// time the intermission was started
+	unsigned	intermissionframe;		// time the intermission was started
 	char		*changemap;
 	int			exitintermission;
 	vec3_t		intermission_origin;
@@ -1000,8 +1000,8 @@ typedef struct
 	int			score;				// frags, etc
 	vec3_t		cmd_angles;			// angles sent over in the last command
 
-	float		flood_locktill;		// locked from talking
-	float		flood_when[10];		// when messages were said
+	unsigned	flood_locktill;		// locked from talking
+	unsigned	flood_when[10];		// when messages were said
 	int			flood_whenhead;		// head pointer for when said
 
 	int			team;
@@ -1061,7 +1061,7 @@ struct gclient_s
 	vec3_t		oldviewangles;
 	vec3_t		oldvelocity;
 
-	float		next_drown_time;
+	unsigned	next_drown_time;
 	int			old_waterlevel;
 	int			breather_sound;
 
@@ -1074,19 +1074,19 @@ struct gclient_s
 	qboolean	anim_run;
 
 	// powerup timers
-	float		quad_framenum;
-	float		invincible_framenum;
-	float		breather_framenum;
-	float		enviro_framenum;
+	unsigned	quad_framenum;
+	unsigned	invincible_framenum;
+	unsigned	breather_framenum;
+	unsigned	enviro_framenum;
 
 	qboolean	grenade_blew_up;
-	float		grenade_time;
+	unsigned	grenade_time;
 	int			silencer_shots;
 	int			weapon_sound;
 
-	float		pickup_msg_time;
+	unsigned	pickup_msg_time;
 
-	float		respawn_time;		// can respawn when time > this
+	unsigned	respawn_framenum;	// can respawn when time > this
 
 	edict_t		*chase_target;		// player we are chasing
 	qboolean	update_chase;		// need to update chase info?
@@ -1188,7 +1188,7 @@ struct edict_s
 	vec3_t		velocity;
 	vec3_t		avelocity;
 	int			mass;
-	float		air_finished;
+	unsigned	air_finished;
 	float		gravity;		// per entity gravity multiplier (1.0 is normal)
 								// use for lowgrav artifact, flares
 
@@ -1197,7 +1197,7 @@ struct edict_s
 	float		yaw_speed;
 	float		ideal_yaw;
 
-	float		nextthink;
+	unsigned	nextthink;
 	void		(*prethink) (edict_t *ent);
 	void		(*think)(edict_t *self);
 	void		(*blocked)(edict_t *self, edict_t *other);	//move to moveinfo?
@@ -1206,11 +1206,11 @@ struct edict_s
 	void		(*pain)(edict_t *self, edict_t *other, float kick, int damage);
 	void		(*die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point);
 
-	float		touch_debounce_time;		// are all these legit?  do we need more/less of them?
-	float		pain_debounce_time;
-	float		damage_debounce_time;
-	float		fly_sound_debounce_time;	//move to clientinfo
-	float		last_move_time;
+	unsigned	touch_debounce_time;		// are all these legit?  do we need more/less of them?
+	unsigned	pain_debounce_time;
+	unsigned	damage_debounce_time;
+	unsigned	fly_sound_debounce_time;	//move to clientinfo
+	unsigned	last_move_time;
 
 	int			health;
 	int			max_health;
@@ -1218,7 +1218,7 @@ struct edict_s
 	int			deadflag;
 	qboolean	show_hostile;
 
-	float		powerarmor_time;
+	unsigned	powerarmor_time;
 
 	char		*map;			// target_changelevel
 

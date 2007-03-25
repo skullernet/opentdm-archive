@@ -478,7 +478,7 @@ void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST,
 				if (level.time >= ent->pain_debounce_time)
 				{
 					gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
-					ent->pain_debounce_time = level.time + 1;
+					ent->pain_debounce_time = level.time + 1 * (1 / FRAMETIME);
 				}
 				NoAmmoWeaponChange (ent);
 			}
@@ -561,14 +561,14 @@ void weapon_grenade_fire (edict_t *ent, qboolean held)
 	AngleVectors (ent->client->v_angle, forward, right, NULL);
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
 
-	timer = ent->client->grenade_time - level.time;
+	timer = (ent->client->grenade_time - level.time) * FRAMETIME;
 	speed = GRENADE_MINSPEED + (GRENADE_TIMER - timer) * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER);
 	fire_grenade2 (ent, start, forward, damage, speed, timer, radius, held);
 
 	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
 		ent->client->inventory[ent->client->ammo_index]--;
 
-	ent->client->grenade_time = level.time + 1.0;
+	ent->client->grenade_time = level.time + 1.0 * (1 / FRAMETIME);
 
 	if(ent->deadflag || ent->s.modelindex != 255) // VWep animations screw up corpses
 	{
@@ -623,7 +623,7 @@ void Weapon_Grenade (edict_t *ent)
 				if (level.time >= ent->pain_debounce_time)
 				{
 					gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
-					ent->pain_debounce_time = level.time + 1;
+					ent->pain_debounce_time = level.time + 1 * (1 / FRAMETIME);
 				}
 				NoAmmoWeaponChange (ent);
 			}
@@ -650,7 +650,7 @@ void Weapon_Grenade (edict_t *ent)
 		{
 			if (!ent->client->grenade_time)
 			{
-				ent->client->grenade_time = level.time + GRENADE_TIMER + 0.2;
+				ent->client->grenade_time = level.time + (GRENADE_TIMER + 0.2) * (1 / FRAMETIME);
 				ent->client->weapon_sound = gi.soundindex("weapons/hgrenc1b.wav");
 			}
 
@@ -879,7 +879,7 @@ void Weapon_HyperBlaster_Fire (edict_t *ent)
 			if (level.time >= ent->pain_debounce_time)
 			{
 				gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
-				ent->pain_debounce_time = level.time + 1;
+				ent->pain_debounce_time = level.time + 1 * (1 / FRAMETIME);
 			}
 			NoAmmoWeaponChange (ent);
 		}
@@ -972,7 +972,7 @@ void Machinegun_Fire (edict_t *ent)
 		if (level.time >= ent->pain_debounce_time)
 		{
 			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
-			ent->pain_debounce_time = level.time + 1;
+			ent->pain_debounce_time = level.time + 1 * (1 / FRAMETIME);
 		}
 		NoAmmoWeaponChange (ent);
 		return;
@@ -1113,7 +1113,7 @@ void Chaingun_Fire (edict_t *ent)
 		if (level.time >= ent->pain_debounce_time)
 		{
 			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
-			ent->pain_debounce_time = level.time + 1;
+			ent->pain_debounce_time = level.time + 1 * (1 / FRAMETIME);
 		}
 		NoAmmoWeaponChange (ent);
 		return;

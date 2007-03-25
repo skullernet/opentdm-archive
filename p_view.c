@@ -133,7 +133,7 @@ void P_DamageFeedback (edict_t *player)
 	if ((level.time > player->pain_debounce_time) && !(player->flags & FL_GODMODE) && (client->invincible_framenum <= level.framenum))
 	{
 		r = 1 + (rand()&1);
-		player->pain_debounce_time = level.time + 0.7;
+		player->pain_debounce_time = level.time + 0.7 * (1 / FRAMETIME);
 		if (player->health < 25)
 			l = 25;
 		else if (player->health < 50)
@@ -584,7 +584,7 @@ void P_WorldEffects (void)
 
 	if (current_player->movetype == MOVETYPE_NOCLIP)
 	{
-		current_player->air_finished = level.time + 12;	// don't need air
+		current_player->air_finished = level.time + 12 * (1 / FRAMETIME);	// don't need air
 		return;
 	}
 
@@ -638,7 +638,7 @@ void P_WorldEffects (void)
 		{	// gasp for air
 			gi.sound (current_player, CHAN_VOICE, gi.soundindex("player/gasp1.wav"), 1, ATTN_NORM, 0);
 		}
-		else  if (current_player->air_finished < level.time + 11)
+		else  if (current_player->air_finished < level.time + 11 * (1 / FRAMETIME))
 		{	// just break surface
 			gi.sound (current_player, CHAN_VOICE, gi.soundindex("player/gasp2.wav"), 1, ATTN_NORM, 0);
 		}
@@ -652,7 +652,7 @@ void P_WorldEffects (void)
 		// breather or envirosuit give air
 		if (breather || envirosuit)
 		{
-			current_player->air_finished = level.time + 10;
+			current_player->air_finished = level.time + 10 * (1 / FRAMETIME);
 
 			if (((int)(current_client->breather_framenum - level.framenum) % 25) == 0)
 			{
@@ -671,7 +671,7 @@ void P_WorldEffects (void)
 			if (current_player->client->next_drown_time < level.time 
 				&& current_player->health > 0)
 			{
-				current_player->client->next_drown_time = level.time + 1;
+				current_player->client->next_drown_time = level.time + 1 * (1 / FRAMETIME);
 
 				// take more damage the longer underwater
 				current_player->dmg += 2;
@@ -694,7 +694,7 @@ void P_WorldEffects (void)
 	}
 	else
 	{
-		current_player->air_finished = level.time + 12;
+		current_player->air_finished = level.time + 12 * (1 / FRAMETIME);
 		current_player->dmg = 2;
 	}
 
@@ -713,7 +713,7 @@ void P_WorldEffects (void)
 					gi.sound (current_player, CHAN_VOICE, gi.soundindex("player/burn1.wav"), 1, ATTN_NORM, 0);
 				else
 					gi.sound (current_player, CHAN_VOICE, gi.soundindex("player/burn2.wav"), 1, ATTN_NORM, 0);
-				current_player->pain_debounce_time = level.time + 1;
+				current_player->pain_debounce_time = level.time + 1 * (1 / FRAMETIME);
 			}
 
 			if (envirosuit)	// take 1/3 damage with envirosuit
@@ -746,7 +746,7 @@ void G_SetClientEffects (edict_t *ent)
 	ent->s.effects = 0;
 	ent->s.renderfx = 0;
 
-	if (ent->health <= 0 || level.intermissiontime)
+	if (ent->health <= 0 || level.intermissionframe)
 		return;
 
 	if (ent->powerarmor_time > level.time)
@@ -963,7 +963,7 @@ void ClientEndServerFrame (edict_t *ent)
 	// If the end of unit layout is displayed, don't give
 	// the player any normal movement attributes
 	//
-	if (level.intermissiontime)
+	if (level.intermissionframe)
 	{
 		// FIXME: add view drifting here?
 		current_client->ps.blend[3] = 0;

@@ -291,7 +291,7 @@ void CheckDMRules (void)
 	int			i;
 	gclient_t	*cl;
 
-	if (level.intermissiontime)
+	if (level.intermissionframe)
 		return;
 
 	if (!deathmatch->value)
@@ -299,7 +299,7 @@ void CheckDMRules (void)
 
 	if (timelimit->value)
 	{
-		if (level.time >= timelimit->value*60)
+		if (level.time >= timelimit->value * 600)
 		{
 			gi.bprintf (PRINT_HIGH, "Timelimit hit.\n");
 			EndDMLevel ();
@@ -341,7 +341,7 @@ void ExitLevel (void)
 	gi.AddCommandString (command);
 	level.changemap = NULL;
 	level.exitintermission = 0;
-	level.intermissiontime = 0;
+	level.intermissionframe = 0;
 	ClientEndServerFrames ();
 
 	// clear some things before going to next level
@@ -369,7 +369,7 @@ void G_RunFrame (void)
 	edict_t	*ent;
 
 	level.framenum++;
-	level.time = level.framenum*FRAMETIME;
+	level.time = level.framenum;// * FRAMETIME;
 
 	// exit intermissions
 

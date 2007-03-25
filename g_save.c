@@ -777,6 +777,6 @@ void ReadLevel (const char *filename)
 		// fire any cross-level triggers
 		if (ent->classname)
 			if (strcmp(ent->classname, "target_crosslevel_target") == 0)
-				ent->nextthink = level.time + ent->delay;
+				ent->nextthink = level.time + ent->delay * (1 / FRAMETIME);
 	}
 }

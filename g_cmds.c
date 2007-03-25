@@ -676,7 +676,7 @@ Cmd_Kill_f
 */
 void Cmd_Kill_f (edict_t *ent)
 {
-	if((level.time - ent->client->respawn_time) < 5)
+	if((level.framenum - ent->client->respawn_framenum) < 5 * (1 / FRAMETIME))
 		return;
 	ent->flags &= ~FL_GODMODE;
 	ent->health = 0;
@@ -862,9 +862,10 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	if (flood_msgs->value) {
 		cl = ent->client;
 
-        if (level.time < cl->resp.flood_locktill) {
+        if (level.framenum < cl->resp.flood_locktill)
+		{
 			gi.cprintf(ent, PRINT_HIGH, "You can't talk for %d more seconds\n",
-				(int)(cl->resp.flood_locktill - level.time));
+				(int)((cl->resp.flood_locktill - level.framenum) * FRAMETIME));
             return;
         }
         i = cl->resp.flood_whenhead - flood_msgs->value + 1;
@@ -974,7 +975,7 @@ void ClientCommand (edict_t *ent)
 		return;
 	}
 
-	if (level.intermissiontime)
+	if (level.intermissionframe)
 		return;
 
 	if (TDM_Command (cmd, ent))

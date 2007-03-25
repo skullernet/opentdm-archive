@@ -113,7 +113,7 @@ void SP_info_player_start(edict_t *self)
 	{
 		// invoke one of our gross, ugly, disgusting hacks
 		self->think = SP_CreateCoopSpots;
-		self->nextthink = level.time + FRAMETIME;
+		self->nextthink = level.time + 1;
 	}
 }
 
@@ -159,7 +159,7 @@ void SP_info_player_coop(edict_t *self)
 	{
 		// invoke one of our gross, ugly, disgusting hacks
 		self->think = SP_FixCoopSpots;
-		self->nextthink = level.time + FRAMETIME;
+		self->nextthink = level.time + 1;
 	}
 }
 
@@ -436,7 +436,7 @@ void TossClientWeapon (edict_t *self)
 	if (!((int)(dmflags->value) & DF_QUAD_DROP))
 		quad = false;
 	else
-		quad = (self->client->quad_framenum > (level.framenum + 10));
+		quad = (self->client->quad_framenum > (level.framenum + 1 * (1 / FRAMETIME)));
 
 	if (item && quad)
 		spread = 22.5;
@@ -459,7 +459,7 @@ void TossClientWeapon (edict_t *self)
 		drop->spawnflags |= DROPPED_PLAYER_ITEM;
 
 		drop->touch = Touch_Item;
-		drop->nextthink = level.time + (self->client->quad_framenum - level.framenum) * FRAMETIME;
+		drop->nextthink = level.framenum + (self->client->quad_framenum - level.framenum);
 		drop->think = G_FreeEdict;
 	}
 }
@@ -532,7 +532,7 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 	if (!self->deadflag)
 	{
-		self->client->respawn_time = level.time + 1.0;
+		self->client->respawn_framenum = level.time + 1.0 * (1 / FRAMETIME);
 		LookAtKiller (self, inflictor, attacker);
 		self->client->ps.pmove.pm_type = PM_DEAD;
 		ClientObituary (self, inflictor, attacker);
@@ -934,7 +934,7 @@ void respawn (edict_t *self)
 		self->client->ps.pmove.pm_flags = PMF_TIME_TELEPORT;
 		self->client->ps.pmove.pm_time = 14;
 
-		self->client->respawn_time = level.time;
+		self->client->respawn_framenum = level.time;
 
 		return;
 	}
@@ -1002,7 +1002,7 @@ void PutClientInServer (edict_t *ent)
 	ent->mass = 200;
 	ent->solid = SOLID_BBOX;
 	ent->deadflag = DEAD_NO;
-	ent->air_finished = level.time + 12;
+	ent->air_finished = level.time + 12 * (1 / FRAMETIME);
 	ent->clipmask = MASK_PLAYERSOLID;
 	ent->model = "players/male/tris.md2";
 	ent->pain = player_pain;
@@ -1410,11 +1410,11 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	level.current_entity = ent;
 	client = ent->client;
 
-	if (level.intermissiontime)
+	if (level.intermissionframe)
 	{
 		client->ps.pmove.pm_type = PM_FREEZE;
 		// can exit intermission after five seconds
-		if (level.time > level.intermissiontime + 5.0 
+		if (level.framenum > level.intermissionframe + 5.0 * (1 / FRAMETIME) 
 			&& (ucmd->buttons & BUTTON_ANY) )
 			level.exitintermission = true;
 		return;
@@ -1596,7 +1596,7 @@ void ClientBeginServerFrame (edict_t *ent)
 	gclient_t	*client;
 	int			buttonMask;
 
-	if (level.intermissiontime)
+	if (level.intermissionframe)
 		return;
 
 	client = ent->client;
@@ -1610,7 +1610,7 @@ void ClientBeginServerFrame (edict_t *ent)
 	if (ent->deadflag)
 	{
 		// wait for any button just going down
-		if ( level.time > client->respawn_time)
+		if ( level.time > client->respawn_framenum)
 		{
 			// in deathmatch, only wait for attack button
 			if (deathmatch->value)

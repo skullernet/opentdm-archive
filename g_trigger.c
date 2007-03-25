@@ -52,13 +52,13 @@ void multi_trigger (edict_t *ent)
 	if (ent->wait > 0)	
 	{
 		ent->think = multi_wait;
-		ent->nextthink = level.time + ent->wait;
+		ent->nextthink = level.time + ent->wait * (1 / FRAMETIME);
 	}
 	else
 	{	// we can't just remove (self) here, because this is a touch function
 		// called while looping through area links...
 		ent->touch = NULL;
-		ent->nextthink = level.time + FRAMETIME;
+		ent->nextthink = level.time + 1;
 		ent->think = G_FreeEdict;
 	}
 }
@@ -297,7 +297,7 @@ void trigger_push_touch (edict_t *self, edict_t *other, cplane_t *plane, csurfac
 			VectorCopy (other->velocity, other->client->oldvelocity);
 			if (other->fly_sound_debounce_time < level.time)
 			{
-				other->fly_sound_debounce_time = level.time + 1.5;
+				other->fly_sound_debounce_time = level.time + 1.5 * (1 / FRAMETIME);
 				gi.sound (other, CHAN_AUTO, windsound, 1, ATTN_NORM, 0);
 			}
 		}
@@ -366,9 +366,9 @@ void hurt_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *sur
 		return;
 
 	if (self->spawnflags & 16)
-		self->timestamp = level.time + 1;
+		self->timestamp = level.time + 1 * (1 / FRAMETIME);
 	else
-		self->timestamp = level.time + FRAMETIME;
+		self->timestamp = level.time + 1;
 
 	if (!(self->spawnflags & 4))
 	{

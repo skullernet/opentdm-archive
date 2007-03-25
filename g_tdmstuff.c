@@ -263,7 +263,7 @@ void TDM_BeginIntermission (void)
 	int		i;
 	edict_t	*ent, *client;
 
-	level.intermissiontime = level.time;
+	level.intermissionframe = level.framenum;
 
 	// find an intermission spot
 	ent = G_Find (NULL, FOFS(classname), "info_player_intermission");
