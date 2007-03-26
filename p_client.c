@@ -924,15 +924,20 @@ void respawn (edict_t *self)
 		// spectator's don't leave bodies
 		if (self->movetype != MOVETYPE_NOCLIP && self->movetype != MOVETYPE_WALK)
 			CopyToBodyQue (self);
+
 		self->svflags &= ~SVF_NOCLIENT;
+
 		PutClientInServer (self);
 
 		// add a teleportation effect
-		self->s.event = EV_PLAYER_TELEPORT;
+		if (!(self->svflags & SVF_NOCLIENT))
+		{
+			self->s.event = EV_PLAYER_TELEPORT;
 
-		// hold in place briefly
-		self->client->ps.pmove.pm_flags = PMF_TIME_TELEPORT;
-		self->client->ps.pmove.pm_time = 14;
+			// hold in place briefly
+			self->client->ps.pmove.pm_flags = PMF_TIME_TELEPORT;
+			self->client->ps.pmove.pm_time = 14;
+		}
 
 		self->client->respawn_framenum = level.time;
 
@@ -1336,6 +1341,11 @@ void ClientDisconnect (edict_t *ent)
 	if (!ent->client)
 		return;
 
+	if (ent->client->resp.team)
+		TDM_LeftTeam (ent);
+
+	TDM_TeamsChanged ();
+
 	gi.bprintf (PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
 
 	// send effect
@@ -1351,10 +1361,6 @@ void ClientDisconnect (edict_t *ent)
 	ent->inuse = false;
 	ent->classname = "disconnected";
 	ent->client->pers.connected = false;
-
-	if (teaminfo[ent->client->resp.team].captain == ent)
-		TDM_SetCaptain (ent->client->resp.team, NULL);
-	TDM_TeamsChanged ();
 
 	playernum = ent-g_edicts-1;
 	gi.configstring (CS_PLAYERSKINS+playernum, "");

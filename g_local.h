@@ -924,7 +924,7 @@ void TDM_Init (void);
 void TDM_SetupClient (edict_t *ent);
 void TDM_TeamsChanged (void);
 void TDM_ShowTeamMenu (edict_t *ent);
-void TDM_UpdateConfigStrings (void);
+void TDM_UpdateConfigStrings (qboolean forceUpdate);
 void TDM_SetInitialItems (edict_t *ent);
 void TDM_SetCaptain (int team, edict_t *ent);
 qboolean TDM_Command (const char *cmd, edict_t *ent);
@@ -932,6 +932,8 @@ void TDM_CheckMatchStart (void);
 void TDM_CheckTimes (void);
 void TDM_ResetGameState (void);
 void TDM_ScoreBoardMessage (edict_t *ent);
+void TDM_MapChanged (void);
+void TDM_LeftTeam (edict_t *ent);
 
 extern pmenu_t joinmenu[];
 #define MENUSIZE_JOINMENU 17
@@ -977,7 +979,6 @@ typedef enum
 	MM_PLAYING,
 	MM_TIMEOUT,
 	MM_OVERTIME,
-	MM_SUDDENDEATH,
 } matchmode_t;
 
 extern teaminfo_t	teaminfo[MAX_TEAMS];

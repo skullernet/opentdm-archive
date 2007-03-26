@@ -591,6 +591,8 @@ void SpawnEntities (const char *mapname, const char *entities, const char *spawn
 		g_edicts[i+1].client = game.clients + i;
 
 	ParseEntityString (false);
+
+	TDM_MapChanged ();
 }
 
 
@@ -785,8 +787,6 @@ void SP_worldspawn (edict_t *ent)
 	gi.configstring (CS_STATUSBAR, dm_statusbar);
 
 	//---------------
-
-	TDM_UpdateConfigStrings ();
 
 	// help icon for statusbar
 	gi.imageindex ("i_help");

@@ -408,7 +408,7 @@ void G_RunFrame (void)
 		G_RunEntity (ent);
 	}
 
-	TDM_UpdateConfigStrings ();
+	TDM_UpdateConfigStrings (false);
 
 	TDM_CheckTimes ();
 

@@ -210,7 +210,7 @@ void TDM_BeginMatch (void)
 			respawn (ent);
 	}
 
-	TDM_UpdateConfigStrings ();
+	TDM_UpdateConfigStrings (false);
 }
 
 /*
@@ -871,6 +871,8 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 		TDM_Admin_f (ent);
 	else if (!Q_stricmp (cmd, "vote"))
 		TDM_Vote_f (ent);
+	else if (!Q_stricmp (cmd, "menu") || !Q_stricmp (cmd, "ctfmenu"))
+		TDM_ShowTeamMenu (ent);
 	else
 		return false;
 
@@ -961,6 +963,22 @@ void JoinedTeam (edict_t *ent)
 	respawn (ent);
 }
 
+/*
+==============
+TDM_LeftTeam
+==============
+A player just left a team, so do things.
+*/
+void TDM_LeftTeam (edict_t *ent)
+{
+	gi.bprintf (PRINT_HIGH, "%s left team '%s'\n", ent->client->pers.netname, teaminfo[ent->client->resp.team].name);
+
+	if (teaminfo[ent->client->resp.team].captain == ent)
+		TDM_SetCaptain (ent->client->resp.team, NULL);
+
+	TDM_TeamsChanged ();
+}
+
 qboolean CanJoin (edict_t *ent)
 {
 	if (level.match_start_framenum)
@@ -988,6 +1006,10 @@ void JoinTeam1 (edict_t *ent)
 {
 	if (!CanJoin (ent))
 		return;
+
+	if (ent->client->resp.team)
+		TDM_LeftTeam (ent);
+
 	ent->client->resp.team = TEAM_A;
 	JoinedTeam (ent);
 }
@@ -1002,6 +1024,10 @@ void JoinTeam2 (edict_t *ent)
 {
 	if (!CanJoin (ent))
 		return;
+
+	if (ent->client->resp.team)
+		TDM_LeftTeam (ent);
+
 	ent->client->resp.team = TEAM_B;
 	JoinedTeam (ent);
 }
@@ -1016,6 +1042,7 @@ void ToggleChaseCam (edict_t *ent)
 {
 	if (ent->client->resp.team)
 	{
+		TDM_LeftTeam (ent);
 		ent->client->resp.team = TEAM_SPEC;
 		respawn (ent);
 		TDM_TeamsChanged ();
@@ -1159,6 +1186,17 @@ void TDM_SetupClient (edict_t *ent)
 
 /*
 ==============
+TDM_MapChanged
+==============
+Called when a new level is about to begin.
+*/
+void TDM_MapChanged (void)
+{
+	TDM_UpdateConfigStrings (true);
+}
+
+/*
+==============
 TDM_ResetGameState
 ==============
 Reset the game state after a match has completed.
@@ -1237,13 +1275,14 @@ TDM_UpdateConfigStrings
 ==============
 Check any cvar and other changes and update relevant configstrings
 */
-void TDM_UpdateConfigStrings (void)
+void TDM_UpdateConfigStrings (qboolean forceUpdate)
 {
 	static int			last_time_remaining = -1;
 	static int			last_scores[MAX_TEAMS] = {-1, -1};
 	static matchmode_t	last_mode = MM_INVALID;
+	int					time_remaining;
 
-	if (g_team_a_name->modified)
+	if (g_team_a_name->modified || forceUpdate)
 	{
 		g_team_a_name->modified = false;
 		strncpy (teaminfo[TEAM_A].name, g_team_a_name->string, sizeof(teaminfo[TEAM_A].name)-1);
@@ -1251,7 +1290,7 @@ void TDM_UpdateConfigStrings (void)
 		gi.configstring (CS_GENERAL + 0, teaminfo[TEAM_A].statname);
 	}
 
-	if (g_team_b_name->modified)
+	if (g_team_b_name->modified || forceUpdate)
 	{
 		g_team_b_name->modified = false;
 		strncpy (teaminfo[TEAM_B].name, g_team_b_name->string, sizeof(teaminfo[TEAM_B].name)-1);
@@ -1259,13 +1298,13 @@ void TDM_UpdateConfigStrings (void)
 		gi.configstring (CS_GENERAL + 1, teaminfo[TEAM_B].statname);
 	}
 
-	if (g_team_a_skin->modified || g_team_b_skin->modified)
+	if (g_team_a_skin->modified || g_team_b_skin->modified || forceUpdate)
 	{
 		g_team_a_skin->modified = g_team_b_skin->modified = false;
 		TDM_SetSkins ();
 	}
 
-	if (tdm_match_status != last_mode)
+	if (tdm_match_status != last_mode || forceUpdate)
 	{
 		last_mode = tdm_match_status;
 
@@ -1290,46 +1329,47 @@ void TDM_UpdateConfigStrings (void)
 	if (tdm_match_status > MM_WARMUP)
 	{
 		int		i;
-		int		time_remaining;
-		int		mins, secs;
 
 		for (i = TEAM_A; i < TEAM_B; i++)
 		{
-			if (last_scores[i] != teaminfo[i].score)
+			if (last_scores[i] != teaminfo[i].score || forceUpdate)
 			{
 				last_scores[i] = teaminfo[i].score;
 				sprintf (teaminfo[i].statstatus, "%15d", teaminfo[i].score);
 				gi.configstring (CS_GENERAL + 2 + (i - TEAM_A), teaminfo[i].statstatus);
 			}
 		}
+	}
 
-		if (tdm_match_status == MM_COUNTDOWN)
-			time_remaining = level.match_start_framenum - level.framenum;
-		else
-			time_remaining = level.match_end_framenum - level.framenum;
+	if (tdm_match_status == MM_COUNTDOWN)
+		time_remaining = level.match_start_framenum - level.framenum;
+	else if (tdm_match_status == MM_WARMUP)
+		time_remaining = g_match_time->value * 10 - 1;
+	else
+		time_remaining = level.match_end_framenum - level.framenum;
 
-		if (time_remaining != last_time_remaining)
+	if (time_remaining != last_time_remaining || forceUpdate)
+	{
+		static int	last_secs = -1;
+		char		time_buffer[8];
+		int			mins, secs;
+
+		last_time_remaining = time_remaining;
+
+		secs = ceil((float)time_remaining * FRAMETIME);
+
+		if (secs < 0)
+			secs = 0;
+
+		if (secs != last_secs || forceUpdate)
 		{
-			static int	last_secs = -1;
-			char		time_buffer[8];
+			last_secs = secs;
 
-			last_time_remaining = time_remaining;
+			mins = secs / 60;
+			secs -= (mins * 60);
 
-			secs = ceil((float)time_remaining * FRAMETIME);
-
-			if (secs < 0)
-				secs = 0;
-
-			if (secs != last_secs)
-			{
-				last_secs = secs;
-
-				mins = secs / 60;
-				secs -= (mins * 60);
-
-				sprintf (time_buffer, "%2d:%.2d", mins, secs);
-				gi.configstring (CS_GENERAL + 4, time_buffer);
-			}
+			sprintf (time_buffer, "%2d:%.2d", mins, secs);
+			gi.configstring (CS_GENERAL + 4, time_buffer);
 		}
 	}
 }
