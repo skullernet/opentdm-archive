@@ -1355,6 +1355,8 @@ void ClientDisconnect (edict_t *ent)
 	gi.multicast (ent->s.origin, MULTICAST_PVS);
 
 	gi.unlinkentity (ent);
+
+	ent->s.solid = 0;
 	ent->s.effects = 0;
 	ent->s.modelindex = 0;
 	ent->solid = SOLID_NOT;
