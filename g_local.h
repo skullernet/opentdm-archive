@@ -918,6 +918,16 @@ void GetChaseTarget(edict_t *ent);
 
 //opentdm
 
+typedef enum
+{
+	MM_INVALID,
+	MM_WARMUP,
+	MM_COUNTDOWN,
+	MM_PLAYING,
+	MM_TIMEOUT,
+	MM_OVERTIME,
+} matchmode_t;
+
 void ParseEntityString (qboolean respawn);
 
 void TDM_Init (void);
@@ -935,6 +945,7 @@ void TDM_ScoreBoardMessage (edict_t *ent);
 void TDM_MapChanged (void);
 void TDM_LeftTeam (edict_t *ent);
 
+extern matchmode_t	tdm_match_status;
 extern pmenu_t joinmenu[];
 #define MENUSIZE_JOINMENU 17
 
@@ -970,16 +981,6 @@ typedef enum
 	JS_FIRST_JOIN,
 	JS_JOINED,
 } joinstate_t;
-
-typedef enum
-{
-	MM_INVALID,
-	MM_WARMUP,
-	MM_COUNTDOWN,
-	MM_PLAYING,
-	MM_TIMEOUT,
-	MM_OVERTIME,
-} matchmode_t;
 
 extern teaminfo_t	teaminfo[MAX_TEAMS];
 

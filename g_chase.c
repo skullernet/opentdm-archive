@@ -121,7 +121,7 @@ void ChaseNext(edict_t *ent)
 	do
 	{
 		i++;
-		if (i > maxclients->value)
+		if (i > game.maxclients)
 			i = 1;
 
 		e = g_edicts + i;
@@ -150,7 +150,7 @@ void ChasePrev(edict_t *ent)
 	{
 		i--;
 		if (i < 1)
-			i = maxclients->value;
+			i = game.maxclients;
 		e = g_edicts + i;
 
 		if (!e->inuse)
@@ -169,7 +169,7 @@ void GetChaseTarget(edict_t *ent)
 	int i;
 	edict_t *other;
 
-	for (i = 1; i <= maxclients->value; i++)
+	for (i = 1; i <= game.maxclients; i++)
 	{
 		other = g_edicts + i;
 		if (other->inuse && other->client->resp.team)

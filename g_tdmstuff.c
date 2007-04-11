@@ -35,7 +35,7 @@ typedef struct weaponvote_s
 	int				itemindex;
 } weaponinfo_t;
 
-weaponinfo_t	weaponvotes[] = 
+const weaponinfo_t	weaponvotes[] = 
 {
 	{{"shot", "sg"}, WEAPON_SHOTGUN, ITEM_WEAPON_SHOTGUN},
 	{{"sup", "ssg"}, WEAPON_SSHOTGUN, ITEM_WEAPON_SUPERSHOTGUN},
@@ -154,7 +154,7 @@ void TDM_ResetLevel (void)
 	edict_t	*ent;
 
 	//free up any stray ents
-	for (ent = g_edicts + 1 + (int)maxclients->value; ent < g_edicts + globals.num_edicts; ent++)
+	for (ent = g_edicts + 1 + game.maxclients; ent < g_edicts + globals.num_edicts; ent++)
 	{
 		if (!ent->inuse)
 			continue;
@@ -162,7 +162,7 @@ void TDM_ResetLevel (void)
 		if (
 			(ent->enttype == ENT_DOOR_TRIGGER || ent->enttype == ENT_PLAT_TRIGGER)
 			||
-			(ent->owner >= (g_edicts + 1) && ent->owner <= (g_edicts + (int)maxclients->value))
+			(ent->owner >= (g_edicts + 1) && ent->owner <= (g_edicts + game.maxclients))
 			)
 			G_FreeEdict (ent);
 	}
@@ -171,7 +171,7 @@ void TDM_ResetLevel (void)
 	ParseEntityString (true);
 
 	//immediately droptofloor
-	for (ent = g_edicts + 1 + (int)maxclients->value; ent < g_edicts + globals.num_edicts; ent++)
+	for (ent = g_edicts + 1 + game.maxclients; ent < g_edicts + globals.num_edicts; ent++)
 	{
 		if (!ent->inuse)
 			continue;
@@ -201,7 +201,7 @@ void TDM_BeginMatch (void)
 
 	teaminfo[TEAM_A].score = teaminfo[TEAM_B].score = 0;
 
-	for (ent = g_edicts + 1; ent <= g_edicts + (int)maxclients->value; ent++)
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
 		if (!ent->inuse)
 			continue;
@@ -288,7 +288,7 @@ void TDM_BeginIntermission (void)
 	VectorCopy (ent->s.angles, level.intermission_angle);
 
 	// move all clients to the intermission point
-	for (i=0 ; i<maxclients->value ; i++)
+	for (i=0 ; i < game.maxclients; i++)
 	{
 		client = g_edicts + 1 + i;
 		if (!client->inuse)
@@ -407,7 +407,7 @@ void TDM_CheckMatchStart (void)
 
 	ready[TEAM_A] = ready[TEAM_B] = 0;
 
-	for (ent = g_edicts + 1; ent <= g_edicts + (int)maxclients->value; ent++)
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
 		if (!ent->inuse)
 			continue;
@@ -448,6 +448,9 @@ void TDM_Ready_f (edict_t *ent)
 		gi.cprintf (ent, PRINT_HIGH, "You must be on a team to be ready.\n");
 		return;
 	}
+
+	if (tdm_match_status >= MM_PLAYING)
+		return;
 
 	ent->client->resp.ready = !ent->client->resp.ready;
 
@@ -494,7 +497,7 @@ int LookupPlayer (const char *match, edict_t **out, edict_t *ent)
 	{
 		numericMatch = strtoul (match, NULL, 10);
 
-		if (numericMatch < 0 || numericMatch >= maxclients->value)
+		if (numericMatch < 0 || numericMatch >= game.maxclients)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "Invalid client id %d.\n", numericMatch);
 			return 0;
@@ -506,7 +509,7 @@ int LookupPlayer (const char *match, edict_t **out, edict_t *ent)
 		Q_strncpy (lowermatch, match, sizeof(lowermatch)-1);
 		Q_strlwr (lowermatch);
 
-		for (p = g_edicts + 1; p <= g_edicts + (int)maxclients->value; p++)
+		for (p = g_edicts + 1; p <= g_edicts + game.maxclients; p++)
 		{
 			if (!p->inuse)
 				continue;
@@ -826,6 +829,24 @@ static void TDM_Vote_f (edict_t *ent)
 	}
 }
 
+static void TDM_ForceReady_f (void)
+{
+	edict_t	*ent;
+
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+	{
+		if (!ent->inuse)
+			continue;
+
+		if (!ent->client->resp.team)
+			continue;
+
+		ent->client->resp.ready = true;
+	}
+
+	TDM_CheckMatchStart ();
+}
+
 /*
 ==============
 TDM_Command
@@ -836,9 +857,9 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 {
 	if (ent->client->pers.admin)
 	{
-		if (!Q_stricmp (cmd, "!forcestart"))
+		if (!Q_stricmp (cmd, "!forceready"))
 		{
-			TDM_BeginCountdown ();
+			TDM_ForceReady_f ();
 			return true;
 		}
 		else if (!Q_stricmp (cmd, "!kickplayer"))
@@ -1103,7 +1124,7 @@ void CountPlayers (void)
 	for (i = 0; i < MAX_TEAMS; i++)
 		teaminfo[i].players = 0;
 
-	for (ent = g_edicts + 1; ent <= g_edicts + (int)maxclients->value; ent++)
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
 		if (ent->inuse)
 			teaminfo[ent->client->resp.team].players++;
@@ -1136,7 +1157,7 @@ void UpdateTeamMenu (void)
 	//joinmenu[7].text = teamJoinText[0];
 	joinmenu[10].text = teamStatus[0];
 
-	for (ent = g_edicts + 1; ent <= g_edicts + (int)maxclients->value; ent++)
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
 		if (ent->inuse && ent->client->menu.active && ent->client->menu.entries == joinmenu)
 		{
@@ -1205,7 +1226,7 @@ void TDM_ResetGameState (void)
 {
 	edict_t		*ent;
 
-	for (ent = g_edicts + 1; ent <= g_edicts + (int)maxclients->value; ent++)
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
 		if (ent->inuse && ent->client->resp.team != TEAM_SPEC)
 		{
@@ -1258,7 +1279,7 @@ void TDM_SetSkins (void)
 
 		strncpy (teaminfo[i].skin, newskin, sizeof(teaminfo[i].skin)-1);
 
-		for (ent = g_edicts + 1; ent <= g_edicts + (int)maxclients->value; ent++)
+		for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 		{
 			if (!ent->inuse)
 				continue;
@@ -1326,7 +1347,7 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 		gi.configstring (CS_GENERAL + 3, teaminfo[TEAM_B].statstatus);
 	}
 
-	if (tdm_match_status > MM_WARMUP)
+	if (tdm_match_status >= MM_PLAYING)
 	{
 		int		i;
 

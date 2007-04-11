@@ -304,9 +304,12 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 		if (message)
 		{
 			gi.bprintf (PRINT_MEDIUM, "%s %s.\n", self->client->pers.netname, message);
-			if (deathmatch->value)
-				self->client->resp.score--;
-			teaminfo[self->client->resp.team].score--;
+			if (tdm_match_status >= MM_PLAYING)
+			{
+				if (deathmatch->value)
+					self->client->resp.score--;
+				teaminfo[self->client->resp.team].score--;
+			}
 			self->enemy = NULL;
 			return;
 		}
@@ -390,15 +393,18 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				gi.bprintf (PRINT_MEDIUM,"%s %s %s%s\n", self->client->pers.netname, message, attacker->client->pers.netname, message2);
 				if (deathmatch->value)
 				{
-					if (ff)
+					if (tdm_match_status >= MM_PLAYING)
 					{
-						attacker->client->resp.score--;
-						teaminfo[attacker->client->resp.team].score--;
-					}
-					else
-					{
-						attacker->client->resp.score++;
-						teaminfo[attacker->client->resp.team].score++;
+						if (ff)
+						{
+							attacker->client->resp.score--;
+							teaminfo[attacker->client->resp.team].score--;
+						}
+						else
+						{
+							attacker->client->resp.score++;
+							teaminfo[attacker->client->resp.team].score++;
+						}
 					}
 				}
 				return;
@@ -407,7 +413,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 	}
 
 	gi.bprintf (PRINT_MEDIUM,"%s died.\n", self->client->pers.netname);
-	if (deathmatch->value)
+	if (deathmatch->value && tdm_match_status >= MM_PLAYING)
 	{
 		self->client->resp.score--;
 		teaminfo[self->client->resp.team].score--;
@@ -633,7 +639,7 @@ float	PlayersRangeFromSpot (edict_t *spot)
 
 	bestplayerdistance = 9999999;
 
-	for (n = 1; n <= maxclients->value; n++)
+	for (n = 1; n <= game.maxclients; n++)
 	{
 		player = &g_edicts[n];
 
@@ -879,7 +885,7 @@ void CopyToBodyQue (edict_t *ent)
 	edict_t		*body;
 
 	// grab a body que and cycle to the next one
-	body = &g_edicts[(int)maxclients->value + level.body_que + 1];
+	body = &g_edicts[game.maxclients + level.body_que + 1];
 	level.body_que = (level.body_que + 1) % BODY_QUEUE_SIZE;
 
 	// send an effect on the removed body
@@ -1284,7 +1290,7 @@ qboolean ClientConnect (edict_t *ent, char *userinfo)
 		}
 
 		// count spectators
-		for (i = numspec = 0; i < maxclients->value; i++)
+		for (i = numspec = 0; i < game.maxclients; i++)
 		{
 			if (g_edicts[i+1].inuse && g_edicts[i+1].client->resp.team == TEAM_SPEC)
 				numspec++;
@@ -1582,7 +1588,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	}
 
 	// update chase cam if being followed
-	for (i = 1; i <= maxclients->value; i++)
+	for (i = 1; i <= game.maxclients; i++)
 	{
 		other = g_edicts + i;
 		if (other->inuse && other->client->chase_target == ent)

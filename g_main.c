@@ -31,6 +31,7 @@ int	snd_fry;
 int meansOfDeath;
 
 edict_t		*g_edicts;
+int			g_max_clients;
 
 cvar_t	*deathmatch;
 cvar_t	*coop;
@@ -193,7 +194,7 @@ void ClientEndServerFrames (void)
 
 	// calc the player views now that all pushing
 	// and damage has been added
-	for (i=0 ; i<maxclients->value ; i++)
+	for (i=0 ; i < game.maxclients; i++)
 	{
 		ent = g_edicts + 1 + i;
 		if (!ent->inuse || !ent->client)
@@ -309,7 +310,7 @@ void CheckDMRules (void)
 
 	if (fraglimit->value)
 	{
-		for (i=0 ; i<maxclients->value ; i++)
+		for (i=0 ; i < game.maxclients; i++)
 		{
 			cl = game.clients + i;
 			if (!g_edicts[i+1].inuse)
@@ -345,7 +346,7 @@ void ExitLevel (void)
 	ClientEndServerFrames ();
 
 	// clear some things before going to next level
-	for (i=0 ; i<maxclients->value ; i++)
+	for (i=0 ; i < game.maxclients; i++)
 	{
 		ent = g_edicts + 1 + i;
 		if (!ent->inuse)
@@ -399,7 +400,7 @@ void G_RunFrame (void)
 			ent->groundentity = NULL;
 		}
 
-		if (i > 0 && i <= maxclients->value)
+		if (i > 0 && i <= game.maxclients)
 		{
 			ClientBeginServerFrame (ent);
 			continue;

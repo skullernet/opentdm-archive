@@ -781,7 +781,7 @@ void SP_worldspawn (edict_t *ent)
 
 	gi.configstring (CS_CDTRACK, va("%i", ent->sounds) );
 
-	gi.configstring (CS_MAXCLIENTS, va("%i", (int)(maxclients->value) ) );
+	gi.configstring (CS_MAXCLIENTS, va("%i", game.maxclients ) );
 
 	// status bar program
 	gi.configstring (CS_STATUSBAR, dm_statusbar);
