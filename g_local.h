@@ -86,6 +86,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define DF_INFINITE_AMMO	0x00002000	// 8192
 #define DF_QUAD_DROP		0x00004000	// 16384
 #define DF_FIXED_FOV		0x00008000	// 32768
+// otdm flags
+#define DF_MODE_TDM		0x00010000	// 65536
+#define DF_MODE_ITDM		0x00020000	// 131072
 
 // RAFAEL
 #define	DF_QUADFIRE_DROP	0x00010000	// 65536
@@ -688,6 +691,10 @@ extern	cvar_t	*flood_msgs;
 extern	cvar_t	*flood_persecond;
 extern	cvar_t	*flood_waitdelay;
 
+extern	cvar_t	*flood_waves;
+extern	cvar_t	*flood_waves_perminute;
+extern	cvar_t	*flood_waves_waitdelay;
+
 extern	cvar_t	*sv_maplist;
 
 extern	cvar_t	*g_team_a_name;
@@ -702,6 +709,12 @@ extern	cvar_t	*g_admin_password;
 extern	cvar_t	*g_match_time;
 extern	cvar_t	*g_match_countdown;
 extern	cvar_t	*g_vote_time;
+
+extern	cvar_t	*tdmflags;
+extern	cvar_t	*itdmflags;
+
+extern	cvar_t	*itemflags;
+extern	cvar_t	*powerupflags;
 
 #define world	(&g_edicts[0])
 
@@ -973,6 +986,7 @@ typedef struct
 	char	skin[32];
 	char	statname[32];
 	char	statstatus[16];
+	qboolean		locked;
 	edict_t	*captain;
 } teaminfo_t;
 
@@ -982,6 +996,7 @@ typedef enum
 	JS_JOINED,
 } joinstate_t;
 
+extern matchmode_t	tdm_match_status;
 extern teaminfo_t	teaminfo[MAX_TEAMS];
 
 // client data that stays across multiple level loads
@@ -1006,7 +1021,11 @@ typedef struct
 	unsigned	flood_when[10];		// when messages were said
 	int			flood_whenhead;		// head pointer for when said
 
-	int			team;
+	unsigned	flood_waves_locktill;		// locked from using waves
+	unsigned	flood_waves_when[10];		// when wave were made
+	int			flood_waves_whenhead;		// head pointer for when made
+
+	unsigned		team;
 	joinstate_t	joinstate;
 	qboolean	ready;
 } client_respawn_t;
@@ -1125,6 +1144,14 @@ typedef enum
 	ENT_PLAT_TRIGGER,
 } enttype_t;
 
+// edict_s->vote
+typedef enum
+{
+	VOTE_HOLD,
+	VOTE_YES,
+	VOTE_NO
+} player_vote_t;
+
 struct edict_s
 {
 	entity_state_t	s;
@@ -1167,6 +1194,8 @@ struct edict_s
 	//
 	// only used locally in game, not by server
 	//
+	player_vote_t vote;
+
 	char		*message;
 	const char	*classname;
 	int			spawnflags;

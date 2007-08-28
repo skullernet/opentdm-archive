@@ -70,6 +70,10 @@ cvar_t	*flood_msgs;
 cvar_t	*flood_persecond;
 cvar_t	*flood_waitdelay;
 
+cvar_t	*flood_waves;
+cvar_t	*flood_waves_perminute;
+cvar_t	*flood_waves_waitdelay;
+
 cvar_t	*sv_maplist;
 
 cvar_t	*g_team_a_name;
@@ -84,6 +88,12 @@ cvar_t	*g_admin_password;
 cvar_t	*g_match_time;
 cvar_t	*g_match_countdown;
 cvar_t	*g_vote_time;
+
+cvar_t	*tdmflags;
+cvar_t	*itdmflags;
+
+cvar_t	*itemflags;
+cvar_t	*powerupflags;
 
 void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint);
 void ClientThink (edict_t *ent, usercmd_t *cmd);

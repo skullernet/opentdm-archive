@@ -288,6 +288,10 @@ void Think_Weapon (edict_t *ent)
 		ChangeWeapon (ent);
 	}
 
+	// don't run weapons at all during timeout, preserve reload frame etc
+	if (tdm_match_status == MM_TIMEOUT)
+		return;
+
 	// call active weapon think routine
 	if (ent->client->weapon && ent->client->weapon->weaponthink)
 	{
@@ -1305,6 +1309,10 @@ void weapon_railgun_fire (edict_t *ent)
 		damage = 150;
 		kick = 250;
 	}
+	//wision: more rail damage in insta == no dead bodies
+	if ((int)dmflags->value & DF_MODE_ITDM)
+		damage = 400;
+
 
 	if (is_quad)
 	{

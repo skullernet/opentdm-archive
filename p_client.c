@@ -542,7 +542,11 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 		LookAtKiller (self, inflictor, attacker);
 		self->client->ps.pmove.pm_type = PM_DEAD;
 		ClientObituary (self, inflictor, attacker);
-		TossClientWeapon (self);
+
+		//wision: drop item during warmup (instagib) is soooo ugly
+		if (tdm_match_status != MM_WARMUP && tdm_match_status != MM_TIMEOUT &&
+				tdm_match_status != MM_COUNTDOWN && !((int)dmflags->value & DF_MODE_ITDM))
+			TossClientWeapon (self);
 		if (deathmatch->value)
 			Cmd_Help_f (self);		// show scores
 
@@ -1171,8 +1175,12 @@ The game can override any of the settings in place
 void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 {
 	const char	*s;
-	const char	*old_name, *old_skin;
+	const char	*old_name;
+/****
+ *wision: changing skin is forbidden in TDM!
+	const char *old_skin;
 	int			playernum;
+ ****/
 	qboolean	name_changed;
 
 	// check for malformed or illegal info strings
@@ -1201,7 +1209,7 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 		ent->client->pers.spectator = true;
 	else
 		ent->client->pers.spectator = false;*/
-
+/*** wision: 'skin' is not allowed in TDM!
 	// set skin
 	s = Info_ValueForKey (userinfo, "skin");
 
@@ -1212,7 +1220,7 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	// combine name and skin into a configstring
 	if (name_changed || strcmp (s, old_skin))
 		gi.configstring (CS_PLAYERSKINS+playernum, va("%s\\%.32s", ent->client->pers.netname, s) );
-
+*/
 	// fov
 	if (deathmatch->value && ((int)dmflags->value & DF_FIXED_FOV))
 	{
@@ -1428,8 +1436,8 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	{
 		client->ps.pmove.pm_type = PM_FREEZE;
 		// can exit intermission after five seconds
-		if (level.framenum > level.intermissionframe + 5.0 * (1 / FRAMETIME) 
-			&& (ucmd->buttons & BUTTON_ANY) )
+		//wision: removed (ucmd->buttons & BUTTON_ANY).. don't wait for player interaction
+		if (level.framenum > level.intermissionframe + 5.0 * (1 / FRAMETIME))
 			level.exitintermission = true;
 		return;
 	}
@@ -1561,6 +1569,10 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		}
 		else if (!client->weapon_thunk)
 		{
+			//r1: don't allow any attack during countdown
+			if (tdm_match_status == MM_COUNTDOWN)
+				client->latched_buttons &= ~BUTTON_ATTACK;
+
 			client->weapon_thunk = true;
 			Think_Weapon (ent);
 		}

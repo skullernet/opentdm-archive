@@ -203,6 +203,11 @@ void InitGame (void)
 	sv_maplist = gi.cvar ("sv_maplist", "", 0);
 
 	// r1: opentdm cvars
+	// flood wave control
+	flood_waves = gi.cvar ("flood_waves", "6", 0);
+	flood_waves_perminute = gi.cvar ("flood_waves_perminute", "6", 0);
+	flood_waves_waitdelay = gi.cvar ("flood_waves_waitdelay", "10", 0);
+
 	g_team_a_name = gi.cvar ("g_team_a_name", "Hometeam", 0);
 	g_team_b_name = gi.cvar ("g_team_b_name", "Visitors", 0);
 	g_locked_names = gi.cvar ("g_locked_names", "0", 0);
@@ -215,6 +220,12 @@ void InitGame (void)
 	g_match_time = gi.cvar ("g_match_time", "600", 0);
 	g_match_countdown = gi.cvar ("g_match_countdown", "15", 0);
 	g_vote_time = gi.cvar ("g_vote_time", "30", 0);
+
+	tdmflags = gi.cvar ("tdmflags", "66640", 0);
+	itdmflags = gi.cvar ("itdmflags", "142427", 0);
+
+	itemflags = gi.cvar ("itemflags", "0", 0);
+	powerupflags = gi.cvar ("powerupflags", "0", 0);
 
 	// items
 	InitItems ();	

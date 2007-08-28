@@ -54,8 +54,20 @@ qboolean OnSameTeam (edict_t *ent1, edict_t *ent2)
 	if (!((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS)))
 		return false;
 
-	strcpy (ent1Team, ClientTeam (ent1));
-	strcpy (ent2Team, ClientTeam (ent2));
+	if(ent1 > g_edicts && ent1 <= g_edicts + (int)maxclients->value &&
+			ent2 > g_edicts && ent2 <= g_edicts + (int)maxclients->value)
+	{
+		//wision: if both entities are players then compare players' teams
+		//wision: needed for properly working say/say_team
+		sprintf (ent1Team, "%d", ent1->client->resp.team);
+		sprintf (ent2Team, "%d", ent2->client->resp.team);
+	}
+	else
+	{
+		//wision: if the game is comparing some other entities, then use old method
+		strcpy (ent1Team, ClientTeam(ent1));
+		strcpy (ent2Team, ClientTeam(ent2));
+	}
 
 	if (strcmp(ent1Team, ent2Team) == 0)
 		return true;
@@ -444,6 +456,14 @@ void Cmd_Drop_f (edict_t *ent)
 	const gitem_t	*it;
 	char			*s;
 
+	//wision: drop item during warmup (instagib) is soooo ugly
+	if (tdm_match_status == MM_WARMUP || tdm_match_status == MM_TIMEOUT ||
+			 tdm_match_status == MM_COUNTDOWN || (int)dmflags->value & DF_MODE_ITDM)
+	{
+//		gi.cprintf (ent, PRINT_HIGH, "Can't drop items during warmup.\n");
+		return;
+	}
+
 	s = gi.args();
 	it = FindItem (s);
 	if (!it)
@@ -768,6 +788,31 @@ Cmd_Wave_f
 void Cmd_Wave_f (edict_t *ent)
 {
 	int		i;
+	gclient_t *cl;
+
+	//wision: wave flood protection (yeah.. 'some' players are so annoying)
+	if (flood_waves->value)
+	{
+		cl = ent->client;
+
+		if (level.framenum < cl->resp.flood_waves_locktill)
+		{
+			gi.cprintf(ent, PRINT_HIGH, "You can't use waves for %d more minutes\n",
+				(int)((cl->resp.flood_waves_locktill - level.framenum)/(60 / FRAMETIME)));
+			return;
+		}
+		i = cl->resp.flood_waves_whenhead - flood_waves->value + 1;
+		if (i < 0)
+			i = (sizeof(cl->resp.flood_waves_when)/sizeof(cl->resp.flood_waves_when[0])) + i;
+		if (cl->resp.flood_waves_when[i] && (level.framenum - cl->resp.flood_waves_when[i]) < flood_waves_waitdelay->value * (60 / FRAMETIME))
+		{
+			cl->resp.flood_waves_locktill = level.framenum + (flood_waves_waitdelay->value * (60 / FRAMETIME));
+			gi.cprintf(ent, PRINT_CHAT, "Flood protection:  You can't use waves for %d minutes.\n", (int)(flood_waves_waitdelay->value));
+			return;
+		}
+		cl->resp.flood_waves_whenhead = (cl->resp.flood_waves_whenhead + 1) %	(sizeof(cl->resp.flood_waves_when)/sizeof(cl->resp.flood_waves_when[0]));
+		cl->resp.flood_waves_when[cl->resp.flood_waves_whenhead] = level.framenum;
+	}
 
 	i = atoi (gi.argv(1));
 
@@ -829,6 +874,11 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 
 	if (!((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS)))
 		team = false;
+	else if (tdm_match_status != MM_WARMUP && !ent->client->resp.team)
+	{
+		//Observers can talk only to each other during the match.
+		team = true;
+	}
 
 	if (team)
 		Com_sprintf (text, sizeof(text), "(%s): ", ent->client->pers.netname);
@@ -859,28 +909,29 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 
 	strcat(text, "\n");
 
-	if (flood_msgs->value) {
+	//wision: fixed.. but still dunno how it does work :x
+	//wision: we don't want to block say_team
+	if (flood_msgs->value && !team)
+	{
 		cl = ent->client;
 
-        if (level.framenum < cl->resp.flood_locktill)
+		if (level.framenum < cl->resp.flood_locktill)
 		{
 			gi.cprintf(ent, PRINT_HIGH, "You can't talk for %d more seconds\n",
 				(int)((cl->resp.flood_locktill - level.framenum) * FRAMETIME));
-            return;
-        }
-        i = cl->resp.flood_whenhead - flood_msgs->value + 1;
-        if (i < 0)
-            i = (sizeof(cl->resp.flood_when)/sizeof(cl->resp.flood_when[0])) + i;
-		if (cl->resp.flood_when[i] && 
-			level.time - cl->resp.flood_when[i] < flood_persecond->value) {
-			cl->resp.flood_locktill = level.time + flood_waitdelay->value;
-			gi.cprintf(ent, PRINT_CHAT, "Flood protection:  You can't talk for %d seconds.\n",
-				(int)flood_waitdelay->value);
-            return;
-        }
-		cl->resp.flood_whenhead = (cl->resp.flood_whenhead + 1) %
-			(sizeof(cl->resp.flood_when)/sizeof(cl->resp.flood_when[0]));
-		cl->resp.flood_when[cl->resp.flood_whenhead] = level.time;
+			return;
+		}
+		i = cl->resp.flood_whenhead - flood_msgs->value + 1;
+		if (i < 0)
+			i = (sizeof(cl->resp.flood_when)/sizeof(cl->resp.flood_when[0])) + i;
+		if (cl->resp.flood_when[i] && (level.framenum - cl->resp.flood_when[i]) < flood_waitdelay->value / FRAMETIME)
+		{
+			cl->resp.flood_locktill = level.framenum + (flood_waitdelay->value / FRAMETIME);
+			gi.cprintf(ent, PRINT_CHAT, "Flood protection:  You can't talk for %d seconds.\n", (int)(flood_waitdelay->value));
+			return;
+		}
+		cl->resp.flood_whenhead = (cl->resp.flood_whenhead + 1) %	(sizeof(cl->resp.flood_when)/sizeof(cl->resp.flood_when[0]));
+		cl->resp.flood_when[cl->resp.flood_whenhead] = level.framenum;
 	}
 
 	if (dedicated->value)
@@ -911,18 +962,26 @@ void Cmd_PlayerList_f(edict_t *ent)
 
 	// connect time, ping, score, name
 	*text = 0;
+
+
+	//wision: better output with id
+	strcat(text, "id  time    ping   score   name - team\n");
+	strcat(text, "----------------------------------------------\n");
+
 	for (i = 0, e2 = g_edicts + 1; i < game.maxclients; i++, e2++)
 	{
 		if (!e2->inuse)
 			continue;
 
-		sprintf(st, "%02d:%02d %4d %3d %s%s\n",
+		sprintf(st, "%2d  %02d:%02d   %4d     %3d   %s \t%s\n",
+			i,
 			(level.framenum - e2->client->resp.enterframe) / 600,
 			((level.framenum - e2->client->resp.enterframe) % 600)/10,
 			e2->client->ping,
 			e2->client->resp.score,
 			e2->client->pers.netname,
-			e2->client->resp.team ? " (spectator)" : "");
+			teaminfo[e2->client->resp.team].name);
+
 		if (strlen(text) + strlen(st) > sizeof(text) - 50)
 		{
 			sprintf(text+strlen(text), "And more...\n");
