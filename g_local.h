@@ -189,7 +189,7 @@ typedef enum
 	WEAPON_FIRING
 } weaponstate_t;
 
-typedef enum
+/*typedef enum
 {
 	AMMO_BULLETS,
 	AMMO_SHELLS,
@@ -197,7 +197,15 @@ typedef enum
 	AMMO_GRENADES,
 	AMMO_CELLS,
 	AMMO_SLUGS
-} ammo_t;
+} ammo_t;*/
+
+//r1: this is kind of ugly.. but meh
+#define AMMO_SHELLS	(1<<11)
+#define	AMMO_BULLETS	(1<<12)
+#define AMMO_GRENADES			(1<<13)
+#define AMMO_ROCKETS			(1<<14)
+#define	AMMO_CELLS		(1<<15)
+#define	AMMO_SLUGS		(1<<16)
 
 typedef enum
 {
@@ -710,11 +718,11 @@ extern	cvar_t	*g_match_time;
 extern	cvar_t	*g_match_countdown;
 extern	cvar_t	*g_vote_time;
 
-extern	cvar_t	*tdmflags;
-extern	cvar_t	*itdmflags;
+extern	cvar_t	*g_tdmflags;
+extern	cvar_t	*g_itdmflags;
 
-extern	cvar_t	*itemflags;
-extern	cvar_t	*powerupflags;
+extern	cvar_t	*g_itemflags;
+extern	cvar_t	*g_powerupflags;
 
 #define world	(&g_edicts[0])
 
@@ -806,7 +814,7 @@ void	G_FreeEdict (edict_t *e);
 void	G_TouchTriggers (edict_t *ent);
 void	G_TouchSolids (edict_t *ent);
 
-char	*G_CopyString (char *in);
+char	*G_CopyString (const char *in);
 
 float	*tv (float x, float y, float z);
 char	*vtos (vec3_t v);

@@ -89,11 +89,11 @@ cvar_t	*g_match_time;
 cvar_t	*g_match_countdown;
 cvar_t	*g_vote_time;
 
-cvar_t	*tdmflags;
-cvar_t	*itdmflags;
+cvar_t	*g_tdmflags;
+cvar_t	*g_itdmflags;
 
-cvar_t	*itemflags;
-cvar_t	*powerupflags;
+cvar_t	*g_itemflags;
+cvar_t	*g_powerupflags;
 
 void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint);
 void ClientThink (edict_t *ent, usercmd_t *cmd);

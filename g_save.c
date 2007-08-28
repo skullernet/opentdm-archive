@@ -221,11 +221,11 @@ void InitGame (void)
 	g_match_countdown = gi.cvar ("g_match_countdown", "15", 0);
 	g_vote_time = gi.cvar ("g_vote_time", "30", 0);
 
-	tdmflags = gi.cvar ("tdmflags", "66640", 0);
-	itdmflags = gi.cvar ("itdmflags", "142427", 0);
+	g_tdmflags = gi.cvar ("g_tdmflags", "66640", 0);
+	g_itdmflags = gi.cvar ("g_itdmflags", "142427", 0);
 
-	itemflags = gi.cvar ("itemflags", "0", 0);
-	powerupflags = gi.cvar ("powerupflags", "0", 0);
+	g_itemflags = gi.cvar ("g_itemflags", "0", 0);
+	g_powerupflags = gi.cvar ("g_powerupflags", "0", 0);
 
 	// items
 	InitItems ();	

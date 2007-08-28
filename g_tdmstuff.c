@@ -22,13 +22,6 @@ matchmode_t	tdm_match_status;
 #define WEAPON_BFG10K			(1<<9)
 #define	WEAPON_HYPERBLASTER		(1<<10)
 
-#define AMMO_SHELLS	(1<<11)
-#define	AMMO_BULLETS	(1<<12)
-#define AMMO_GRENADES			(1<<13)
-#define AMMO_ROCKETS			(1<<14)
-#define	AMMO_CELLS		(1<<15)
-#define	AMMO_SLUGS		(1<<16)
-
 #define POWERUP_QUAD			(1<<1)
 #define POWERUP_INVULN			(1<<2)
 #define POWERUP_POWERSHIELD		(1<<3)
@@ -99,6 +92,15 @@ typedef struct vote_s
 } vote_t;
 
 vote_t	vote;
+
+//saved on startup to reset
+int default_timelimit;
+int default_itemflags;
+int	default_powerupflags;
+char *default_team_a_name;
+char *default_team_b_name;
+char *default_team_a_skin;
+char *default_team_b_skin;
 
 void droptofloor (edict_t *ent);
 
@@ -207,7 +209,7 @@ void TDM_ResetLevel (void)
 	///rerun the entity level string
 	ParseEntityString (true);
 
-	//immediately droptofloor
+	//immediately droptofloor and setup removed items
 	for (ent = g_edicts + 1 + game.maxclients; ent < g_edicts + globals.num_edicts; ent++)
 	{
 		if (!ent->inuse)
@@ -218,8 +220,8 @@ void TDM_ResetLevel (void)
 		{
 			for (i = 0; i < sizeof(weaponvotes) / sizeof(weaponvotes[1]); i++)
 			{
-				//this weapon isn't removed
-				if (!((int)itemflags->value & weaponvotes[i].value))
+				//this item isn't removed
+				if (!((int)g_itemflags->value & weaponvotes[i].value))
 					continue;
 
 				//this is a weapon that should be removed
@@ -232,8 +234,12 @@ void TDM_ResetLevel (void)
 				//this is ammo for a weapon that should be removed
 				if (ITEM_INDEX (ent->item) == GETITEM (weaponvotes[i].itemindex)->ammoindex)
 				{
-					G_FreeEdict (ent);
-					break;
+					//special case: cells, grenades, shells
+					if ((int)g_itemflags->value & GETITEM(GETITEM(weaponvotes[i].itemindex)->ammoindex)->tag)
+					{
+						G_FreeEdict (ent);
+						break;
+					}
 				}
 			}
 
@@ -241,7 +247,7 @@ void TDM_ResetLevel (void)
 			for (i = 0; i < sizeof(powerupvotes) / sizeof(powerupvotes[1]); i++)
 			{
 				//this powerup isn't removed
-				if (!((int)powerupflags->value & powerupvotes[i].value))
+				if (!((int)g_powerupflags->value & powerupvotes[i].value))
 					continue;
 
 				if (ITEM_INDEX (ent->item) == powerupvotes[i].itemindex)
@@ -877,19 +883,18 @@ void TDM_Captain_f (edict_t *ent)
 	{
 		if (ent->client->resp.team == TEAM_SPEC)
 		{
-			gi.cprintf (ent, PRINT_HIGH, "You haven't join any team yet.\n");
+			gi.cprintf (ent, PRINT_HIGH, "You must join a team to set or become captain.\n");
 			return;
 		}
+
+		if (teaminfo[ent->client->resp.team].captain == ent)
+			gi.cprintf (ent, PRINT_HIGH, "You are the captain of team '%s'\n", teaminfo[ent->client->resp.team].name);
+		else if (teaminfo[ent->client->resp.team].captain)
+			gi.cprintf (ent, PRINT_HIGH, "%s is the captain of team '%s'\n",
+			(teaminfo[ent->client->resp.team].captain)->client->pers.netname, teaminfo[ent->client->resp.team].name);
 		else
-		{
-			if (teaminfo[ent->client->resp.team].captain == ent)
-				gi.cprintf (ent, PRINT_HIGH, "You are the captain of team: %s\n", teaminfo[ent->client->resp.team].name);
-			else
-				gi.cprintf (ent, PRINT_HIGH, "Captain of team %s is: %s\n", 
-																	teaminfo[ent->client->resp.team].name, 
-																		(teaminfo[ent->client->resp.team].captain)->client->pers.netname);
-			return;
-		}
+			gi.cprintf (ent, PRINT_HIGH, "Team '%s' has no captain.\n", teaminfo[ent->client->resp.team].name);
+
 	}
 	else
 	{
@@ -929,6 +934,12 @@ void TDM_Teamskin_f (edict_t *ent)
 {
 	const char *value;
 
+	char	*model;
+	char	*skin;
+
+	unsigned	i;
+	size_t		len;
+
 	if (g_locked_skins->value)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Teamskins are locked.\n");
@@ -949,26 +960,69 @@ void TDM_Teamskin_f (edict_t *ent)
 
 	value = gi.argv(1);
 
-	if (strlen (value) >= MAX_QPATH - 1)
+	if (!value[0] || strlen (value) >= sizeof(teaminfo[TEAM_SPEC].skin) - 1)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Invalid model/skin name.\n");
 		return;
+	}
+
+	model = G_CopyString (value);
+	skin = strchr (model, '/');
+	if (!skin)
+	{
+		gi.TagFree (model);
+		gi.cprintf (ent, PRINT_HIGH, "Skin must be in the format model/skin.\n");
+		return;
+	}
+	skin++;
+
+	if (!skin[0])
+	{
+		gi.TagFree (model);
+		gi.cprintf (ent, PRINT_HIGH, "Skin must be in the format model/skin.\n");
+		return;
+	}
+
+	len = strlen (model);
+	for (i = 0; i < len; i++)
+	{
+		if (!isalnum (model[i]) && model[i] != '_' && model[i] != '-')
+		{
+			gi.TagFree (model);
+			gi.cprintf (ent, PRINT_HIGH, "Invalid model/skin name.\n");
+			return;
+		}
+	}
+	
+	len = strlen (skin);
+	for (i = 0; i < len; i++)
+	{
+		if (!isalnum (skin[i]) && skin[i] != '_' && skin[i] != '-')
+		{
+			gi.TagFree (model);
+			gi.cprintf (ent, PRINT_HIGH, "Invalid model/skin name.\n");
+			return;
+		}
 	}
 
 	//TODO: some check model/skin name, force only female/male models
 
 	if (ent->client->resp.team == TEAM_A)
 	{
+		if (!strcmp (teaminfo[TEAM_A].skin, value))
+			return;
 		g_team_a_skin = gi.cvar_set ("g_team_a_skin", value);
 		g_team_a_skin->modified = true;
 	}
 	else if (ent->client->resp.team == TEAM_B)
 	{
+		if (!strcmp (teaminfo[TEAM_B].skin, value))
+			return;
 		g_team_b_skin = gi.cvar_set ("g_team_b_skin", value);
 		g_team_b_skin->modified = true;
 	}
 
-	TDM_UpdateConfigStrings(false);
+	TDM_UpdateConfigStrings (false);
 }
 
 /*
@@ -1000,10 +1054,10 @@ void TDM_Teamname_f (edict_t *ent)
 		return;
 	}
 
-	value = gi.argv(1);
+	value = gi.args ();
 
-	//max 15 characters
-	value[15] = '\0';
+	//max however many characters
+	value[sizeof(teaminfo[TEAM_SPEC].name)-1] = '\0';
 
 	//validate teamname in the most convuluted way possible
 	i = 0;
@@ -1054,7 +1108,7 @@ void TDM_Lockteam_f (edict_t *ent, qboolean lock)
 	}
 
 	teaminfo[ent->client->resp.team].locked = lock;
-	gi.cprintf (ent, PRINT_HIGH, "Team %s is %slocked.\n", teaminfo[ent->client->resp.team].name, (lock ? "" : "un"));
+	gi.cprintf (ent, PRINT_HIGH, "Team '%s' is %slocked.\n", teaminfo[ent->client->resp.team].name, (lock ? "" : "un"));
 }
 
 /*
@@ -1138,23 +1192,23 @@ static void TDM_ApplyVote (void)
 	if (vote.flags & VOTE_WEAPONS)
 	{
 		sprintf (value, "%d", vote.newweaponflags);
-		itemflags = gi.cvar_set ("itemflags", value);
+		g_itemflags = gi.cvar_set ("g_itemflags", value);
 		TDM_ResetLevel();
 	}
 
 	if (vote.flags & VOTE_POWERUPS)
 	{
 		sprintf (value, "%d", vote.newpowerupflags);
-		powerupflags = gi.cvar_set ("powerupflags", value);
+		g_powerupflags = gi.cvar_set ("g_powerupflags", value);
 		TDM_ResetLevel();
 	}
 
 	if (vote.flags & VOTE_MODE_TDM || vote.flags & VOTE_MODE_ITDM)
 	{
 		if (vote.flags & VOTE_MODE_ITDM)
-			dmflags = gi.cvar_set ("dmflags", itdmflags->string);
+			dmflags = gi.cvar_set ("dmflags", g_itdmflags->string);
 		else
-			dmflags = gi.cvar_set ("dmflags", tdmflags->string);
+			dmflags = gi.cvar_set ("dmflags", g_tdmflags->string);
 		TDM_ResetLevel();
 	}
 }
@@ -1191,12 +1245,14 @@ static void TDM_AnnounceVote (void)
 		strcat (what, va("weapons"));
 		for (j = 0; j < sizeof(weaponvotes) / sizeof(weaponvotes[1]); j++)
 		{
-			if (vote.newweaponflags & weaponvotes[j].value)
+			if (vote.newweaponflags & weaponvotes[j].value && !((int)g_itemflags->value & weaponvotes[j].value))
 			{
 				strcat (what, va(" -%s", weaponvotes[j].names[1]));
 			}
-			else
+			else if (!(vote.newweaponflags & weaponvotes[j].value) && (int)g_itemflags->value & weaponvotes[j].value)
+			{
 				strcat (what, va(" +%s", weaponvotes[j].names[1]));
+			}
 		}
 	}
 	else if (vote.flags & VOTE_KICK)
@@ -1209,12 +1265,14 @@ static void TDM_AnnounceVote (void)
 		strcat (what, va("powerups"));
 		for (j = 0; j < sizeof(powerupvotes) / sizeof(powerupvotes[1]); j++)
 		{
-			if (vote.newpowerupflags & powerupvotes[j].value)
+			if (vote.newpowerupflags & powerupvotes[j].value && !((int)g_powerupflags->value & powerupvotes[j].value))
 			{
 				strcat (what, va(" -%s", powerupvotes[j].names[0]));
 			}
-			else
+			else if (!(vote.newpowerupflags & powerupvotes[j].value) && (int)g_powerupflags->value & powerupvotes[j].value)
+			{
 				strcat (what, va(" +%s", powerupvotes[j].names[0]));
+			}
 		}
 	}
 	else if (vote.flags & VOTE_MODE_TDM)
@@ -1302,6 +1360,9 @@ static void TDM_Vote_f (edict_t *ent)
 	}
 	else if (!Q_stricmp (cmd, "map"))
 	{
+		unsigned	i;
+		size_t		len;
+
 		//if initiator wants to change vote map value
 		//reset the vote and start again
 		if (vote.initiator == ent && vote.flags & VOTE_MAP)
@@ -1324,10 +1385,21 @@ static void TDM_Vote_f (edict_t *ent)
 
 		//TODO: check map from maplist oO
 
-		if (strlen (value) >= MAX_QPATH - 1 || strchr (value, '\n') || strchr (value, '"') || strchr (value, ';'))
+		len = strlen (value);
+
+		if (len >= MAX_QPATH - 1)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "Invalid map name.\n");
 			return;
+		}
+
+		for (i = 0; i < len; i++)
+		{
+			if (!isalnum (value[i]) && value[i] != '_' && value[i] != '-')
+			{
+				gi.cprintf (ent, PRINT_HIGH, "Invalid map name.\n");
+				return;
+			}
 		}
 
 		strcpy (vote.newmap, value);
@@ -1342,7 +1414,7 @@ static void TDM_Vote_f (edict_t *ent)
 	else if (!Q_stricmp (cmd, "weapons"))
 	{
 		char		modifier;
-		unsigned	flags = 0xFFFFFFFFU;
+		unsigned	flags;
 		int			i, j;
 		qboolean	found;
 
@@ -1371,6 +1443,7 @@ static void TDM_Vote_f (edict_t *ent)
 
 //		for (i = 0; i < sizeof(weaponvotes) / sizeof(weaponvotes[0]); i++)
 //			flags |= weaponvotes[i].ammovalue;
+		flags = (unsigned)g_itemflags->value;
 
 		for (i = 2; i < gi.argc(); i++)
 		{
@@ -1419,17 +1492,17 @@ static void TDM_Vote_f (edict_t *ent)
 			}
 		}
 
-		if (flags & WEAPON_SHOTGUN && flags & WEAPON_SSHOTGUN)
+		if ((flags & WEAPON_SHOTGUN) && (flags & WEAPON_SSHOTGUN))
 			flags |= AMMO_SHELLS;
 		else
 			flags &= ~AMMO_SHELLS;
 
-		if (flags & WEAPON_MACHINEGUN && flags & WEAPON_CHAINGUN)
+		if ((flags & WEAPON_MACHINEGUN) && (flags & WEAPON_CHAINGUN))
 			flags |= AMMO_BULLETS;
 		else
 			flags &= ~AMMO_BULLETS;
 
-		if (flags & WEAPON_GRENADES && flags & WEAPON_GRENADELAUNCHER)
+		if ((flags & WEAPON_GRENADES) && (flags & WEAPON_GRENADELAUNCHER))
 			flags |= AMMO_GRENADES;
 		else
 			flags &= ~AMMO_GRENADES;
@@ -1444,10 +1517,16 @@ static void TDM_Vote_f (edict_t *ent)
 		else
 			flags &= ~AMMO_SLUGS;
 
-		if (flags & WEAPON_BFG10K && flags & WEAPON_HYPERBLASTER)
+		if ((flags & WEAPON_BFG10K) && (flags & WEAPON_HYPERBLASTER))
 			flags |= AMMO_CELLS;
 		else
 			flags &= ~AMMO_CELLS;
+
+		if (flags == (unsigned)g_itemflags->value)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "That weapon config is already set!\n");
+			return;
+		}
 
 		vote.newweaponflags = flags;
 		vote.flags |= VOTE_WEAPONS;
@@ -1505,7 +1584,7 @@ static void TDM_Vote_f (edict_t *ent)
 	else if (!Q_stricmp (cmd, "powerups"))
 	{
 		char		modifier;
-		unsigned	flags = 0;
+		unsigned	flags;
 		int			i, j;
 		qboolean	found;
 
@@ -1520,6 +1599,8 @@ static void TDM_Vote_f (edict_t *ent)
 			gi.cprintf (ent, PRINT_HIGH, "Other vote in progress.\n");
 			return;
 		}
+
+		flags = (unsigned)g_powerupflags->value;
 
 		//example powerups string, -quad -invul +silencer
 		//special string "all" sets all, eg -all +quad
@@ -1569,6 +1650,13 @@ static void TDM_Vote_f (edict_t *ent)
 				}
 			}
 		}
+
+		if ((unsigned)g_powerupflags->value == flags)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "That powerup config is already set!\n");
+			return;
+		}
+
 		vote.newpowerupflags = flags;
 		vote.flags |= VOTE_POWERUPS;
 		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
@@ -2009,6 +2097,25 @@ void SelectNextHelpPage (edict_t *ent)
 
 /*
 ==============
+TDM_ResetVotableVariables
+==============
+Everyone has left the server, so reset anything they voted back to defaults
+*/
+static void TDM_ResetVotableVariables (void)
+{
+	gi.cvar_set ("g_match_time", va("%d", default_timelimit));
+	gi.cvar_set ("g_itemflags", va("%d", default_itemflags));
+	gi.cvar_set ("powerupflags", va ("%d", default_powerupflags));
+	gi.cvar_set ("team_a_name", default_team_a_name);
+	gi.cvar_set ("team_b_name", default_team_b_name);
+	gi.cvar_set ("team_a_skin", default_team_a_skin);
+	gi.cvar_set ("team_a_skin", default_team_b_skin);
+
+	TDM_UpdateConfigStrings (true);
+}	
+
+/*
+==============
 CountPlayers
 ==============
 Count how many players each team has
@@ -2017,15 +2124,25 @@ void CountPlayers (void)
 {
 	edict_t	*ent;
 	int		i;
+	int		total;
 
 	for (i = 0; i < MAX_TEAMS; i++)
 		teaminfo[i].players = 0;
 
+	total = 0;
+
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
 		if (ent->inuse)
+		{
 			teaminfo[ent->client->resp.team].players++;
+			total++;
+		}
 	}
+
+	//if everyone leaves during warmup, reset votables back to serveradmin defaults
+	if (total == 0 && tdm_match_status == MM_WARMUP)
+		TDM_ResetVotableVariables ();
 }
 
 /*
@@ -2209,6 +2326,15 @@ Single time initialization stuff.
 void TDM_Init (void)
 {
 	strcpy (teaminfo[0].name, "Observers");
+
+	//save whatever the server admin set
+	default_timelimit = (int)g_match_time->value;
+	default_itemflags = (int)g_itemflags->value;
+	default_powerupflags = (int)g_powerupflags->value;
+	default_team_a_name = G_CopyString (g_team_a_name->string);
+	default_team_b_name = G_CopyString (g_team_b_name->string);
+	default_team_a_skin = G_CopyString (g_team_a_skin->string);
+	default_team_b_skin = G_CopyString (g_team_b_skin->string);
 
 	TDM_ResetGameState ();
 }
