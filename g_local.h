@@ -724,6 +724,8 @@ extern	cvar_t	*g_itdmflags;
 extern	cvar_t	*g_itemflags;
 extern	cvar_t	*g_powerupflags;
 
+extern	cvar_t	*g_tdm_allow_pick;
+
 #define world	(&g_edicts[0])
 
 // item spawnflags
@@ -1036,6 +1038,8 @@ typedef struct
 	unsigned		team;
 	joinstate_t	joinstate;
 	qboolean	ready;
+	unsigned	last_command_frame;
+	edict_t		*last_invited_by;
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),
@@ -1138,6 +1142,8 @@ struct gclient_s
 	const gitem_t	*lastweapon;
 
 	pmenuhnd_t	menu;
+
+	unsigned	last_command_frame;
 };
 
 typedef enum

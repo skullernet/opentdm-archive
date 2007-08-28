@@ -95,6 +95,8 @@ cvar_t	*g_itdmflags;
 cvar_t	*g_itemflags;
 cvar_t	*g_powerupflags;
 
+cvar_t	*g_tdm_allow_pick;
+
 void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint);
 void ClientThink (edict_t *ent, usercmd_t *cmd);
 qboolean ClientConnect (edict_t *ent, char *userinfo);

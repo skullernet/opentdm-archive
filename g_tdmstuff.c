@@ -373,12 +373,16 @@ void TDM_BeginIntermission (void)
 	for (i=0 ; i < game.maxclients; i++)
 	{
 		client = g_edicts + 1 + i;
+
 		if (!client->inuse)
 			continue;
+
+		//reset any invites
+		client->client->resp.last_invited_by = NULL;
+
 		MoveClientToIntermission (client);
 	}
 }
-
 
 /*
 ==============
@@ -404,7 +408,8 @@ void TDM_EndMatch (void)
 		loser = TEAM_A;
 	}
 	else
-	{//TODO: add overtime
+	{
+		//TODO: add overtime
 		gi.bprintf (PRINT_HIGH, "Tie game, %d to %d.\n", teaminfo[TEAM_A].score, teaminfo[TEAM_B].score);
 	}
 
@@ -415,6 +420,25 @@ void TDM_EndMatch (void)
 
 	level.match_score_end_framenum = level.framenum + (5.0f / FRAMETIME);
 	TDM_BeginIntermission ();
+}
+
+
+/*
+==============
+TDM_RateLimited
+==============
+Return true if the client has used a command that prints global info or similar recently.
+*/
+qboolean TDM_RateLimited (edict_t *ent)
+{
+	if (level.framenum - ent->client->resp.last_command_frame < 1 * (1 / FRAMETIME))
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Command ignored due to rate limiting, try again later.\n");
+		return true;
+	}
+
+	ent->client->resp.last_command_frame = level.framenum;
+	return false;
 }
 
 /*
@@ -537,10 +561,8 @@ void TDM_CheckMatchStart (void)
 		teaminfo[TEAM_B].players && ready[TEAM_B] == teaminfo[TEAM_B].players)
 	{
 		//wision: do NOT restart match during the match
-		if (tdm_match_status != MM_PLAYING &&
-					tdm_match_status != MM_TIMEOUT &&
-						tdm_match_status != MM_OVERTIME &&
-							tdm_match_status != MM_COUNTDOWN)
+		//r1: under what conditions can/did this happen? late joining shouldn't be possible?
+		if (tdm_match_status < MM_COUNTDOWN)
 			TDM_BeginCountdown ();
 	}
 	else
@@ -567,15 +589,11 @@ void TDM_Ready_f (edict_t *ent)
 		gi.cprintf (ent, PRINT_HIGH, "You must be on a team to be ready.\n");
 		return;
 	}
-	else if(tdm_match_status == MM_OVERTIME ||
-						tdm_match_status == MM_TIMEOUT ||
-							tdm_match_status == MM_PLAYING)
-	{
-//		gi.cprintf (ent, PRINT_HIGH, "Can't change your status during the match.\n");
-		return;
-	}
 
 	if (tdm_match_status >= MM_PLAYING)
+		return;
+
+	if (TDM_RateLimited (ent))
 		return;
 
 	ent->client->resp.ready = !ent->client->resp.ready;
@@ -596,14 +614,16 @@ void TDM_NotReady_f (edict_t *ent)
 {
 	if (!ent->client->resp.team)
 	{
-//		gi.cprintf (ent, PRINT_HIGH, "You must be on a team to be NOT ready.\n");
+		gi.cprintf (ent, PRINT_HIGH, "You must be on a team to be NOT ready.\n");
 		return;
 	}
-	else if(tdm_match_status == MM_OVERTIME ||
-						tdm_match_status == MM_TIMEOUT ||
-							tdm_match_status == MM_PLAYING)
+
+	if (tdm_match_status >= MM_PLAYING)
+		return;
+
+	if (!ent->client->resp.ready)
 	{
-//		gi.cprintf (ent, PRINT_HIGH, "Can't change your status during the match.\n");
+		gi.cprintf (ent, PRINT_HIGH, "You are already marked as not ready.\n");
 		return;
 	}
 
@@ -752,6 +772,7 @@ int LookupPlayer (const char *match, edict_t **out, edict_t *ent)
 }
 
 void JoinedTeam (edict_t *ent);
+
 /*
 ==============
 TDM_PickPlayer_f
@@ -762,6 +783,13 @@ Pick a player
 void TDM_PickPlayer_f (edict_t *ent)
 {
 	edict_t	*victim;
+
+	//this could be abused by some captain to make server unplayable by constantly picking
+	if (!g_tdm_allow_pick->value)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Player picking is disabled by the server administrator. Try using invite instead.\n");
+		return;
+	}
 
 	if (gi.argc() < 2)
 	{
@@ -775,13 +803,30 @@ void TDM_PickPlayer_f (edict_t *ent)
 		return;
 	}
 
+	if (tdm_match_status != MM_WARMUP)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "You can only pick players during warmup.\n");
+		return;
+	}
+
+	if (TDM_RateLimited (ent))
+		return;
+
 	if (LookupPlayer (gi.args(), &victim, ent))
 	{
+		if (ent == victim)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You can't pick yourself!\n");
+			return;
+		}
+
 		if (victim->client->resp.team == ent->client->resp.team)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "%s is already in your team.\n", victim->client->pers.netname);
 			return;
 		}
+
+		gi.bprintf (PRINT_CHAT, "%s picked %s for team '%s'.\n", ent->client->pers.netname, victim->client->pers.netname, teaminfo[ent->client->resp.team].name);
 
 		if (victim->client->resp.team)
 			TDM_LeftTeam (victim);
@@ -789,6 +834,94 @@ void TDM_PickPlayer_f (edict_t *ent)
 		victim->client->resp.team = ent->client->resp.team;
 		JoinedTeam (victim);
 	}
+}
+
+/*
+==============
+TDM_Invite_f
+==============
+Invite a player to your team.
+*/
+void TDM_Invite_f (edict_t *ent)
+{
+	edict_t	*victim;
+
+	if (gi.argc() < 2)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: invite <name/id>\n");
+		return;
+	}
+
+	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can invite players.\n");
+		return;
+	}
+
+	if (tdm_match_status != MM_WARMUP)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "You can only invite players during warmup.\n");
+		return;
+	}
+
+	if (TDM_RateLimited (ent))
+		return;
+
+	if (LookupPlayer (gi.args(), &victim, ent))
+	{
+		if (ent == victim)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You can't invite yourself!\n");
+			return;
+		}
+
+		if (victim->client->resp.team == ent->client->resp.team)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "%s is already in your team.\n", victim->client->pers.netname);
+			return;
+		}
+
+		victim->client->resp.last_invited_by = ent;
+		gi.centerprintf (victim, "You are invited to '%s\nby %s. Type ACCEPT in\nthe console to accept.\n", teaminfo[ent->client->resp.team].name, ent->client->pers.netname);
+		gi.cprintf (ent, PRINT_HIGH, "%s was invited to join your team.\n", victim->client->pers.netname);
+	}
+}
+
+/*
+==============
+TDM_Accept_f
+==============
+Accept an invite.
+*/
+void TDM_Accept_f (edict_t *ent)
+{
+	if (!ent->client->resp.last_invited_by)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "No invite to accept!\n");
+		return;
+	}
+
+	if (tdm_match_status != MM_WARMUP)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "The match has started, too late buddy!\n");
+		return;
+	}
+
+	//holy dereference batman
+	if (!ent->client->resp.last_invited_by->inuse ||
+		teaminfo[ent->client->resp.last_invited_by->client->resp.team].captain != ent->client->resp.last_invited_by)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "The invite is no longer valid.\n");
+		ent->client->resp.last_invited_by = NULL;
+		return;
+	}
+
+	if (ent->client->resp.team)
+		TDM_LeftTeam (ent);
+
+	ent->client->resp.team = ent->client->resp.last_invited_by->client->resp.team;
+
+	JoinTeam1 (ent);
 }
 
 /*
@@ -839,7 +972,8 @@ void TDM_KickPlayer_f (edict_t *ent)
 			return;
 		}
 
-		gi.cprintf (victim, PRINT_HIGH, "You were removed from the %s team by %s.\n", teaminfo[victim->client->resp.team].name, ent->client->pers.netname);
+		//maybe this should broadcast?
+		gi.cprintf (victim, PRINT_HIGH, "You were removed from team '%s' by %s.\n", teaminfo[victim->client->resp.team].name, ent->client->pers.netname);
 		ToggleChaseCam (victim);
 	}
 }
@@ -881,6 +1015,7 @@ void TDM_Captain_f (edict_t *ent)
 {
 	if (gi.argc() < 2)
 	{
+		//checking captain status or assigning from NULL captain
 		if (ent->client->resp.team == TEAM_SPEC)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "You must join a team to set or become captain.\n");
@@ -888,17 +1023,49 @@ void TDM_Captain_f (edict_t *ent)
 		}
 
 		if (teaminfo[ent->client->resp.team].captain == ent)
+		{
 			gi.cprintf (ent, PRINT_HIGH, "You are the captain of team '%s'\n", teaminfo[ent->client->resp.team].name);
+		}
 		else if (teaminfo[ent->client->resp.team].captain)
+		{
 			gi.cprintf (ent, PRINT_HIGH, "%s is the captain of team '%s'\n",
 			(teaminfo[ent->client->resp.team].captain)->client->pers.netname, teaminfo[ent->client->resp.team].name);
+		}
 		else
-			gi.cprintf (ent, PRINT_HIGH, "Team '%s' has no captain.\n", teaminfo[ent->client->resp.team].name);
+		{
+			TDM_SetCaptain (ent->client->resp.team, ent);
+		}
 
 	}
 	else
 	{
-//TODO: change captain status to other player in same team
+		//transferring captain to another player
+		edict_t	*victim;
+
+		if (teaminfo[ent->client->resp.team].captain != ent)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You must be captain to transfer it to another player!\n");
+			return;
+		}
+
+		if (LookupPlayer (gi.argv(1), &victim, ent))
+		{
+			if (victim == ent)
+			{
+				gi.cprintf (ent, PRINT_HIGH, "You can't transfer captain to yourself!\n");
+				return;
+			}
+
+			if (victim->client->resp.team != ent->client->resp.team)
+			{
+				gi.cprintf (ent, PRINT_HIGH, "%s is not on your team.\n", victim->client->pers.netname);
+				return;
+			}
+
+			//so they don't wonder wtf just happened...
+			gi.cprintf (victim, PRINT_HIGH, "%s transferred captain status to you.\n", ent->client->pers.netname);
+			TDM_SetCaptain (victim->client->resp.team, victim);
+		}
 	}
 }
 
@@ -974,6 +1141,8 @@ void TDM_Teamskin_f (edict_t *ent)
 		gi.cprintf (ent, PRINT_HIGH, "Skin must be in the format model/skin.\n");
 		return;
 	}
+
+	skin[0] = 0;
 	skin++;
 
 	if (!skin[0])
@@ -1004,6 +1173,8 @@ void TDM_Teamskin_f (edict_t *ent)
 			return;
 		}
 	}
+
+	gi.TagFree (model);
 
 	//TODO: some check model/skin name, force only female/male models
 
@@ -1517,7 +1688,8 @@ static void TDM_Vote_f (edict_t *ent)
 		else
 			flags &= ~AMMO_SLUGS;
 
-		if ((flags & WEAPON_BFG10K) && (flags & WEAPON_HYPERBLASTER))
+		if ((flags & WEAPON_BFG10K) && (flags & WEAPON_HYPERBLASTER) &&
+			((unsigned)g_powerupflags->value & POWERUP_POWERSCREEN) && ((unsigned)g_powerupflags->value & POWERUP_POWERSHIELD))
 			flags |= AMMO_CELLS;
 		else
 			flags &= ~AMMO_CELLS;
@@ -1597,6 +1769,14 @@ static void TDM_Vote_f (edict_t *ent)
 		else if (vote.active)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "Other vote in progress.\n");
+			return;
+		}
+
+		value = gi.argv(2);
+
+		if (!value[0])
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Usage: vote powerups <+/-><quad,invul,ps,..>\n");
 			return;
 		}
 
@@ -1713,7 +1893,11 @@ static void TDM_Vote_f (edict_t *ent)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "No vote in progress.\n");
 		}
-		else if(ent->vote == VOTE_HOLD)
+
+		if (TDM_RateLimited (ent))
+			return;
+		
+		if(ent->vote == VOTE_HOLD)
 		{
 			ent->vote = VOTE_YES;
 			gi.bprintf (PRINT_HIGH, "%s voted YES.\n", ent->client->pers.netname);
@@ -1734,7 +1918,11 @@ static void TDM_Vote_f (edict_t *ent)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "No vote in progress.\n");
 		}
-		else if(ent->vote == VOTE_HOLD)
+
+		if (TDM_RateLimited (ent))
+			return;
+		
+		if(ent->vote == VOTE_HOLD)
 		{
 			ent->vote = VOTE_NO;
 			gi.bprintf (PRINT_HIGH, "%s voted NO.\n", ent->client->pers.netname);
@@ -1756,13 +1944,14 @@ static void TDM_Vote_f (edict_t *ent)
 	}
 
 	TDM_CheckVote();
-	if(vote.success == VOTE_SUCCESS)
+
+	if (vote.success == VOTE_SUCCESS)
 	{
 		gi.bprintf (PRINT_HIGH, "Vote passed!\n");
 		TDM_ApplyVote();
 		TDM_RemoveVote();
 	}
-	else if(vote.success == VOTE_NOT_SUCCESS)
+	else if (vote.success == VOTE_NOT_SUCCESS)
 	{
 		gi.bprintf (PRINT_HIGH, "Vote failed.\n");
 		TDM_RemoveVote();
@@ -1842,6 +2031,10 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 		TDM_Lockteam_f (ent, false);
 	else if (!Q_stricmp (cmd, "pickplayer") || !Q_stricmp (cmd, "pick"))
 		TDM_PickPlayer_f (ent);
+	else if (!Q_stricmp (cmd, "invite"))
+		TDM_Invite_f (ent);
+	else if (!Q_stricmp (cmd, "accept"))
+		TDM_Accept_f (ent);
 	else if (!Q_stricmp (cmd, "teamskin"))
 		TDM_Teamskin_f (ent);
 	else if (!Q_stricmp (cmd, "teamname"))
@@ -1943,6 +2136,8 @@ void JoinedTeam (edict_t *ent)
 
 	ent->client->resp.ready = false;
 
+	//joining a team with no captain by default assigns.
+	//FIXME: should this still assign even if the team has existing players?
 	if (!teaminfo[ent->client->resp.team].captain)
 		TDM_SetCaptain (ent->client->resp.team, ent);
 
@@ -2304,6 +2499,7 @@ void TDM_ResetGameState (void)
 	level.match_start_framenum = 0;
 	tdm_match_status = MM_WARMUP;
 	TDM_ResetLevel ();
+
 	teaminfo[TEAM_A].score = teaminfo[TEAM_B].score = 0;
 	UpdateTeamMenu ();
 

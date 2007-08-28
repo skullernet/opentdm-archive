@@ -227,6 +227,8 @@ void InitGame (void)
 	g_itemflags = gi.cvar ("g_itemflags", "0", 0);
 	g_powerupflags = gi.cvar ("g_powerupflags", "0", 0);
 
+	g_tdm_allow_pick = gi.cvar ("g_tdm_allow_pick", "0", 0);
+
 	// items
 	InitItems ();	
 
