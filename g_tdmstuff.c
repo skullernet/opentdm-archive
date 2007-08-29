@@ -2351,7 +2351,7 @@ void TDM_Commands_f (edict_t *ent)
 		"General\n"
 		"-------\n"
 		"menu         Show OpenTDM menu\n"
-		"team         Join a team\n"
+		"join         Join a team\n"
 		"vote         Propose new settings\n"
 		"accept       Accept a team invite\n"
 		"captain      Show / become / set captain\n"
@@ -2516,7 +2516,7 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 		TDM_ShowTeamMenu (ent);
 	else if (!Q_stricmp (cmd, "commands"))
 		TDM_Commands_f (ent);
-	else if (!Q_stricmp (cmd, "team"))
+	else if (!Q_stricmp (cmd, "join") || !Q_stricmp (cmd, "team"))
 		TDM_Team_f (ent);
 	else if (!Q_stricmp (cmd, "settings"))
 		TDM_Settings_f (ent);
@@ -3032,6 +3032,7 @@ void TDM_MapChanged (void)
 	//wision: apply item settings
 	//r1: not needed, this is handled automatically in SpawnEntities
 	//TDM_ResetLevel ();
+	TDM_ResetGameState ();
 	TDM_UpdateConfigStrings (true);
 }
 
@@ -3039,7 +3040,7 @@ void TDM_MapChanged (void)
 ==============
 TDM_ResetGameState
 ==============
-Reset the game state after a match has completed.
+Reset the game state after a match has completed or a map / mode change.
 */
 void TDM_ResetGameState (void)
 {
@@ -3058,11 +3059,15 @@ void TDM_ResetGameState (void)
 
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
-		if (ent->inuse && ent->client->resp.team != TEAM_SPEC)
+		if (ent->inuse)
 		{
+			ent->client->resp.last_command_frame = 0;
 			ent->client->resp.last_invited_by = NULL;
-			ent->client->resp.team = TEAM_SPEC;
-			PutClientInServer (ent);
+			if (ent->client->resp.team != TEAM_SPEC)
+			{
+				ent->client->resp.team = TEAM_SPEC;
+				PutClientInServer (ent);
+			}
 		}
 	}
 
