@@ -450,7 +450,7 @@ void G_FindTeams (void)
 		}
 	}
 
-	gi.dprintf ("%i teams with %i entities\n", c, c2);
+	//gi.dprintf ("%i teams with %i entities\n", c, c2);
 }
 
 edict_t *spawned_entities[MAX_EDICTS];
@@ -538,7 +538,7 @@ void ParseEntityString (qboolean respawn)
 			spawned_entities[num_spawned_entities++] = ent;
 	}
 
-	gi.dprintf ("%i entities inhibited\n", inhibit);
+	//gi.dprintf ("%i entities inhibited\n", inhibit);
 
 #ifdef DEBUG
 	i = 1;

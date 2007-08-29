@@ -91,6 +91,7 @@ cvar_t	*g_vote_time;
 
 cvar_t	*g_tdmflags;
 cvar_t	*g_itdmflags;
+cvar_t	*g_1v1flags;
 
 cvar_t	*g_itemflags;
 cvar_t	*g_powerupflags;
@@ -98,9 +99,10 @@ cvar_t	*g_powerupflags;
 cvar_t	*g_tdm_allow_pick;
 
 cvar_t	*g_fast_weap_switch;
-cvar_t	*g_teleporter_freeze;
+cvar_t	*g_teleporter_nofreeze;
 cvar_t	*g_overtime;
 cvar_t	*g_tie_mode;
+cvar_t	*g_gamemode;
 
 void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint);
 void ClientThink (edict_t *ent, usercmd_t *cmd);
@@ -357,6 +359,7 @@ void ExitLevel (void)
 
 	Com_sprintf (command, sizeof(command), "gamemap \"%s\"\n", level.changemap);
 	gi.AddCommandString (command);
+
 	level.changemap = NULL;
 	level.exitintermission = 0;
 	level.intermissionframe = 0;

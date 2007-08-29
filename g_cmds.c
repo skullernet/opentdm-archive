@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "m_player.h"
 
 
-char *ClientTeam (edict_t *ent)
+/*char *ClientTeam (edict_t *ent)
 {
 	char		*p;
 	static char	value[512];
@@ -44,33 +44,26 @@ char *ClientTeam (edict_t *ent)
 
 	// if ((int)(dmflags->value) & DF_SKINTEAMS)
 	return ++p;
-}
+}*/
 
 qboolean OnSameTeam (edict_t *ent1, edict_t *ent2)
 {
-	char	ent1Team [512];
-	char	ent2Team [512];
-
+	//FIXME: remove this cruft?
 	if (!((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS)))
 		return false;
 
-	if(ent1 > g_edicts && ent1 <= g_edicts + (int)maxclients->value &&
-			ent2 > g_edicts && ent2 <= g_edicts + (int)maxclients->value)
+	if (ent1->client && ent2->client)
 	{
-		//wision: if both entities are players then compare players' teams
-		//wision: needed for properly working say/say_team
-		sprintf (ent1Team, "%d", ent1->client->resp.team);
-		sprintf (ent2Team, "%d", ent2->client->resp.team);
+		return (ent1->client->resp.team == ent2->client->resp.team);
 	}
 	else
 	{
-		//wision: if the game is comparing some other entities, then use old method
-		strcpy (ent1Team, ClientTeam(ent1));
-		strcpy (ent2Team, ClientTeam(ent2));
+		if (ent1->client || ent2->client)
+			return false;
+		else
+			return true;
 	}
 
-	if (strcmp(ent1Team, ent2Team) == 0)
-		return true;
 	return false;
 }
 
@@ -458,7 +451,7 @@ void Cmd_Drop_f (edict_t *ent)
 
 	//wision: drop item during warmup (instagib) is soooo ugly
 	if (tdm_match_status == MM_WARMUP || tdm_match_status == MM_TIMEOUT ||
-			 tdm_match_status == MM_COUNTDOWN || (int)dmflags->value & DF_MODE_ITDM)
+			 tdm_match_status == MM_COUNTDOWN || ((int)g_gamemode->value == GAMEMODE_ITDM))
 	{
 //		gi.cprintf (ent, PRINT_HIGH, "Can't drop items during warmup.\n");
 		return;
@@ -468,14 +461,16 @@ void Cmd_Drop_f (edict_t *ent)
 	it = FindItem (s);
 	if (!it)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "unknown item: %s\n", s);
+		gi.cprintf (ent, PRINT_HIGH, "Unknown item: %s\n", s);
 		return;
 	}
+
 	if (!it->drop)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Item is not dropable.\n");
 		return;
 	}
+
 	index = ITEM_INDEX(it);
 	if (!ent->client->inventory[index])
 	{

@@ -31,8 +31,11 @@ INTERMISSION
 
 void MoveClientToIntermission (edict_t *ent)
 {
+	PMenu_Close (ent);
+
 	if (deathmatch->value || coop->value)
 		ent->client->showscores = true;
+
 	VectorCopy (level.intermission_origin, ent->s.origin);
 	ent->client->ps.pmove.origin[0] = level.intermission_origin[0]*8;
 	ent->client->ps.pmove.origin[1] = level.intermission_origin[1]*8;

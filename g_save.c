@@ -208,6 +208,9 @@ void InitGame (void)
 	flood_waves_perminute = gi.cvar ("flood_waves_perminute", "6", 0);
 	flood_waves_waitdelay = gi.cvar ("flood_waves_waitdelay", "10", 0);
 
+	g_gamemode = gi.cvar ("g_gamemode", "0", CVAR_LATCH);
+	g_gamemode->modified = false;
+
 	g_team_a_name = gi.cvar ("g_team_a_name", "Hometeam", 0);
 	g_team_b_name = gi.cvar ("g_team_b_name", "Visitors", 0);
 	g_locked_names = gi.cvar ("g_locked_names", "0", 0);
@@ -223,6 +226,7 @@ void InitGame (void)
 
 	g_tdmflags = gi.cvar ("g_tdmflags", "66640", 0);
 	g_itdmflags = gi.cvar ("g_itdmflags", "142427", 0);
+	g_1v1flags = gi.cvar ("g_1v1flags", "66640", 0);
 
 	g_itemflags = gi.cvar ("g_itemflags", "0", 0);
 	g_powerupflags = gi.cvar ("g_powerupflags", "0", 0);
@@ -230,10 +234,10 @@ void InitGame (void)
 	g_tdm_allow_pick = gi.cvar ("g_tdm_allow_pick", "0", 0);
 
 	g_fast_weap_switch = gi.cvar ("g_fast_weap_switch", "0", 0);
-	g_teleporter_freeze = gi.cvar ("g_teleporter_freeze", "1", 0);
+	g_teleporter_nofreeze = gi.cvar ("g_teleporter_nofreeze", "0", 0);
 
 	g_tie_mode = gi.cvar ("g_tie_mode", "1", 0);
-	g_overtime = gi.cvar ("g_overtime", "3", 0);
+	g_overtime = gi.cvar ("g_overtime", "180", 0);
 
 	// items
 	InitItems ();	

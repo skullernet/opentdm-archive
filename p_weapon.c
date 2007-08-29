@@ -1327,10 +1327,10 @@ void weapon_railgun_fire (edict_t *ent)
 		damage = 150;
 		kick = 250;
 	}
-	//wision: more rail damage in insta == no dead bodies
-	if ((int)dmflags->value & DF_MODE_ITDM)
-		damage = 400;
 
+	//wision: more rail damage in insta == no dead bodies
+	if ((int)g_gamemode->value == GAMEMODE_ITDM)
+		damage = 400;
 
 	if (is_quad)
 	{

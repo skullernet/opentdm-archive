@@ -8,8 +8,11 @@ matchmode_t	tdm_match_status;
 #define	VOTE_KICK		0x4
 #define VOTE_WEAPONS	0x8
 #define VOTE_POWERUPS	0x10
-#define VOTE_MODE_TDM	0x20
-#define VOTE_MODE_ITDM	0x40
+#define VOTE_GAMEMODE	0x20
+
+#define VOTE_TELEMODE	0x80
+#define VOTE_TIEMODE	0x100
+#define VOTE_SWITCHMODE	0x200
 
 #define WEAPON_SHOTGUN			(1<<1)
 #define	WEAPON_SSHOTGUN			(1<<2)
@@ -89,23 +92,44 @@ typedef struct vote_s
 	int				end_frame;
 	qboolean		active;
 	vote_success_t	success;
+	int				telemode;
+	int				switchmode;
+	int				tiemode;
+	int				gamemode;
 } vote_t;
 
 vote_t	vote;
 
-//saved on startup to reset
-int default_timelimit;
-int default_itemflags;
-int	default_powerupflags;
-char *default_team_a_name;
-char *default_team_b_name;
-char *default_team_a_skin;
-char *default_team_b_skin;
-int default_tie_mode;
-int default_overtime;
+//ugly define for variable frametime support
+#define SECS(x) (x*(1/FRAMETIME))
+
+typedef struct
+{
+	const char	*variable_name;
+	char		*default_string;
+} cvarsave_t;
+
+//anything in this list is modified by voting
+//so the default values are saved on startup
+//and reset when everyone leaves the server.
+cvarsave_t preserved_vars[] = 
+{
+	{"g_team_a_name", NULL},
+	{"g_team_b_name", NULL},
+	{"g_team_a_skin", NULL},
+	{"g_team_b_skin", NULL},
+	{"g_match_time", NULL},
+	{"g_itemflags", NULL},
+	{"g_powerupflags", NULL},
+	{"g_gamemode", NULL},
+	{"g_tie_mode", NULL},
+	{"g_teleporter_nofreeze", NULL},
+	{"g_fast_weap_switch", NULL},
+	{"g_overtime", NULL},
+	{NULL, NULL},
+};
 
 void droptofloor (edict_t *ent);
-
 void JoinTeam1 (edict_t *ent);
 void JoinTeam2 (edict_t *ent);
 void ToggleChaseCam (edict_t *ent);
@@ -117,7 +141,7 @@ const int	teamJoinEntries[MAX_TEAMS] = {9, 3, 6};
 
 pmenu_t joinmenu[] =
 {
-	{ "*Quake II - OpenTDM",PMENU_ALIGN_CENTER, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_CENTER, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, JoinTeam1 },
@@ -181,6 +205,27 @@ pmenu_t joinmenu[] =
 {
 	{0}
 };*/
+
+/*
+==============
+TDM_SetColorText
+==============
+Converts a string to color text (high ASCII)
+*/
+char *TDM_SetColorText (char *buffer)
+{
+	size_t	len;
+	int		i;
+
+	len = strlen (buffer);
+	for (i = 0; i < len; i++)
+	{
+		if (buffer[i] != '\n')
+			buffer[i] |= 0x80;
+	}
+
+	return buffer;
+}
 
 /*
 ==============
@@ -311,12 +356,95 @@ void TDM_ScoreBoardMessage (edict_t *ent)
 
 /*
 ==============
+TDM_Settings_f
+==============
+A horrible glob of settings text.
+*/
+const char *TDM_SettingsString (void)
+{
+	static char	settings[1400];
+	int			i;
+
+	static const char *gamemode_text[] = {"Team Deathmatch", "Instagib Team Deathmatch", "1 vs 1 duel"};
+	static const char *switchmode_text[] = {"normal", "faster", "instant"};
+	static const char *telemode_text[] = {"normal", "no freeze"};
+
+	settings[0] = 0;
+
+	strcat (settings, "Game mode: ");
+	strcat (settings, TDM_SetColorText(va("%s\n", gamemode_text[(int)g_gamemode->value])));
+
+	strcat (settings, "Timelimit: ");
+	strcat (settings, TDM_SetColorText(va("%g minutes\n", g_match_time->value / 60)));
+
+	strcat (settings, "Overtime: ");
+	switch ((int)g_tie_mode->value)
+	{
+		case 0:
+			strcat (settings, TDM_SetColorText(va ("disabled")));
+			break;
+		case 1:
+			strcat (settings, TDM_SetColorText(va ("%g minutes\n", g_overtime->value / 60)));
+			break;
+		case 2:
+			strcat (settings, TDM_SetColorText(va ("Sudden death\n")));
+			break;
+	}
+
+	strcat (settings, "\n");
+
+	strcat (settings, "Removed weapons: ");
+	for (i = 0; i < sizeof(weaponvotes) / sizeof(weaponvotes[0]); i++)
+	{
+		if ((int)g_itemflags->value & weaponvotes[i].value)
+		{
+			strcat (settings, TDM_SetColorText (va ("%s", weaponvotes[i].names[1])));
+			strcat (settings, " ");
+		}
+	}
+	strcat (settings, "\n");
+	
+	strcat (settings, "Removed powerups: ");
+	for (i = 0; i < sizeof(powerupvotes) / sizeof(powerupvotes[0]); i++)
+	{
+		if ((int)g_powerupflags->value & powerupvotes[i].value)
+		{
+			strcat (settings, TDM_SetColorText (va ("%s", powerupvotes[i].names[0])));
+			strcat (settings, " ");
+		}
+	}
+	strcat (settings, "\n");
+	
+	strcat (settings, "\n");
+
+
+	strcat (settings, va("'%s' skin: ", teaminfo[TEAM_A].name));
+	strcat (settings, TDM_SetColorText(va("%s\n", teaminfo[TEAM_A].skin)));
+
+	strcat (settings, va("'%s' skin: ", teaminfo[TEAM_B].name));
+	strcat (settings, TDM_SetColorText(va("%s\n", teaminfo[TEAM_B].skin)));
+
+	strcat (settings, "\n");
+
+	strcat (settings, "Weapon switch: ");
+	strcat (settings, TDM_SetColorText(va("%s\n", switchmode_text[(int)g_fast_weap_switch->value])));
+
+	strcat (settings, "Teleporter mode: ");
+	strcat (settings, TDM_SetColorText(va("%s\n", telemode_text[(int)g_teleporter_nofreeze->value])));
+
+	return settings;
+}
+
+/*
+==============
 TDM_BeginCountdown
 ==============
 All players are ready so start the countdown
 */
 void TDM_BeginCountdown (void)
 {
+	gi.bprintf (PRINT_HIGH, "Match Settings:\n%s", TDM_SettingsString ());
+
 	gi.bprintf (PRINT_CHAT, "All players ready! Starting countdown (%g secs)...\n", g_match_countdown->value);
 
 	tdm_match_status = MM_COUNTDOWN;
@@ -424,22 +552,21 @@ void TDM_EndMatch (void)
 	TDM_BeginIntermission ();
 }
 
-
 /*
 ==============
 TDM_RateLimited
 ==============
 Return true if the client has used a command that prints global info or similar recently.
 */
-qboolean TDM_RateLimited (edict_t *ent)
+qboolean TDM_RateLimited (edict_t *ent, int penalty)
 {
-	if (level.framenum - ent->client->resp.last_command_frame < 1 * (1 / FRAMETIME))
+	if (level.framenum < ent->client->resp.last_command_frame)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Command ignored due to rate limiting, try again later.\n");
+		gi.cprintf (ent, PRINT_HIGH, "Command ignored due to rate limiting, wait a little longer.\n");
 		return true;
 	}
 
-	ent->client->resp.last_command_frame = level.framenum;
+	ent->client->resp.last_command_frame = level.framenum + penalty;
 	return false;
 }
 
@@ -453,19 +580,19 @@ static void TDM_RemoveVote (void)
 {
 	edict_t	*ent;
 
-	vote.flags = 0;
+	memset (&vote, 0, sizeof(vote));
+	/*vote.flags = 0;
 	vote.active = false;
 	vote.victim = NULL;
 	vote.initiator = NULL;
-	vote.success = VOTE_NOT_ENOUGH_VOTES;
+	vote.success = VOTE_NOT_ENOUGH_VOTES;*/
 
-
-	for (ent = g_edicts + 1; ent <= g_edicts + (int)maxclients->value; ent++)
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
 		if (!ent->inuse)
 			continue;
-		else
-			ent->vote = VOTE_HOLD;
+		
+		ent->vote = VOTE_HOLD;
 	}
 }
 
@@ -629,7 +756,7 @@ void TDM_Ready_f (edict_t *ent)
 	if (tdm_match_status >= MM_PLAYING)
 		return;
 
-	if (TDM_RateLimited (ent))
+	if (TDM_RateLimited (ent, SECS(1)))
 		return;
 
 	ent->client->resp.ready = !ent->client->resp.ready;
@@ -689,7 +816,7 @@ void TDM_Changeteamstatus_f (edict_t *ent, qboolean ready)
 		return;
 	}
 
-	for (ent2 = g_edicts + 1; ent2 <= g_edicts + (int)maxclients->value; ent2++)
+	for (ent2 = g_edicts + 1; ent2 <= g_edicts + game.maxclients; ent2++)
 	{
 		if (!ent2->inuse)
 			continue;
@@ -833,6 +960,12 @@ void TDM_PickPlayer_f (edict_t *ent)
 		return;
 	}
 
+	if (g_gamemode->value == GAMEMODE_1V1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "This command is unavailable in 1v1 mode.\n");
+		return;
+	}
+
 	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can pick players.\n");
@@ -845,7 +978,7 @@ void TDM_PickPlayer_f (edict_t *ent)
 		return;
 	}
 
-	if (TDM_RateLimited (ent))
+	if (TDM_RateLimited (ent, SECS(1)))
 		return;
 
 	if (LookupPlayer (gi.args(), &victim, ent))
@@ -894,13 +1027,19 @@ void TDM_Invite_f (edict_t *ent)
 		return;
 	}
 
+	if (g_gamemode->value == GAMEMODE_1V1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "This command is unavailable in 1v1 mode.\n");
+		return;
+	}
+
 	if (tdm_match_status != MM_WARMUP)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You can only invite players during warmup.\n");
 		return;
 	}
 
-	if (TDM_RateLimited (ent))
+	if (TDM_RateLimited (ent, SECS(2)))
 		return;
 
 	if (LookupPlayer (gi.args(), &victim, ent))
@@ -957,7 +1096,7 @@ void TDM_Accept_f (edict_t *ent)
 
 	ent->client->resp.team = ent->client->resp.last_invited_by->client->resp.team;
 
-	JoinTeam1 (ent);
+	JoinedTeam (ent);
 }
 
 /*
@@ -973,6 +1112,12 @@ void TDM_KickPlayer_f (edict_t *ent)
 	if (gi.argc() < 2)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Usage: kickplayer <name/id>\n");
+		return;
+	}
+
+	if (g_gamemode->value == GAMEMODE_1V1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "This command is unavailable in 1v1 mode.\n");
 		return;
 	}
 
@@ -1049,6 +1194,12 @@ Print / set captain
 */
 void TDM_Captain_f (edict_t *ent)
 {
+	if (g_gamemode->value == GAMEMODE_1V1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "This command is unavailable in 1v1 mode.\n");
+		return;
+	}
+
 	if (gi.argc() < 2)
 	{
 		//checking captain status or assigning from NULL captain
@@ -1255,6 +1406,12 @@ void TDM_Teamname_f (edict_t *ent)
 		return;
 	}
 
+	if (g_gamemode->value == GAMEMODE_1V1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "This command is unavailable in 1v1 mode.\n");
+		return;
+	}
+
 	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can change teamname.\n");
@@ -1308,6 +1465,12 @@ Locks / unlocks team (captain/admin only).
 */
 void TDM_Lockteam_f (edict_t *ent, qboolean lock)
 {
+	if (g_gamemode->value == GAMEMODE_1V1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "This command is unavailable in 1v1 mode.\n");
+		return;
+	}
+
 	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can lock/unlock team.\n");
@@ -1347,10 +1510,11 @@ static void TDM_CheckVote (void)
 	int vote_no = 0;
 	edict_t	*ent;
 
-	for (ent = g_edicts + 1; ent <= g_edicts + (int)maxclients->value; ent++)
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
 		if (!ent->inuse)
 			continue;
+
 		else if (ent->vote == VOTE_YES)
 			vote_yes++;
 		else if (ent->vote == VOTE_NO)
@@ -1358,7 +1522,8 @@ static void TDM_CheckVote (void)
 		else if (ent->vote == VOTE_HOLD)
  			vote_hold++;
 	}
-	if(vote_yes > vote_hold + vote_no)
+
+	if (vote_yes > vote_hold + vote_no)
 		vote.success = VOTE_SUCCESS;
 	else if(vote_no > vote_hold + vote_yes)
 		vote.success = VOTE_NOT_SUCCESS;
@@ -1375,7 +1540,7 @@ Apply vote.
 void EndDMLevel (void);
 static void TDM_ApplyVote (void)
 {
-	char value[15];
+	char value[16];
 
 	if (vote.flags & VOTE_TIMELIMIT)
 	{
@@ -1410,13 +1575,39 @@ static void TDM_ApplyVote (void)
 		TDM_ResetLevel();
 	}
 
-	if (vote.flags & VOTE_MODE_TDM || vote.flags & VOTE_MODE_ITDM)
+	if (vote.flags & VOTE_GAMEMODE)
 	{
-		if (vote.flags & VOTE_MODE_ITDM)
+		if (vote.gamemode == GAMEMODE_ITDM)
 			dmflags = gi.cvar_set ("dmflags", g_itdmflags->string);
-		else
+		else if (vote.gamemode == GAMEMODE_TDM)
 			dmflags = gi.cvar_set ("dmflags", g_tdmflags->string);
-		TDM_ResetLevel();
+		else if (vote.gamemode == GAMEMODE_1V1)
+			dmflags = gi.cvar_set ("dmflags", g_1v1flags->string);
+
+		//we force it here since we're in warmup and we know what we're doing.
+		//g_gamemode is latched otherwise to prevent server op from changing it
+		//via rcon / console mid game and ruining things.
+		gi.cvar_forceset ("g_gamemode", va ("%d", vote.gamemode));
+		TDM_UpdateConfigStrings (true);
+		TDM_ResetGameState ();
+	}
+
+	if (vote.flags & VOTE_TIEMODE)
+	{
+		sprintf (value, "%d", vote.tiemode);
+		g_tie_mode = gi.cvar_set ("g_tie_mode", value);
+	}
+
+	if (vote.flags & VOTE_SWITCHMODE)
+	{
+		sprintf (value, "%d", vote.switchmode);
+		g_fast_weap_switch = gi.cvar_set ("g_fast_weap_switch", value);
+	}
+
+	if (vote.flags & VOTE_TELEMODE)
+	{
+		sprintf (value, "%d", vote.telemode);
+		g_teleporter_nofreeze = gi.cvar_set ("g_teleporter_nofreeze", value);
 	}
 }
 
@@ -1442,11 +1633,13 @@ static void TDM_AnnounceVote (void)
 	{
 		strcat (what, va("timelimit %d", vote.newtimelimit));
 	}
-	else if (vote.flags & VOTE_MAP)
+	
+	if (vote.flags & VOTE_MAP)
 	{
 		strcat (what, va ("%smap %s", what[0] ? ", " : "", vote.newmap));
 	}
-	else if (vote.flags & VOTE_WEAPONS)
+	
+	if (vote.flags & VOTE_WEAPONS)
 	{
 		int			j;
 		strcat (what, va("weapons"));
@@ -1462,11 +1655,13 @@ static void TDM_AnnounceVote (void)
 			}
 		}
 	}
-	else if (vote.flags & VOTE_KICK)
+
+	if (vote.flags & VOTE_KICK)
 	{
 		strcat (what, va("kick %s", vote.victim->client->pers.netname));
 	}
-	else if (vote.flags & VOTE_POWERUPS)
+	
+	if (vote.flags & VOTE_POWERUPS)
 	{
 		int			j;
 		strcat (what, va("powerups"));
@@ -1482,13 +1677,43 @@ static void TDM_AnnounceVote (void)
 			}
 		}
 	}
-	else if (vote.flags & VOTE_MODE_TDM)
+	
+	if (vote.flags & VOTE_GAMEMODE)
 	{
-		strcat (what, va("mode TDM"));
+		if (vote.gamemode == GAMEMODE_TDM)
+			strcat (what, "mode TDM");
+		else if (vote.gamemode == GAMEMODE_ITDM)
+			strcat (what, "mode ITDM");
+		else if (vote.gamemode == GAMEMODE_1V1)
+			strcat (what, "mode 1v1");
 	}
-	else if (vote.flags & VOTE_MODE_ITDM)
+
+	if (vote.flags & VOTE_TIEMODE)
 	{
-		strcat (what, va("mode ITDM"));
+		if (vote.tiemode == 0)
+			strcat (what, "no overtime");
+		else if (vote.tiemode == 1)
+			strcat (what, "overtime enabled");
+		else if (vote.tiemode == 2)
+			strcat (what, "sudden death enabled");
+	}
+
+	if (vote.flags & VOTE_SWITCHMODE)
+	{
+		if (vote.switchmode == 0)
+			strcat (what, "normal weapon switch");
+		else if (vote.switchmode == 1)
+			strcat (what, "faster weapon switch");
+		else if (vote.switchmode == 2)
+			strcat (what, "instant weapon switch");
+	}
+
+	if (vote.flags & VOTE_TELEMODE)
+	{
+		if (vote.telemode == 0)
+			strcat (what, "normal teleporter mode");
+		else if (vote.telemode == 1)
+			strcat (what, "no freeze teleporter mode");
 	}
 
 	gi.bprintf (PRINT_CHAT, "%s%s\n", message, what);
@@ -1507,7 +1732,7 @@ static void TDM_Vote_f (edict_t *ent)
 
 	if (gi.argc() < 2)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: vote <timelimit/map/kick/powerups/weapons> <value>\n"
+		gi.cprintf (ent, PRINT_HIGH, "Usage: vote <timelimit/map/kick/powerups/weapons/gamemode/tiemode/telemode/switchmode> <value>\n"
 			"For weapon/powerup votes, specify multiple combinations of + or -, eg -bfg, +quad -invuln, etc\n");
 		return;
 	}
@@ -1520,21 +1745,16 @@ static void TDM_Vote_f (edict_t *ent)
 
 	cmd = gi.argv(1);
 
+	//if initiator wants to change vote reset the vote and start again
+	if (vote.active && vote.initiator != ent && Q_stricmp (cmd, "yes") && Q_stricmp (cmd, "no"))
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Another vote is already in progress.\n");
+		return;
+	}
+
 	if (!Q_stricmp (cmd, "timelimit") || !Q_stricmp (cmd, "tl"))
 	{
 		int		limit;
-
-		//if initiator wants to change vote tl value
-		//reset the vote and start again
-		if (vote.initiator == ent && vote.flags & VOTE_TIMELIMIT)
-		{
-			TDM_RemoveVote();
-		}
-		else if (vote.active)
-		{
-			gi.cprintf (ent, PRINT_HIGH, "Other vote in progress.\n");
-			return;
-		}
 
 		value = gi.argv(2);
 		if (!value[0])
@@ -1557,6 +1777,12 @@ static void TDM_Vote_f (edict_t *ent)
 			return;
 		}
 
+		if (vote.active)
+		{
+			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+			TDM_RemoveVote ();
+		}
+
 		vote.flags |= VOTE_TIMELIMIT;
 		vote.newtimelimit = limit;
 		vote.initiator = ent;
@@ -1569,18 +1795,6 @@ static void TDM_Vote_f (edict_t *ent)
 	{
 		unsigned	i;
 		size_t		len;
-
-		//if initiator wants to change vote map value
-		//reset the vote and start again
-		if (vote.initiator == ent && vote.flags & VOTE_MAP)
-		{
-			TDM_RemoveVote();
-		}
-		else if (vote.active)
-		{
-			gi.cprintf (ent, PRINT_HIGH, "Other vote in progress.\n");
-			return;
-		}
 
 		value = gi.argv(2);
 
@@ -1609,6 +1823,12 @@ static void TDM_Vote_f (edict_t *ent)
 			}
 		}
 
+		if (vote.active)
+		{
+			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+			TDM_RemoveVote ();
+		}
+
 		strcpy (vote.newmap, value);
 
 		vote.flags |= VOTE_MAP;
@@ -1624,18 +1844,6 @@ static void TDM_Vote_f (edict_t *ent)
 		unsigned	flags;
 		int			i, j;
 		qboolean	found;
-
-		//if initiator wants to change vote weapons value
-		//reset the vote and start again
-		if (vote.initiator == ent && vote.flags & VOTE_WEAPONS)
-		{
-			TDM_RemoveVote();
-		}
-		else if (vote.active)
-		{
-			gi.cprintf (ent, PRINT_HIGH, "Other vote in progress.\n");
-			return;
-		}
 
 		value = gi.argv(2);
 
@@ -1736,6 +1944,12 @@ static void TDM_Vote_f (edict_t *ent)
 			return;
 		}
 
+		if (vote.active)
+		{
+			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+			TDM_RemoveVote ();
+		}
+
 		vote.newweaponflags = flags;
 		vote.flags |= VOTE_WEAPONS;
 		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
@@ -1747,17 +1961,6 @@ static void TDM_Vote_f (edict_t *ent)
 	else if (!Q_stricmp (cmd, "kick"))
 	{
 		edict_t	*victim;
-		//if initiator wants to change vote weapons value
-		//reset the vote and start again
-		if (vote.initiator == ent && vote.flags & VOTE_KICK)
-		{
-			TDM_RemoveVote();
-		}
-		else if (vote.active)
-		{
-			gi.cprintf (ent, PRINT_HIGH, "Other vote in progress.\n");
-			return;
-		}
 
 		value = gi.argv(2);
 
@@ -1780,6 +1983,13 @@ static void TDM_Vote_f (edict_t *ent)
 				gi.cprintf (ent, PRINT_HIGH, "You can't kick yourself!\n");
 				return;
 			}
+
+			if (vote.active)
+			{
+				gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+				TDM_RemoveVote ();
+			}
+
 			vote.victim = victim;
 			vote.flags |= VOTE_KICK;
 			vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
@@ -1795,18 +2005,6 @@ static void TDM_Vote_f (edict_t *ent)
 		unsigned	flags;
 		int			i, j;
 		qboolean	found;
-
-		//if initiator wants to change vote powerups value
-		//reset the vote and start again
-		if (vote.initiator == ent && vote.flags & VOTE_POWERUPS)
-		{
-			TDM_RemoveVote();
-		}
-		else if (vote.active)
-		{
-			gi.cprintf (ent, PRINT_HIGH, "Other vote in progress.\n");
-			return;
-		}
 
 		value = gi.argv(2);
 
@@ -1873,6 +2071,12 @@ static void TDM_Vote_f (edict_t *ent)
 			return;
 		}
 
+		if (vote.active)
+		{
+			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+			TDM_RemoveVote ();
+		}
+
 		vote.newpowerupflags = flags;
 		vote.flags |= VOTE_POWERUPS;
 		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
@@ -1881,41 +2085,153 @@ static void TDM_Vote_f (edict_t *ent)
 		TDM_AnnounceVote ();
 		ent->vote = VOTE_YES;
 	}
-	else if (!Q_stricmp (cmd, "mode"))
+	else if (!Q_stricmp (cmd, "gamemode") || !Q_stricmp (cmd, "mode"))
 	{
-		//if initiator wants to change vote powerups value
-		//reset the vote and start again
-		if (vote.initiator == ent && vote.flags & VOTE_POWERUPS)
-		{
-			TDM_RemoveVote();
-		}
-		else if (vote.active)
-		{
-			gi.cprintf (ent, PRINT_HIGH, "Other vote in progress.\n");
-			return;
-		}
+		int	gamemode;
 
 		value = gi.argv(2);
 
 		if (!value[0])
 		{
-			gi.cprintf (ent, PRINT_HIGH, "Usage: vote mode <tdm/itdm>\n");
+			gi.cprintf (ent, PRINT_HIGH, "Usage: vote gamemode <tdm/itdm/1v1>\n");
 			return;
 		}
 
 		if (!Q_stricmp (value, "tdm"))
-		{
-			vote.flags |= VOTE_MODE_TDM;
-		}
+			gamemode = GAMEMODE_TDM;
 		else if(!Q_stricmp (value, "itdm"))
-		{
-			vote.flags |= VOTE_MODE_ITDM;
-		}
+			gamemode = GAMEMODE_ITDM;
+		else if (!Q_stricmp (value, "1v1") || !Q_stricmp (value, "duel"))
+			gamemode = GAMEMODE_1V1;
 		else
 		{
-			gi.cprintf (ent, PRINT_HIGH, "Invalid mode.\n");
+			gi.cprintf (ent, PRINT_HIGH, "Unknown game mode: %s\n", value);
 			return;
 		}
+
+		if ((int)g_gamemode->value == gamemode)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "That game mode is already set!\n");
+			return;
+		}
+
+		if (vote.active)
+		{
+			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+			TDM_RemoveVote ();
+		}
+
+		vote.flags |= VOTE_GAMEMODE;
+		vote.gamemode = gamemode;
+		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
+		vote.initiator = ent;
+		vote.active = true;
+		TDM_AnnounceVote ();
+		ent->vote = VOTE_YES;
+	}
+	else if (!Q_stricmp (cmd, "tiemode"))
+	{
+		int	tiemode;
+
+		value = gi.argv(2);
+
+		if (!value[0])
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Usage: vote tiemode <none/ot/sd>\nnone: game ties after timelimit\not: %g minutes overtime added until a winner\nsd: sudden death, first frag wins\n", g_overtime->value / 60);
+			return;
+		}
+
+		if (!Q_stricmp (value, "ot") || !Q_stricmp (value, "overtime"))
+			tiemode = 1;
+		else if (!Q_stricmp (value, "sd") || !Q_stricmp (value, "sudden death"))
+			tiemode = 2;
+		else if (!Q_stricmp (value, "none") || !Q_stricmp (value, "tie") || !Q_stricmp (value, "normal"))
+			tiemode = 0;
+		else
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Unknown mode: %s\n", value);
+			return;
+		}
+
+		if (g_tie_mode->value == tiemode)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "That tie mode is already set!\n");
+			return;
+		}
+
+		vote.flags |= VOTE_TIEMODE;
+		vote.tiemode = tiemode;
+
+		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
+		vote.initiator = ent;
+		vote.active = true;
+		TDM_AnnounceVote ();
+		ent->vote = VOTE_YES;
+	}
+	else if (!Q_stricmp (cmd, "telemode"))
+	{
+		int	telemode;
+
+		value = gi.argv(2);
+
+		if (!value[0])
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Usage: vote telemode <normal/nofreeze>\nnormal: teleporters act like regular Q2, you freeze briefly on exit\nnofreeze: teleporters act like Q3, your velocity is maintained on exit\n");
+			return;
+		}
+
+		if (!Q_stricmp (value, "normal") || !Q_stricmp (value, "freeze") || !Q_stricmp (value, "q2"))
+			telemode = 0;
+		else if (!Q_stricmp (value, "nofreeze") || !Q_stricmp (value, "q3"))
+			telemode = 1;
+		else
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Unknown mode: %s\n", value);
+			return;
+		}
+
+		if (g_teleporter_nofreeze->value == telemode)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "That teleporter mode is already set!\n");
+			return;
+		}
+
+		vote.flags |= VOTE_TELEMODE;
+		vote.telemode = telemode;
+
+		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
+		vote.initiator = ent;
+		vote.active = true;
+		TDM_AnnounceVote ();
+		ent->vote = VOTE_YES;
+	}
+	else if (!Q_stricmp (cmd, "switchmode"))
+	{
+		int	switchmode;
+
+		value = gi.argv(2);
+
+		if (!value[0])
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Usage: vote switchmode <normal/fast/instant>\nnormal: regular Q2 weapon switch speed\nfast: weapon dropping animation is skipped\ninstant: all animations are skipped\n");
+			return;
+		}
+
+		if (!Q_stricmp (value, "fast") || !Q_stricmp (value, "faster"))
+			switchmode = 1;
+		else if (!Q_stricmp (value, "instant"))
+			switchmode = 2;
+		else if (!Q_stricmp (value, "normal") || !Q_stricmp (value, "slow"))
+			switchmode = 0;
+
+		if (g_fast_weap_switch->value == switchmode)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "That weapon switch mode is already set!\n");
+			return;
+		}
+
+		vote.switchmode = switchmode;
+		vote.flags |= VOTE_SWITCHMODE;
 
 		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
 		vote.initiator = ent;
@@ -1925,24 +2241,24 @@ static void TDM_Vote_f (edict_t *ent)
 	}
 	else if (!Q_stricmp (cmd, "yes"))
 	{
-		if(!vote.active)
+		if (!vote.active)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "No vote in progress.\n");
 		}
 
-		if (TDM_RateLimited (ent))
+		if (TDM_RateLimited (ent, SECS(2)))
 			return;
 		
-		if(ent->vote == VOTE_HOLD)
+		if (ent->vote == VOTE_HOLD)
 		{
 			ent->vote = VOTE_YES;
 			gi.bprintf (PRINT_HIGH, "%s voted YES.\n", ent->client->pers.netname);
 		}
-		else if(ent->vote == VOTE_YES)
+		else if (ent->vote == VOTE_YES)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "You have already voted yes.\n");
 		}
-		else if(ent->vote == VOTE_NO)
+		else if (ent->vote == VOTE_NO)
 		{
 			ent->vote = VOTE_YES;
 			gi.bprintf (PRINT_HIGH, "%s changed his vote to YES.\n", ent->client->pers.netname);
@@ -1950,24 +2266,24 @@ static void TDM_Vote_f (edict_t *ent)
 	}
 	else if (!Q_stricmp (cmd, "no"))
 	{
-		if(!vote.active)
+		if (!vote.active)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "No vote in progress.\n");
 		}
 
-		if (TDM_RateLimited (ent))
+		if (TDM_RateLimited (ent, SECS(2)))
 			return;
 		
-		if(ent->vote == VOTE_HOLD)
+		if (ent->vote == VOTE_HOLD)
 		{
 			ent->vote = VOTE_NO;
 			gi.bprintf (PRINT_HIGH, "%s voted NO.\n", ent->client->pers.netname);
 		}
-		else if(ent->vote == VOTE_NO)
+		else if (ent->vote == VOTE_NO)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "You have already voted no.\n");
 		}
-		else if(ent->vote == VOTE_YES)
+		else if (ent->vote == VOTE_YES)
 		{
 			ent->vote = VOTE_NO;
 			gi.bprintf (PRINT_HIGH, "%s changed his vote to NO.\n", ent->client->pers.netname);
@@ -1994,6 +2310,12 @@ static void TDM_Vote_f (edict_t *ent)
 	}
 }
 
+/*
+==============
+TDM_ForceReady_f
+==============
+Force everyone to be ready, admin command.
+*/
 static void TDM_ForceReady_f (void)
 {
 	edict_t	*ent;
@@ -2010,6 +2332,112 @@ static void TDM_ForceReady_f (void)
 	}
 
 	TDM_CheckMatchStart ();
+}
+
+/*
+==============
+TDM_Commands_f
+==============
+Show brief help on all commands
+*/
+void TDM_Commands_f (edict_t *ent)
+{
+	gi.cprintf (ent, PRINT_HIGH,
+		"General\n"
+		"-------\n"
+		"menu         Show OpenTDM menu\n"
+		"team         Join a team\n"
+		"vote         Propose new settings\n"
+		"accept       Accept a team invite\n"
+		"captain      Show / become / set captain\n"
+		"settings     Show match settings\n"
+		"ready        Toggle ready status\n"
+		"\n"
+		"Team Captains\n"
+		"-------------\n"
+		"teamname     Change team name\n"
+		"teamskin     Change team skin\n"
+		"invite       Invite a player\n"
+		"pickplayer   Pick a player\n"
+		"lockteam     Lock team\n"
+		"unlockteam   Unlock team\n"
+		"teamready    Force team ready\n"
+		"teamnotready Force team not ready\n"
+		"kickplayer   Remove a player from team\n"
+		);
+}
+
+/*
+==============
+TDM_Team_f
+==============
+Show team status / join a team
+*/
+void TDM_Team_f (edict_t *ent)
+{
+	const char	*value;
+
+	if (gi.argc () < 2)
+	{
+		if (!ent->client->resp.team)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You are not on a team. Use team 1 or team 2 to join a team.\n");
+			return;
+		}
+
+		gi.cprintf (ent, PRINT_HIGH, "You are on the '%s' team.\n", teaminfo[ent->client->resp.team].name);
+		return;
+	}
+
+	if (tdm_match_status != MM_WARMUP)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "You can't change team in the middle of a match.\n");
+		return;
+	}
+
+	value = gi.argv (1);
+
+	if (!Q_stricmp (value, "1") || !Q_stricmp (value, "A") || !Q_stricmp (value, teaminfo[TEAM_A].name))
+	{
+		if (ent->client->resp.team == TEAM_A)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You're already on that team!\n");
+			return;
+		}
+
+		if (TDM_RateLimited (ent, SECS(2)))
+			return;
+
+		JoinTeam1 (ent);
+	}
+	else if (!Q_stricmp (value, "2") || !Q_stricmp (value, "B") || !Q_stricmp (value, teaminfo[TEAM_B].name))
+	{
+		if (ent->client->resp.team == TEAM_B)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You're already on that team!\n");
+			return;
+		}
+
+		if (TDM_RateLimited (ent, SECS(2)))
+			return;
+
+		JoinTeam2 (ent);
+	}
+	else
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Unknown team: %s\n", value);
+	}
+}
+
+/*
+==============
+TDM_Settings_f
+==============
+Shows current match settings.
+*/
+void TDM_Settings_f (edict_t *ent)
+{
+	gi.cprintf (ent, PRINT_HIGH, "%s", TDM_SettingsString ());
 }
 
 /*
@@ -2081,6 +2509,12 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 		TDM_Changeteamstatus_f (ent, false);
 	else if (!Q_stricmp (cmd, "menu") || !Q_stricmp (cmd, "ctfmenu"))
 		TDM_ShowTeamMenu (ent);
+	else if (!Q_stricmp (cmd, "commands"))
+		TDM_Commands_f (ent);
+	else if (!Q_stricmp (cmd, "team"))
+		TDM_Team_f (ent);
+	else if (!Q_stricmp (cmd, "settings"))
+		TDM_Settings_f (ent);
 	else
 		return false;
 
@@ -2112,25 +2546,39 @@ void TDM_SetInitialItems (edict_t *ent)
 	switch (tdm_match_status)
 	{
 		case MM_WARMUP:
-			for (i = 1; i < game.num_items; i++)
+			//wision: spawn with rail in insta
+			if (g_gamemode->value == GAMEMODE_ITDM)
 			{
-				item = GETITEM (i);
-				//wision: BFG sucks in warmup :X
-				if (item->flags & IT_WEAPON && item->weapmodel != WEAP_BFG)
+				item = GETITEM (ITEM_WEAPON_RAILGUN);
+				Add_Ammo (ent, GETITEM(item->ammoindex), 1000);
+				client->weapon = item;
+				client->selected_item = ITEM_INDEX(item);
+				client->inventory[client->selected_item] = 1;
+			}
+			else
+			{
+				for (i = 1; i < game.num_items; i++)
 				{
-					client->inventory[i] = 1;
-					if (item->ammoindex)
-						Add_Ammo (ent, GETITEM(item->ammoindex), 1000);
-					client->selected_item = i;
-					client->weapon = item;
+					item = GETITEM (i);
+					//wision: BFG sucks in warmup :X
+					if ((item->flags & IT_WEAPON) && i != ITEM_WEAPON_BFG)
+					{
+						client->inventory[i] = 1;
+						if (item->ammoindex)
+							Add_Ammo (ent, GETITEM(item->ammoindex), 1000);
+					}
 				}
+
+				//spawn with RL up
+				client->selected_item = ITEM_WEAPON_ROCKETLAUNCHER;
+				client->weapon = GETITEM (ITEM_WEAPON_ROCKETLAUNCHER);
 			}
 			client->inventory[ITEM_ITEM_ARMOR_BODY] = 200;
 			break;
 
 		default:
 			//wision: spawn with rail in insta
-			if((int)dmflags->value & DF_MODE_ITDM)
+			if (g_gamemode->value == GAMEMODE_ITDM)
 			{
 				item = GETITEM (ITEM_WEAPON_RAILGUN);
 				Add_Ammo (ent, GETITEM(item->ammoindex), 1000);
@@ -2153,7 +2601,9 @@ Set ent to be a captain of team, ent can be NULL to remove captain
 void TDM_SetCaptain (int team, edict_t *ent)
 {
 	teaminfo[team].captain = ent;
-	if (ent)
+
+	//no announce in 1v1, but captain is still silently used.
+	if (ent && g_gamemode->value != GAMEMODE_1V1)
 	{
 		gi.bprintf (PRINT_HIGH, "%s became captain of '%s'\n", ent->client->pers.netname, teaminfo[team].name);
 		gi.cprintf (ent, PRINT_CHAT, "You are the captain of '%s'\n", teaminfo[team].name);
@@ -2168,7 +2618,8 @@ A player just joined a team, so do things.
 */
 void JoinedTeam (edict_t *ent)
 {
-	gi.bprintf (PRINT_HIGH, "%s joined team '%s'\n", ent->client->pers.netname, teaminfo[ent->client->resp.team].name);
+	if (g_gamemode->value != GAMEMODE_1V1)
+		gi.bprintf (PRINT_HIGH, "%s joined team '%s'\n", ent->client->pers.netname, teaminfo[ent->client->resp.team].name);
 
 	ent->client->resp.ready = false;
 
@@ -2176,6 +2627,10 @@ void JoinedTeam (edict_t *ent)
 	//FIXME: should this still assign even if the team has existing players?
 	if (!teaminfo[ent->client->resp.team].captain)
 		TDM_SetCaptain (ent->client->resp.team, ent);
+
+	//nasty hack for setting team names for 1v1 mode
+	if (g_gamemode->value == GAMEMODE_1V1)
+		TDM_UpdateConfigStrings (true);
 
 	//wision: set skin for new player
 	gi.configstring (CS_PLAYERSKINS + (ent - g_edicts) - 1, va("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->resp.team].skin));
@@ -2191,14 +2646,27 @@ A player just left a team, so do things.
 */
 void TDM_LeftTeam (edict_t *ent)
 {
+	int	oldteam;
+
 	gi.bprintf (PRINT_HIGH, "%s left team '%s'\n", ent->client->pers.netname, teaminfo[ent->client->resp.team].name);
 
+	//FIXME: do we want to pick a new captain or let players contend for it with 'captain' cmd?
 	if (teaminfo[ent->client->resp.team].captain == ent)
 		TDM_SetCaptain (ent->client->resp.team, NULL);
+
+	//r1: messy team name fix for 1v1
+	if (g_gamemode->value == GAMEMODE_1V1)
+		TDM_UpdateConfigStrings (true);
+
+	oldteam = ent->client->resp.team;
 
 	//wision: remove player from the team!
 	ent->client->resp.team = TEAM_SPEC;
 	TDM_TeamsChanged ();
+
+	//unlock here if team emptied
+	if (teaminfo[oldteam].players == 0)
+		teaminfo[oldteam].locked = false;
 }
 
 qboolean CanJoin (edict_t *ent, unsigned team)
@@ -2215,17 +2683,23 @@ qboolean CanJoin (edict_t *ent, unsigned team)
 		return false;
 	}
 
+	if (g_gamemode->value == GAMEMODE_1V1 && teaminfo[team].captain)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Only one player is allowed on each team in 1v1 mode.\n");
+		return false;
+	}
+
 	//wision: forbid rejoining the team
 	if (ent->client->resp.team == team)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "You are already in team: %s.\n", teaminfo[ent->client->resp.team].name);
+		gi.cprintf (ent, PRINT_HIGH, "You are already on team '%s'.\n", teaminfo[ent->client->resp.team].name);
 		return false;
 	}
 
 	//wision: forbid joining locked team
 	if (teaminfo[team].locked)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Team %s is locked.\n", teaminfo[team].name);
+		gi.cprintf (ent, PRINT_HIGH, "Team '%s' is locked.\n", teaminfo[team].name);
 		return false;
 	}
 
@@ -2334,16 +2808,15 @@ Everyone has left the server, so reset anything they voted back to defaults
 */
 static void TDM_ResetVotableVariables (void)
 {
-	gi.cvar_set ("g_match_time", va("%d", default_timelimit));
-	gi.cvar_set ("g_itemflags", va("%d", default_itemflags));
-	gi.cvar_set ("powerupflags", va ("%d", default_powerupflags));
-	gi.cvar_set ("g_tie_mode", va("%d", default_tie_mode));
-	gi.cvar_set ("g_overtime", va ("%d", default_overtime));
+	cvarsave_t	*var;
 
-	gi.cvar_set ("team_a_name", default_team_a_name);
-	gi.cvar_set ("team_b_name", default_team_b_name);
-	gi.cvar_set ("team_a_skin", default_team_a_skin);
-	gi.cvar_set ("team_a_skin", default_team_b_skin);
+	var = preserved_vars;
+
+	while (var->variable_name)
+	{
+		gi.cvar_set (var->variable_name, var->default_string);
+		var++;
+	}
 
 	TDM_UpdateConfigStrings (true);
 }	
@@ -2404,36 +2877,6 @@ void UpdateMatchStatus (void)
 
 /*
 ==============
-UpdateTeamInfo
-==============
-Update the team info (unlock team without players, set team captain)
-*/
-void UpdateTeamInfo (void)
-{
-	unsigned	team;
-	edict_t		*ent;
-
-	for (team = TEAM_A; team < MAX_TEAMS; team++)
-	{
-		if (teaminfo[team].players < 1)
-			teaminfo[team].locked = false;
-
-		if (teaminfo[team].players >= 1 && teaminfo[team].captain == NULL)
-		{
-			for (ent = g_edicts + 1; ent <= g_edicts + (int)maxclients->value; ent++)
-			{
-				if (ent->inuse && ent->client->resp.team == team)
-				{
-					TDM_SetCaptain (team, ent);
-					return;
-				}
-			}
-		}
-	}
-}
-
-/*
-==============
 UpdateTeamMenu
 ==============
 Update the join menu to reflect team names / player counts
@@ -2442,12 +2885,22 @@ void UpdateTeamMenu (void)
 {
 	edict_t		*ent;
 	int			i;
+	static char	openTDMBanner[32];
+	static char *gameString[] = {
+		"TDM",
+		"ITDM",
+		"1v1"
+	};
 
 	for (i = 0; i < MAX_TEAMS; i++)
 	{
 		sprintf (teamStatus[i], "  (%d player%s)", teaminfo[i].players, teaminfo[i].players == 1 ? "" : "s");
 		sprintf (teamJoinText[i], "*Join %s", teaminfo[i].name);
 	}
+
+	sprintf (openTDMBanner, "*Quake II - OpenTDM (%s)", gameString[(int)g_gamemode->value]);
+
+	joinmenu[0].text = openTDMBanner;
 
 	joinmenu[3].text = teamJoinText[1];
 	joinmenu[4].text = teamStatus[1];
@@ -2478,7 +2931,6 @@ void TDM_TeamsChanged (void)
 {
 	CountPlayers ();
 	UpdateTeamMenu ();
-	UpdateTeamInfo ();
 	UpdateMatchStatus ();
 	TDM_CheckMatchStart ();
 }
@@ -2521,7 +2973,8 @@ Called when a new level is about to begin.
 void TDM_MapChanged (void)
 {
 	//wision: apply item settings
-	TDM_ResetLevel ();
+	//r1: not needed, this is handled automatically in SpawnEntities
+	//TDM_ResetLevel ();
 	TDM_UpdateConfigStrings (true);
 }
 
@@ -2540,16 +2993,19 @@ void TDM_ResetGameState (void)
 	TDM_ResetLevel ();
 
 	teaminfo[TEAM_A].score = teaminfo[TEAM_B].score = 0;
-	UpdateTeamMenu ();
+	teaminfo[TEAM_A].players = teaminfo[TEAM_B].players = 0;
 
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
 		if (ent->inuse && ent->client->resp.team != TEAM_SPEC)
 		{
+			ent->client->resp.last_invited_by = NULL;
 			ent->client->resp.team = TEAM_SPEC;
 			PutClientInServer (ent);
 		}
 	}
+
+	UpdateTeamMenu ();
 }
 
 /*
@@ -2560,18 +3016,25 @@ Single time initialization stuff.
 */
 void TDM_Init (void)
 {
-	strcpy (teaminfo[0].name, "Observers");
+	cvarsave_t	*preserved;
+	cvar_t		*var;
 
-	//save whatever the server admin set
-	default_timelimit = (int)g_match_time->value;
-	default_itemflags = (int)g_itemflags->value;
-	default_powerupflags = (int)g_powerupflags->value;
-	default_team_a_name = G_CopyString (g_team_a_name->string);
-	default_team_b_name = G_CopyString (g_team_b_name->string);
-	default_team_a_skin = G_CopyString (g_team_a_skin->string);
-	default_team_b_skin = G_CopyString (g_team_b_skin->string);
-	default_tie_mode = (int)g_tie_mode->value;
-	default_overtime = (int)g_overtime->value;
+	strcpy (teaminfo[0].name, "Spectators");
+	strcpy (teaminfo[0].skin, "male/grunt");
+
+	//save whatever the server admin set for restoring later
+	preserved = preserved_vars;
+
+	while (preserved->variable_name)
+	{
+		var = gi.cvar (preserved->variable_name, NULL, 0);
+		if (!var)
+			gi.error ("TDM_Init: Couldn't preserve %s", preserved->variable_name);
+
+		preserved->default_string = G_CopyString (var->string);
+
+		preserved++;
+	}
 
 	TDM_ResetGameState ();
 }
@@ -2591,6 +3054,7 @@ void TDM_SetSkins (void)
 	for (i = TEAM_A; i <= TEAM_B; i++)
 	{
 		oldskin = teaminfo[i].skin;
+
 		if (i == TEAM_A)
 			newskin = g_team_a_skin->string;
 		else
@@ -2614,22 +3078,6 @@ void TDM_SetSkins (void)
 
 /*
 ==============
-TDM_SetColorText
-==============
-Converts a string to color text (high ASCII)
-*/
-void TDM_SetColorText (char *buffer)
-{
-	size_t	len;
-	int		i;
-
-	len = strlen (buffer);
-	for (i = 0; i < len; i++)
-		buffer[i] |= 0x80;
-}
-
-/*
-==============
 TDM_UpdateConfigStrings
 ==============
 Check any cvar and other changes and update relevant configstrings
@@ -2644,7 +3092,15 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 	if (g_team_a_name->modified || forceUpdate)
 	{
 		g_team_a_name->modified = false;
-		strncpy (teaminfo[TEAM_A].name, g_team_a_name->string, sizeof(teaminfo[TEAM_A].name)-1);
+		if (g_gamemode->value == GAMEMODE_1V1)
+		{
+			if (teaminfo[TEAM_A].captain)
+				strncpy (teaminfo[TEAM_A].name, teaminfo[TEAM_A].captain->client->pers.netname, sizeof(teaminfo[TEAM_A].name)-1);
+			else
+				strcpy (teaminfo[TEAM_A].name, "Player 1");
+		}
+		else
+			strncpy (teaminfo[TEAM_A].name, g_team_a_name->string, sizeof(teaminfo[TEAM_A].name)-1);
 		sprintf (teaminfo[TEAM_A].statname, "%31s", teaminfo[TEAM_A].name);
 		gi.configstring (CS_GENERAL + 0, teaminfo[TEAM_A].statname);
 	}
@@ -2652,7 +3108,15 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 	if (g_team_b_name->modified || forceUpdate)
 	{
 		g_team_b_name->modified = false;
-		strncpy (teaminfo[TEAM_B].name, g_team_b_name->string, sizeof(teaminfo[TEAM_B].name)-1);
+		if (g_gamemode->value == GAMEMODE_1V1)
+		{
+			if (teaminfo[TEAM_B].captain)
+				strncpy (teaminfo[TEAM_B].name, teaminfo[TEAM_B].captain->client->pers.netname, sizeof(teaminfo[TEAM_B].name)-1);
+			else
+				strcpy (teaminfo[TEAM_B].name, "Player 2");
+		}
+		else
+			strncpy (teaminfo[TEAM_B].name, g_team_b_name->string, sizeof(teaminfo[TEAM_B].name)-1);
 		sprintf (teaminfo[TEAM_B].statname, "%31s", teaminfo[TEAM_B].name);
 		gi.configstring (CS_GENERAL + 1, teaminfo[TEAM_B].statname);
 	}

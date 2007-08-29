@@ -86,11 +86,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define DF_INFINITE_AMMO	0x00002000	// 8192
 #define DF_QUAD_DROP		0x00004000	// 16384
 #define DF_FIXED_FOV		0x00008000	// 32768
+
+#define GAMEMODE_TDM	0
+#define GAMEMODE_ITDM	1
+#define GAMEMODE_1V1	2
+
 // otdm flags
-#define DF_MODE_TDM		0x00010000	// 65536
-#define DF_MODE_ITDM		0x00020000	// 131072
+//i don't like the way this is done, gametype should be global, not a flag
+//#define DF_MODE_TDM			0x00010000	// 65536
+//#define DF_MODE_ITDM		0x00020000	// 131072
+//#define DF_MODE_1V1			0x00040000	// 262144
 
 // RAFAEL
+/*
 #define	DF_QUADFIRE_DROP	0x00010000	// 65536
 
 //ROGUE
@@ -98,6 +106,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define DF_NO_STACK_DOUBLE	0x00040000
 #define DF_NO_NUKES			0x00080000
 #define DF_NO_SPHERES		0x00100000
+*/
 //ROGUE
 
 enum
@@ -720,6 +729,7 @@ extern	cvar_t	*g_vote_time;
 
 extern	cvar_t	*g_tdmflags;
 extern	cvar_t	*g_itdmflags;
+extern	cvar_t	*g_1v1flags;
 
 extern	cvar_t	*g_itemflags;
 extern	cvar_t	*g_powerupflags;
@@ -727,10 +737,11 @@ extern	cvar_t	*g_powerupflags;
 extern	cvar_t	*g_tdm_allow_pick;
 
 extern	cvar_t	*g_fast_weap_switch;
-extern	cvar_t	*g_teleporter_freeze;
+extern	cvar_t	*g_teleporter_nofreeze;
 
 extern	cvar_t	*g_overtime;
 extern	cvar_t	*g_tie_mode;
+extern	cvar_t	*g_gamemode;
 
 #define world	(&g_edicts[0])
 

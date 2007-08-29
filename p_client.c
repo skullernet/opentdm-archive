@@ -433,6 +433,13 @@ void TossClientWeapon (edict_t *self)
 	if (!deathmatch->value)
 		return;
 
+	//no drops in warmup / itdm
+	if (tdm_match_status < MM_PLAYING)
+		return;
+
+	if ((int)g_gamemode->value == GAMEMODE_ITDM)
+		return;
+
 	item = self->client->weapon;
 	if (!self->client->inventory[self->client->ammo_index] )
 		item = NULL;
@@ -543,10 +550,8 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 		self->client->ps.pmove.pm_type = PM_DEAD;
 		ClientObituary (self, inflictor, attacker);
 
-		//wision: drop item during warmup (instagib) is soooo ugly
-		if (tdm_match_status != MM_WARMUP && tdm_match_status != MM_TIMEOUT &&
-				tdm_match_status != MM_COUNTDOWN && !((int)dmflags->value & DF_MODE_ITDM))
-			TossClientWeapon (self);
+		TossClientWeapon (self);
+
 		if (deathmatch->value)
 			Cmd_Help_f (self);		// show scores
 
@@ -1176,11 +1181,7 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 {
 	const char	*s;
 	const char	*old_name;
-/****
- *wision: changing skin is forbidden in TDM!
-	const char *old_skin;
 	int			playernum;
- ****/
 	qboolean	name_changed;
 
 	// check for malformed or illegal info strings
@@ -1188,6 +1189,8 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	{
 		strcpy (userinfo, "\\name\\badinfo\\skin\\male/grunt");
 	}
+
+	playernum = ent-g_edicts-1;
 
 	name_changed = false;
 
@@ -1198,29 +1201,10 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	
 	if (strcmp (old_name, s))
 	{
-		name_changed = true;
 		strncpy (ent->client->pers.netname, s, sizeof(ent->client->pers.netname)-1);
+		gi.configstring (CS_PLAYERSKINS + playernum, va ("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->resp.team].skin));
 	}
 
-	// set spectator
-	/*s = Info_ValueForKey (userinfo, "spectator");
-	// spectators are only supported in deathmatch
-	if (deathmatch->value && *s && strcmp(s, "0"))
-		ent->client->pers.spectator = true;
-	else
-		ent->client->pers.spectator = false;*/
-/*** wision: 'skin' is not allowed in TDM!
-	// set skin
-	s = Info_ValueForKey (userinfo, "skin");
-
-	playernum = ent-g_edicts-1;
-
-	old_skin = Info_ValueForKey (ent->client->pers.userinfo, "skin");
-
-	// combine name and skin into a configstring
-	if (name_changed || strcmp (s, old_skin))
-		gi.configstring (CS_PLAYERSKINS+playernum, va("%s\\%.32s", ent->client->pers.netname, s) );
-*/
 	// fov
 	if (deathmatch->value && ((int)dmflags->value & DF_FIXED_FOV))
 	{
@@ -1563,6 +1547,9 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		if (client->resp.team == TEAM_SPEC)
 		{
 			if (client->menu.active)
+				return;
+
+			if (client->showscores)
 				return;
 
 			TDM_ShowTeamMenu (ent);

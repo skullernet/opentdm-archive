@@ -1427,7 +1427,7 @@ void teleporter_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_
 	VectorCopy (dest->s.origin, other->s.old_origin);
 	other->s.origin[2] += 10;
 
-	if (g_teleporter_freeze->value)
+	if (g_teleporter_nofreeze->value == 0)
 	{
 		// clear the velocity and hold them in place briefly
 		VectorClear (other->velocity);
