@@ -1588,8 +1588,8 @@ static void TDM_ApplyVote (void)
 		//g_gamemode is latched otherwise to prevent server op from changing it
 		//via rcon / console mid game and ruining things.
 		gi.cvar_forceset ("g_gamemode", va ("%d", vote.gamemode));
-		TDM_UpdateConfigStrings (true);
 		TDM_ResetGameState ();
+		TDM_UpdateConfigStrings (true);
 	}
 
 	if (vote.flags & VOTE_TIEMODE)
@@ -2599,6 +2599,57 @@ void TDM_SetInitialItems (edict_t *ent)
 
 /*
 ==============
+TDM_UpdateTeamNames
+==============
+A rather messy function to handle team names in TDM and 1v1.
+*/
+void TDM_UpdateTeamNames (void)
+{
+	if (g_gamemode->value == GAMEMODE_1V1)
+	{
+		if (teaminfo[TEAM_A].captain)
+		{
+			if (strcmp (teaminfo[TEAM_A].name, teaminfo[TEAM_A].captain->client->pers.netname))
+			{
+				strncpy (teaminfo[TEAM_A].name, teaminfo[TEAM_A].captain->client->pers.netname, sizeof(teaminfo[TEAM_A].name)-1);
+				g_team_a_name->modified = true;
+			}
+		}
+		else
+		{
+			if (strcmp (teaminfo[TEAM_A].name, "Player 1"))
+			{
+				strcpy (teaminfo[TEAM_A].name, "Player 1");
+				g_team_a_name->modified = true;
+			}
+		}	
+
+		if (teaminfo[TEAM_B].captain)
+		{
+			if (strcmp (teaminfo[TEAM_B].name, teaminfo[TEAM_B].captain->client->pers.netname))
+			{
+				strncpy (teaminfo[TEAM_B].name, teaminfo[TEAM_B].captain->client->pers.netname, sizeof(teaminfo[TEAM_B].name)-1);
+				g_team_b_name->modified = true;
+			}
+		}
+		else
+		{
+			if (strcmp (teaminfo[TEAM_B].name, "Player 2"))
+			{
+				strcpy (teaminfo[TEAM_B].name, "Player 2");
+				g_team_b_name->modified = true;
+			}
+		}	
+	}
+	else
+	{
+		strncpy (teaminfo[TEAM_A].name, g_team_a_name->string, sizeof(teaminfo[TEAM_A].name)-1);
+		strncpy (teaminfo[TEAM_B].name, g_team_b_name->string, sizeof(teaminfo[TEAM_B].name)-1);
+	}
+}
+
+/*
+==============
 TDM_SetCaptain
 ==============
 Set ent to be a captain of team, ent can be NULL to remove captain
@@ -2634,8 +2685,7 @@ void JoinedTeam (edict_t *ent)
 		TDM_SetCaptain (ent->client->resp.team, ent);
 
 	//nasty hack for setting team names for 1v1 mode
-	if (g_gamemode->value == GAMEMODE_1V1)
-		TDM_UpdateConfigStrings (true);
+	TDM_UpdateTeamNames ();
 
 	//wision: set skin for new player
 	gi.configstring (CS_PLAYERSKINS + (ent - g_edicts) - 1, va("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->resp.team].skin));
@@ -2660,8 +2710,7 @@ void TDM_LeftTeam (edict_t *ent)
 		TDM_SetCaptain (ent->client->resp.team, NULL);
 
 	//r1: messy team name fix for 1v1
-	if (g_gamemode->value == GAMEMODE_1V1)
-		TDM_UpdateConfigStrings (true);
+	TDM_UpdateTeamNames ();
 
 	oldteam = ent->client->resp.team;
 
@@ -2815,6 +2864,8 @@ static void TDM_ResetVotableVariables (void)
 {
 	cvarsave_t	*var;
 
+	gi.dprintf ("Resetting votable variables to defaults.\n");
+
 	var = preserved_vars;
 
 	while (var->variable_name)
@@ -2935,6 +2986,7 @@ The teams have changed in some way, so check everything out
 void TDM_TeamsChanged (void)
 {
 	CountPlayers ();
+	TDM_UpdateTeamNames ();
 	UpdateTeamMenu ();
 	UpdateMatchStatus ();
 	TDM_CheckMatchStart ();
@@ -2999,6 +3051,10 @@ void TDM_ResetGameState (void)
 
 	teaminfo[TEAM_A].score = teaminfo[TEAM_B].score = 0;
 	teaminfo[TEAM_A].players = teaminfo[TEAM_B].players = 0;
+	teaminfo[TEAM_A].captain = teaminfo[TEAM_B].captain = NULL;
+	teaminfo[TEAM_A].locked = teaminfo[TEAM_B].locked = false;
+
+	TDM_UpdateTeamNames ();
 
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
@@ -3097,15 +3153,6 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 	if (g_team_a_name->modified || forceUpdate)
 	{
 		g_team_a_name->modified = false;
-		if (g_gamemode->value == GAMEMODE_1V1)
-		{
-			if (teaminfo[TEAM_A].captain)
-				strncpy (teaminfo[TEAM_A].name, teaminfo[TEAM_A].captain->client->pers.netname, sizeof(teaminfo[TEAM_A].name)-1);
-			else
-				strcpy (teaminfo[TEAM_A].name, "Player 1");
-		}
-		else
-			strncpy (teaminfo[TEAM_A].name, g_team_a_name->string, sizeof(teaminfo[TEAM_A].name)-1);
 		sprintf (teaminfo[TEAM_A].statname, "%31s", teaminfo[TEAM_A].name);
 		gi.configstring (CS_GENERAL + 0, teaminfo[TEAM_A].statname);
 	}
@@ -3113,15 +3160,6 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 	if (g_team_b_name->modified || forceUpdate)
 	{
 		g_team_b_name->modified = false;
-		if (g_gamemode->value == GAMEMODE_1V1)
-		{
-			if (teaminfo[TEAM_B].captain)
-				strncpy (teaminfo[TEAM_B].name, teaminfo[TEAM_B].captain->client->pers.netname, sizeof(teaminfo[TEAM_B].name)-1);
-			else
-				strcpy (teaminfo[TEAM_B].name, "Player 2");
-		}
-		else
-			strncpy (teaminfo[TEAM_B].name, g_team_b_name->string, sizeof(teaminfo[TEAM_B].name)-1);
 		sprintf (teaminfo[TEAM_B].statname, "%31s", teaminfo[TEAM_B].name);
 		gi.configstring (CS_GENERAL + 1, teaminfo[TEAM_B].statname);
 	}
