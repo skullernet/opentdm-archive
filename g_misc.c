@@ -1427,10 +1427,25 @@ void teleporter_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_
 	VectorCopy (dest->s.origin, other->s.old_origin);
 	other->s.origin[2] += 10;
 
-	// clear the velocity and hold them in place briefly
-	VectorClear (other->velocity);
-	other->client->ps.pmove.pm_time = 160>>3;		// hold time
-	other->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
+	if (g_teleporter_freeze->value)
+	{
+		// clear the velocity and hold them in place briefly
+		VectorClear (other->velocity);
+		other->client->ps.pmove.pm_time = 160>>3;		// hold time
+		other->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
+	}
+	else
+	{
+		// preserve velocity and 'spit' them out of destination
+		float	len;
+
+		other->velocity[2] = 0;
+
+		len = VectorLength (other->velocity);
+
+		AngleVectors (dest->s.angles, other->velocity, NULL, NULL);
+		VectorScale (other->velocity, len, other->velocity);
+	}
 
 	// draw the teleport splash at source and on the player
 	self->owner->s.event = EV_PLAYER_TELEPORT;

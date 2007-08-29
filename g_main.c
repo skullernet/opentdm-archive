@@ -97,6 +97,11 @@ cvar_t	*g_powerupflags;
 
 cvar_t	*g_tdm_allow_pick;
 
+cvar_t	*g_fast_weap_switch;
+cvar_t	*g_teleporter_freeze;
+cvar_t	*g_overtime;
+cvar_t	*g_tie_mode;
+
 void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint);
 void ClientThink (edict_t *ent, usercmd_t *cmd);
 qboolean ClientConnect (edict_t *ent, char *userinfo);

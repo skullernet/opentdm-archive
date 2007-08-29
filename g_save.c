@@ -229,6 +229,12 @@ void InitGame (void)
 
 	g_tdm_allow_pick = gi.cvar ("g_tdm_allow_pick", "0", 0);
 
+	g_fast_weap_switch = gi.cvar ("g_fast_weap_switch", "0", 0);
+	g_teleporter_freeze = gi.cvar ("g_teleporter_freeze", "1", 0);
+
+	g_tie_mode = gi.cvar ("g_tie_mode", "1", 0);
+	g_overtime = gi.cvar ("g_overtime", "3", 0);
+
 	// items
 	InitItems ();	
 

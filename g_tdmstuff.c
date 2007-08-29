@@ -86,7 +86,7 @@ typedef struct vote_s
 	char			newmap[MAX_QPATH];
 	edict_t			*victim;
 	edict_t			*initiator;
-	unsigned		end_frame;
+	int				end_frame;
 	qboolean		active;
 	vote_success_t	success;
 } vote_t;
@@ -101,6 +101,8 @@ char *default_team_a_name;
 char *default_team_b_name;
 char *default_team_a_skin;
 char *default_team_b_skin;
+int default_tie_mode;
+int default_overtime;
 
 void droptofloor (edict_t *ent);
 
@@ -389,6 +391,7 @@ void TDM_BeginIntermission (void)
 TDM_EndMatch
 ==============
 A match has ended through some means.
+Overtime / SD is handled in CheckTimes.
 */
 void TDM_EndMatch (void)
 {
@@ -409,7 +412,6 @@ void TDM_EndMatch (void)
 	}
 	else
 	{
-		//TODO: add overtime
 		gi.bprintf (PRINT_HIGH, "Tie game, %d to %d.\n", teaminfo[TEAM_A].score, teaminfo[TEAM_B].score);
 	}
 
@@ -467,6 +469,22 @@ static void TDM_RemoveVote (void)
 	}
 }
 
+void TDM_Overtime (void)
+{
+	level.match_end_framenum = level.framenum + (int)g_overtime->value;
+
+	gi.bprintf (PRINT_HIGH, "Scores are tied %d - %d, adding %g minutes overtime.\n", teaminfo[TEAM_A].score, teaminfo[TEAM_A].score, g_overtime->value / 60);
+
+	tdm_match_status = MM_OVERTIME;
+}
+
+void TDM_SuddenDeath (void)
+{
+	gi.bprintf (PRINT_HIGH, "Scores are tied %d - %d, entering Sudden Death!\n", teaminfo[TEAM_A].score, teaminfo[TEAM_A].score);
+
+	tdm_match_status = MM_SUDDEN_DEATH;
+}
+
 /*
 ==============
 TDM_CheckTimes
@@ -499,19 +517,37 @@ void TDM_CheckTimes (void)
 	{
 		int		remaining;
 
-		remaining = level.match_end_framenum - level.framenum;
+		if (tdm_match_status == MM_SUDDEN_DEATH)
+		{
+			if (teaminfo[TEAM_A].score != teaminfo[TEAM_B].score)
+				TDM_EndMatch ();
+		}
+		else
+		{
+			remaining = level.match_end_framenum - level.framenum;
 
-		if (remaining == (int)(10.4f / FRAMETIME))
-		{
-			gi.sound (world, 0, gi.soundindex ("world/10_0.wav"), 1, ATTN_NONE, 0);
-		}
-		else if (remaining > 0 && remaining <= (int)(5.0f / FRAMETIME) && remaining % (int)(1.0f / FRAMETIME) == 0)
-		{
-			gi.bprintf (PRINT_HIGH, "%d\n", (int)(remaining * FRAMETIME));
-		}
-		else if (remaining == 0)
-		{
-			TDM_EndMatch ();
+			if (remaining == (int)(10.4f / FRAMETIME))
+			{
+				gi.sound (world, 0, gi.soundindex ("world/10_0.wav"), 1, ATTN_NONE, 0);
+			}
+			else if (remaining > 0 && remaining <= (int)(5.0f / FRAMETIME) && remaining % (int)(1.0f / FRAMETIME) == 0)
+			{
+				gi.bprintf (PRINT_HIGH, "%d\n", (int)(remaining * FRAMETIME));
+			}
+			else if (remaining == 0)
+			{
+				if (teaminfo[TEAM_A].score == teaminfo[TEAM_B].score)
+				{
+					if (g_tie_mode->value == 1)
+						TDM_Overtime ();
+					else if (g_tie_mode->value == 2)
+						TDM_SuddenDeath ();
+					else
+						TDM_EndMatch ();
+				}
+				else
+					TDM_EndMatch ();
+			}
 		}
 	}
 
@@ -525,7 +561,7 @@ void TDM_CheckTimes (void)
 			TDM_EndIntermission ();
 	}
 
-	if (vote.active && !(level.framenum - vote.end_frame))
+	if (vote.active && level.framenum == vote.end_frame)
 	{
 		gi.bprintf (PRINT_HIGH, "Vote failed.\n");
 		TDM_RemoveVote();
@@ -2301,6 +2337,9 @@ static void TDM_ResetVotableVariables (void)
 	gi.cvar_set ("g_match_time", va("%d", default_timelimit));
 	gi.cvar_set ("g_itemflags", va("%d", default_itemflags));
 	gi.cvar_set ("powerupflags", va ("%d", default_powerupflags));
+	gi.cvar_set ("g_tie_mode", va("%d", default_tie_mode));
+	gi.cvar_set ("g_overtime", va ("%d", default_overtime));
+
 	gi.cvar_set ("team_a_name", default_team_a_name);
 	gi.cvar_set ("team_b_name", default_team_b_name);
 	gi.cvar_set ("team_a_skin", default_team_a_skin);
@@ -2531,6 +2570,8 @@ void TDM_Init (void)
 	default_team_b_name = G_CopyString (g_team_b_name->string);
 	default_team_a_skin = G_CopyString (g_team_a_skin->string);
 	default_team_b_skin = G_CopyString (g_team_b_skin->string);
+	default_tie_mode = (int)g_tie_mode->value;
+	default_overtime = (int)g_overtime->value;
 
 	TDM_ResetGameState ();
 }
@@ -2569,6 +2610,22 @@ void TDM_SetSkins (void)
 				gi.configstring (CS_PLAYERSKINS + (ent - g_edicts) - 1, va("%s\\%s", ent->client->pers.netname, teaminfo[i].skin));
 		}
 	}
+}
+
+/*
+==============
+TDM_SetColorText
+==============
+Converts a string to color text (high ASCII)
+*/
+void TDM_SetColorText (char *buffer)
+{
+	size_t	len;
+	int		i;
+
+	len = strlen (buffer);
+	for (i = 0; i < len; i++)
+		buffer[i] |= 0x80;
 }
 
 /*
@@ -2646,12 +2703,21 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 		}
 	}
 
-	if (tdm_match_status == MM_COUNTDOWN)
-		time_remaining = level.match_start_framenum - level.framenum;
-	else if (tdm_match_status == MM_WARMUP)
-		time_remaining = g_match_time->value * 10 - 1;
-	else
-		time_remaining = level.match_end_framenum - level.framenum;
+	switch (tdm_match_status)
+	{
+		case MM_COUNTDOWN:
+			time_remaining = level.match_start_framenum - level.framenum;
+			break;
+		case MM_WARMUP:
+			time_remaining = g_match_time->value * 10 - 1;
+			break;
+		case MM_SUDDEN_DEATH:
+			time_remaining = 0;
+			break;
+		default:
+			time_remaining = level.match_end_framenum - level.framenum;
+			break;
+	}
 
 	if (time_remaining != last_time_remaining || forceUpdate)
 	{
@@ -2661,20 +2727,31 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 
 		last_time_remaining = time_remaining;
 
-		secs = ceil((float)time_remaining * FRAMETIME);
-
-		if (secs < 0)
-			secs = 0;
-
-		if (secs != last_secs || forceUpdate)
+		if (tdm_match_status == MM_SUDDEN_DEATH)
 		{
-			last_secs = secs;
+			gi.configstring (CS_GENERAL + 4, "Sudden Death");
+		}
+		else
+		{
+			secs = ceil((float)time_remaining * FRAMETIME);
 
-			mins = secs / 60;
-			secs -= (mins * 60);
+			if (secs < 0)
+				secs = 0;
 
-			sprintf (time_buffer, "%2d:%.2d", mins, secs);
-			gi.configstring (CS_GENERAL + 4, time_buffer);
+			if (secs != last_secs || forceUpdate)
+			{
+				last_secs = secs;
+
+				mins = secs / 60;
+				secs -= (mins * 60);
+
+				sprintf (time_buffer, "%2d:%.2d", mins, secs);
+
+				if (last_secs < 60)
+					TDM_SetColorText (time_buffer);
+
+				gi.configstring (CS_GENERAL + 4, time_buffer);
+			}
 		}
 	}
 }

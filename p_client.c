@@ -1109,7 +1109,7 @@ void PutClientInServer (edict_t *ent)
 
 	// force the current weapon up
 	client->newweapon = client->weapon;
-	ChangeWeapon (ent);
+	ChangeWeapon (ent, 0);
 }
 
 /*

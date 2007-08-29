@@ -726,6 +726,12 @@ extern	cvar_t	*g_powerupflags;
 
 extern	cvar_t	*g_tdm_allow_pick;
 
+extern	cvar_t	*g_fast_weap_switch;
+extern	cvar_t	*g_teleporter_freeze;
+
+extern	cvar_t	*g_overtime;
+extern	cvar_t	*g_tie_mode;
+
 #define world	(&g_edicts[0])
 
 // item spawnflags
@@ -789,7 +795,7 @@ const gitem_t	*FindItem (const char *pickup_name);
 #define	ITEM_INDEX(x) ((x)-itemlist)
 edict_t *Drop_Item (edict_t *ent, const gitem_t *item);
 void SetRespawn (edict_t *ent, float delay);
-void ChangeWeapon (edict_t *ent);
+void ChangeWeapon (edict_t *ent, int activateFrame);
 void SpawnItem (edict_t *ent, const gitem_t *item);
 void Think_Weapon (edict_t *ent);
 int ArmorIndex (edict_t *ent);
@@ -949,6 +955,7 @@ typedef enum
 	MM_PLAYING,
 	MM_TIMEOUT,
 	MM_OVERTIME,
+	MM_SUDDEN_DEATH,
 } matchmode_t;
 
 void ParseEntityString (qboolean respawn);
