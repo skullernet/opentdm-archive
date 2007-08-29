@@ -2223,6 +2223,11 @@ static void TDM_Vote_f (edict_t *ent)
 			switchmode = 2;
 		else if (!Q_stricmp (value, "normal") || !Q_stricmp (value, "slow"))
 			switchmode = 0;
+		else
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Unknown switch mode: %s\n", value);
+			return;
+		}
 
 		if (g_fast_weap_switch->value == switchmode)
 		{
