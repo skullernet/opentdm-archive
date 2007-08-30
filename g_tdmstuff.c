@@ -598,7 +598,7 @@ static void TDM_RemoveVote (void)
 
 void TDM_Overtime (void)
 {
-	level.match_end_framenum = level.framenum + (int)g_overtime->value;
+	level.match_end_framenum = level.framenum + (int)(g_overtime->value / FRAMETIME);
 
 	gi.bprintf (PRINT_HIGH, "Scores are tied %d - %d, adding %g minutes overtime.\n", teaminfo[TEAM_A].score, teaminfo[TEAM_A].score, g_overtime->value / 60);
 
@@ -2159,6 +2159,12 @@ static void TDM_Vote_f (edict_t *ent)
 			return;
 		}
 
+		if (vote.active)
+		{
+			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+			TDM_RemoveVote ();
+		}
+
 		vote.flags |= VOTE_TIEMODE;
 		vote.tiemode = tiemode;
 
@@ -2194,6 +2200,12 @@ static void TDM_Vote_f (edict_t *ent)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "That teleporter mode is already set!\n");
 			return;
+		}
+
+		if (vote.active)
+		{
+			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+			TDM_RemoveVote ();
 		}
 
 		vote.flags |= VOTE_TELEMODE;
@@ -2233,6 +2245,12 @@ static void TDM_Vote_f (edict_t *ent)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "That weapon switch mode is already set!\n");
 			return;
+		}
+
+		if (vote.active)
+		{
+			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+			TDM_RemoveVote ();
 		}
 
 		vote.switchmode = switchmode;
@@ -2860,7 +2878,7 @@ TDM_ResetVotableVariables
 ==============
 Everyone has left the server, so reset anything they voted back to defaults
 */
-static void TDM_ResetVotableVariables (void)
+void TDM_ResetVotableVariables (void)
 {
 	cvarsave_t	*var;
 
@@ -2902,10 +2920,6 @@ void CountPlayers (void)
 			total++;
 		}
 	}
-
-	//if everyone leaves during warmup, reset votables back to serveradmin defaults
-	if (total == 0 && tdm_match_status == MM_WARMUP)
-		TDM_ResetVotableVariables ();
 }
 
 /*

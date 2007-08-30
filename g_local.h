@@ -985,6 +985,7 @@ void TDM_ResetGameState (void);
 void TDM_ScoreBoardMessage (edict_t *ent);
 void TDM_MapChanged (void);
 void TDM_LeftTeam (edict_t *ent);
+void TDM_ResetVotableVariables (void);
 
 extern matchmode_t	tdm_match_status;
 extern pmenu_t joinmenu[];

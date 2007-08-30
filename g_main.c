@@ -396,7 +396,8 @@ void G_RunFrame (void)
 
 	if (level.exitintermission)
 	{
-		ExitLevel ();
+		TDM_ResetGameState ();
+		//ExitLevel ();
 		return;
 	}
 

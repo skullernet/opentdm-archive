@@ -1065,6 +1065,7 @@ void PutClientInServer (edict_t *ent)
 		client->ps.gunindex = gi.modelindex(client->weapon->view_model);
 
 	// clear entity state values
+	ent->s.sound = 0;
 	ent->s.effects = 0;
 	ent->s.modelindex = 255;		// will use the skin specified model
 	ent->s.modelindex2 = 255;		// custom gun model
@@ -1354,9 +1355,14 @@ void ClientDisconnect (edict_t *ent)
 
 	gi.unlinkentity (ent);
 
+	if (tdm_match_status == MM_WARMUP && teaminfo[TEAM_SPEC].players == 0 && teaminfo[TEAM_A].players == 0 && teaminfo[TEAM_B].players == 0)
+		TDM_ResetVotableVariables ();
+
 	ent->s.solid = 0;
 	ent->s.effects = 0;
 	ent->s.modelindex = 0;
+	ent->s.sound = 0;
+
 	ent->solid = SOLID_NOT;
 	ent->inuse = false;
 	ent->classname = "disconnected";
