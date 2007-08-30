@@ -3218,7 +3218,7 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 	{
 		int		i;
 
-		for (i = TEAM_A; i < TEAM_B; i++)
+		for (i = TEAM_A; i <= TEAM_B; i++)
 		{
 			if (last_scores[i] != teaminfo[i].score || forceUpdate)
 			{
