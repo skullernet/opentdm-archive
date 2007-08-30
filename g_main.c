@@ -353,12 +353,12 @@ ExitLevel
 */
 void ExitLevel (void)
 {
-	int		i;
+	/*int		i;
 	edict_t	*ent;
 	char	command [256];
 
 	Com_sprintf (command, sizeof(command), "gamemap \"%s\"\n", level.changemap);
-	gi.AddCommandString (command);
+	gi.AddCommandString (command);*/
 
 	level.changemap = NULL;
 	level.exitintermission = 0;
@@ -366,15 +366,16 @@ void ExitLevel (void)
 	ClientEndServerFrames ();
 
 	// clear some things before going to next level
-	for (i=0 ; i < game.maxclients; i++)
+	/*for (i=0 ; i < game.maxclients; i++)
 	{
 		ent = g_edicts + 1 + i;
 		if (!ent->inuse)
 			continue;
 		if (ent->health > ent->max_health)
 			ent->health = ent->max_health;
-	}
+	}*/
 
+	TDM_ResetGameState ();
 }
 
 /*
@@ -396,8 +397,7 @@ void G_RunFrame (void)
 
 	if (level.exitintermission)
 	{
-		TDM_ResetGameState ();
-		//ExitLevel ();
+		ExitLevel ();
 		return;
 	}
 
