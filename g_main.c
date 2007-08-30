@@ -354,11 +354,14 @@ ExitLevel
 void ExitLevel (void)
 {
 	/*int		i;
-	edict_t	*ent;
+	edict_t	*ent;*/
 	char	command [256];
 
-	Com_sprintf (command, sizeof(command), "gamemap \"%s\"\n", level.changemap);
-	gi.AddCommandString (command);*/
+	if (level.changemap)
+	{
+		Com_sprintf (command, sizeof(command), "gamemap \"%s\"\n", level.changemap);
+		gi.AddCommandString (command);
+	}
 
 	level.changemap = NULL;
 	level.exitintermission = 0;
