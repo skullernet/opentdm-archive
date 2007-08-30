@@ -1343,6 +1343,7 @@ void ClientDisconnect (edict_t *ent)
 	if (ent->client->resp.team)
 		TDM_LeftTeam (ent);
 
+	//yes, even spectators are a team that must be counted
 	TDM_TeamsChanged ();
 
 	gi.bprintf (PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);

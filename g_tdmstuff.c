@@ -459,6 +459,9 @@ Intermission timer expired or all clients are ready. Reset for another game.
 */
 void TDM_EndIntermission (void)
 {
+	//for test server
+	gi.bprintf (PRINT_CHAT, "Please report any bugs at www.opentdm.net.\n");
+
 	level.match_score_end_framenum = 0;
 	TDM_ResetGameState ();
 }
@@ -2404,7 +2407,7 @@ void TDM_Team_f (edict_t *ent)
 	{
 		if (!ent->client->resp.team)
 		{
-			gi.cprintf (ent, PRINT_HIGH, "You are not on a team. Use team 1 or team 2 to join a team.\n");
+			gi.cprintf (ent, PRINT_HIGH, "You are not on a team. Use %s 1 or %s 2 to join a team.\n", gi.argv(0), gi.argv(0));
 			return;
 		}
 
@@ -2932,15 +2935,20 @@ void UpdateMatchStatus (void)
 {
 	int team;
 
+	if (tdm_match_status < MM_PLAYING)
+		return;
+
+	//duplicated - eg TDM_LeftTeam + ClientDisconnect
+	if (level.match_end_framenum == level.framenum)
+		return;
+
 	for (team = 1; team < MAX_TEAMS; team++)
 	{
-		if (teaminfo[team].players < 1 && 
-					(tdm_match_status == MM_PLAYING || 
-						tdm_match_status == MM_TIMEOUT || 
-							tdm_match_status == MM_OVERTIME))
+		if (teaminfo[team].players < 1)
 		{
 			level.match_end_framenum = level.framenum;
-      TDM_CheckTimes();
+			TDM_CheckTimes();
+			break;
 		}
 	}
 }
@@ -3033,6 +3041,8 @@ void TDM_SetupClient (edict_t *ent)
 	ent->client->resp.team = TEAM_SPEC;
 	TDM_TeamsChanged ();
 	TDM_ShowTeamMenu (ent);
+
+	gi.cprintf (ent, PRINT_CHAT, "\nWelcome to OpenTDM, an open source OSP/Battle replacement. Please report any bugs at www.opentdm.net. Type 'commands' in the console for a brief command guide.\n\n");
 }
 
 /*
