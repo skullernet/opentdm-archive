@@ -303,9 +303,11 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 		}
 		if (message)
 		{
-			gi.bprintf (PRINT_MEDIUM, "%s %s.\n", self->client->pers.netname, message);
+			//no death messages in warmup
 			if (tdm_match_status >= MM_PLAYING)
 			{
+				gi.bprintf (PRINT_MEDIUM, "%s %s.\n", self->client->pers.netname, message);
+
 				if (deathmatch->value)
 					self->client->resp.score--;
 				teaminfo[self->client->resp.team].score--;
@@ -390,11 +392,11 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 			}
 			if (message)
 			{
-				gi.bprintf (PRINT_MEDIUM,"%s %s %s%s\n", self->client->pers.netname, message, attacker->client->pers.netname, message2);
 				if (deathmatch->value)
 				{
 					if (tdm_match_status >= MM_PLAYING)
 					{
+						gi.bprintf (PRINT_MEDIUM,"%s %s %s%s\n", self->client->pers.netname, message, attacker->client->pers.netname, message2);
 						if (ff)
 						{
 							attacker->client->resp.score--;
@@ -412,9 +414,9 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 		}
 	}
 
-	gi.bprintf (PRINT_MEDIUM,"%s died.\n", self->client->pers.netname);
 	if (deathmatch->value && tdm_match_status >= MM_PLAYING)
 	{
+		gi.bprintf (PRINT_MEDIUM,"%s died.\n", self->client->pers.netname);
 		self->client->resp.score--;
 		teaminfo[self->client->resp.team].score--;
 	}
@@ -1129,23 +1131,34 @@ deathmatch mode, so clear everything out before starting them.
 void ClientBeginDeathmatch (edict_t *ent)
 {
 	gclient_t	*client;
+	char		userinfo[MAX_INFO_STRING];
 
 	G_InitEdict (ent);
 
 	client = ent->client;
 
-	client->resp.enterframe = level.framenum;
+	strcpy (userinfo, ent->client->pers.userinfo);
 
+	//init here on rather than on clientconnect, clientconnect doesn't always
+	//guarantee a client is actually making it all the way into the game.
+	memset (&client->pers, 0, sizeof(client->pers));
+	memset (&client->resp, 0, sizeof(client->resp));
+
+	ClientUserinfoChanged (ent, userinfo);
+
+	client->pers.connected = true;
+
+	client->resp.enterframe = level.framenum;
 	client->resp.joinstate = JS_FIRST_JOIN;
 
 	// locate ent at a spawn point
 	PutClientInServer (ent);
 
-	// send effect
+	// send effect (only to local client)
 	gi.WriteByte (svc_muzzleflash);
 	gi.WriteShort (ent-g_edicts);
 	gi.WriteByte (MZ_LOGIN);
-	gi.multicast (ent->s.origin, MULTICAST_PVS);
+	gi.unicast (ent, false);
 
 	gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
 
@@ -1184,6 +1197,13 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	const char	*old_name;
 	int			playernum;
 	qboolean	name_changed;
+
+	//new connection, server is calling us. just save userinfo for later.
+	if (!ent->inuse)
+	{
+		strncpy (ent->client->pers.userinfo, userinfo, sizeof(ent->client->pers.userinfo)-1);
+		return;
+	}
 
 	// check for malformed or illegal info strings
 	if (!Info_Validate(userinfo))
@@ -1321,7 +1341,7 @@ qboolean ClientConnect (edict_t *ent, char *userinfo)
 	if (game.maxclients > 1)
 		gi.dprintf ("%s[%s] connected\n", value, ipa);
 
-	ent->client->pers.connected = true;
+	//ent->client->pers.connected = true;
 	return true;
 }
 
@@ -1340,24 +1360,18 @@ void ClientDisconnect (edict_t *ent)
 	if (!ent->client)
 		return;
 
-	if (ent->client->resp.team)
-		TDM_LeftTeam (ent);
-
-	//yes, even spectators are a team that must be counted
-	TDM_TeamsChanged ();
-
 	gi.bprintf (PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
 
-	// send effect
-	gi.WriteByte (svc_muzzleflash);
-	gi.WriteShort (ent-g_edicts);
-	gi.WriteByte (MZ_LOGOUT);
-	gi.multicast (ent->s.origin, MULTICAST_PVS);
+	// send effect (only if they were in game)
+	if (ent->client->resp.team)
+	{
+		gi.WriteByte (svc_muzzleflash);
+		gi.WriteShort (ent-g_edicts);
+		gi.WriteByte (MZ_LOGOUT);
+		gi.multicast (ent->s.origin, MULTICAST_PVS);
+	}
 
 	gi.unlinkentity (ent);
-
-	if (tdm_match_status == MM_WARMUP && teaminfo[TEAM_SPEC].players == 0 && teaminfo[TEAM_A].players == 0 && teaminfo[TEAM_B].players == 0)
-		TDM_ResetVotableVariables ();
 
 	ent->s.solid = 0;
 	ent->s.effects = 0;
@@ -1368,6 +1382,8 @@ void ClientDisconnect (edict_t *ent)
 	ent->inuse = false;
 	ent->classname = "disconnected";
 	ent->client->pers.connected = false;
+
+	TDM_Disconnected (ent);
 
 	playernum = ent-g_edicts-1;
 	gi.configstring (CS_PLAYERSKINS+playernum, "");

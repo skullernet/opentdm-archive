@@ -76,8 +76,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	DF_NO_FALLING		0x00000008	// 8
 #define	DF_INSTANT_ITEMS	0x00000010	// 16
 #define	DF_SAME_LEVEL		0x00000020	// 32
-#define DF_SKINTEAMS		0x00000040	// 64
-#define DF_MODELTEAMS		0x00000080	// 128
+
+//teams handled specially in opentdm, don't need this
+//#define DF_SKINTEAMS		0x00000040	// 64
+//#define DF_MODELTEAMS		0x00000080	// 128
+
 #define DF_NO_FRIENDLY_FIRE	0x00000100	// 256
 #define	DF_SPAWN_FARTHEST	0x00000200	// 512
 #define DF_FORCE_RESPAWN	0x00000400	// 1024
@@ -985,7 +988,8 @@ void TDM_ResetGameState (void);
 void TDM_ScoreBoardMessage (edict_t *ent);
 void TDM_MapChanged (void);
 void TDM_LeftTeam (edict_t *ent);
-void TDM_ResetVotableVariables (void);
+void TDM_Disconnected (edict_t *ent);
+qboolean TDM_ServerCommand (const char *cmd);
 
 extern matchmode_t	tdm_match_status;
 extern pmenu_t joinmenu[];
@@ -1025,6 +1029,13 @@ typedef enum
 	JS_JOINED,
 } joinstate_t;
 
+typedef enum
+{
+	VOTE_HOLD,
+	VOTE_YES,
+	VOTE_NO
+} player_vote_t;
+
 extern matchmode_t	tdm_match_status;
 extern teaminfo_t	teaminfo[MAX_TEAMS];
 
@@ -1055,10 +1066,11 @@ typedef struct
 	int			flood_waves_whenhead;		// head pointer for when made
 
 	unsigned		team;
-	joinstate_t	joinstate;
-	qboolean	ready;
-	unsigned	last_command_frame;
-	edict_t		*last_invited_by;
+	joinstate_t		joinstate;
+	qboolean		ready;
+	unsigned		last_command_frame;
+	edict_t			*last_invited_by;
+	player_vote_t	vote;
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),
@@ -1177,14 +1189,6 @@ typedef enum
 	ENT_PLAT_TRIGGER,
 } enttype_t;
 
-// edict_s->vote
-typedef enum
-{
-	VOTE_HOLD,
-	VOTE_YES,
-	VOTE_NO
-} player_vote_t;
-
 struct edict_s
 {
 	entity_state_t	s;
@@ -1227,7 +1231,6 @@ struct edict_s
 	//
 	// only used locally in game, not by server
 	//
-	player_vote_t vote;
 
 	char		*message;
 	const char	*classname;

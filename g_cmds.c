@@ -48,10 +48,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 qboolean OnSameTeam (edict_t *ent1, edict_t *ent2)
 {
-	//FIXME: remove this cruft?
-	if (!((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS)))
-		return false;
-
 	if (ent1->client && ent2->client)
 	{
 		return (ent1->client->resp.team == ent2->client->resp.team);
@@ -867,9 +863,7 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	if (gi.argc () < 2 && !arg0)
 		return;
 
-	if (!((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS)))
-		team = false;
-	else if (tdm_match_status != MM_WARMUP && !ent->client->resp.team)
+	if (tdm_match_status >= MM_COUNTDOWN && !ent->client->resp.team)
 	{
 		//Observers can talk only to each other during the match.
 		team = true;

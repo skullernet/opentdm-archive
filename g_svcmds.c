@@ -295,6 +295,7 @@ void	ServerCommand (void)
 	char	*cmd;
 
 	cmd = gi.argv(1);
+
 	if (Q_stricmp (cmd, "itemlist") == 0)
 		Svcmd_Itemlist_f ();
 	else if (Q_stricmp (cmd, "addip") == 0)
@@ -305,6 +306,11 @@ void	ServerCommand (void)
 		SVCmd_ListIP_f ();
 	else if (Q_stricmp (cmd, "writeip") == 0)
 		SVCmd_WriteIP_f ();
+	else if (TDM_ServerCommand (cmd))
+	{
+		//nothing, processed bg g_tdmstuff
+		;
+	}
 	else
 		gi.cprintf (NULL, PRINT_HIGH, "Unknown server command \"%s\"\n", cmd);
 }

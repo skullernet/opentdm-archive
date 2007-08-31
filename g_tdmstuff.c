@@ -13,6 +13,7 @@ matchmode_t	tdm_match_status;
 #define VOTE_TELEMODE	0x80
 #define VOTE_TIEMODE	0x100
 #define VOTE_SWITCHMODE	0x200
+#define VOTE_OVERTIME	0x400
 
 #define WEAPON_SHOTGUN			(1<<1)
 #define	WEAPON_SSHOTGUN			(1<<2)
@@ -96,6 +97,7 @@ typedef struct vote_s
 	int				switchmode;
 	int				tiemode;
 	int				gamemode;
+	unsigned		overtimemins;
 } vote_t;
 
 vote_t	vote;
@@ -225,6 +227,31 @@ char *TDM_SetColorText (char *buffer)
 	}
 
 	return buffer;
+}
+
+/*
+==============
+TDM_SaveDefaultCvars
+==============
+Save whatever the server admin set so we can restore later.
+*/
+void TDM_SaveDefaultCvars (void)
+{
+	cvarsave_t	*preserved;
+	cvar_t		*var;
+
+	preserved = preserved_vars;
+
+	while (preserved->variable_name)
+	{
+		var = gi.cvar (preserved->variable_name, NULL, 0);
+		if (!var)
+			gi.error ("TDM_SaveDefaultCvars: Couldn't preserve %s", preserved->variable_name);
+
+		preserved->default_string = G_CopyString (var->string);
+
+		preserved++;
+	}
 }
 
 /*
@@ -360,7 +387,7 @@ TDM_Settings_f
 ==============
 A horrible glob of settings text.
 */
-const char *TDM_SettingsString (void)
+char *TDM_SettingsString (void)
 {
 	static char	settings[1400];
 	int			i;
@@ -595,7 +622,7 @@ static void TDM_RemoveVote (void)
 		if (!ent->inuse)
 			continue;
 		
-		ent->vote = VOTE_HOLD;
+		ent->client->resp.vote = VOTE_HOLD;
 	}
 }
 
@@ -694,7 +721,7 @@ void TDM_CheckTimes (void)
 	if (vote.active && level.framenum == vote.end_frame)
 	{
 		gi.bprintf (PRINT_HIGH, "Vote failed.\n");
-		TDM_RemoveVote();
+		TDM_RemoveVote ();
 	}
 }
 
@@ -959,7 +986,7 @@ void TDM_PickPlayer_f (edict_t *ent)
 
 	if (gi.argc() < 2)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: pick/pickplayer <name/id>\n");
+		gi.cprintf (ent, PRINT_HIGH, "Usage: %s <name/id>\n", gi.argv(0));
 		return;
 	}
 
@@ -1082,6 +1109,7 @@ void TDM_Accept_f (edict_t *ent)
 	if (tdm_match_status != MM_WARMUP)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "The match has started, too late buddy!\n");
+		ent->client->resp.last_invited_by = NULL;
 		return;
 	}
 
@@ -1114,7 +1142,7 @@ void TDM_KickPlayer_f (edict_t *ent)
 
 	if (gi.argc() < 2)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: kickplayer <name/id>\n");
+		gi.cprintf (ent, PRINT_HIGH, "Usage: %s <name/id>\n", gi.argv(0));
 		return;
 	}
 
@@ -1518,11 +1546,11 @@ static void TDM_CheckVote (void)
 		if (!ent->inuse)
 			continue;
 
-		else if (ent->vote == VOTE_YES)
+		else if (ent->client->resp.vote == VOTE_YES)
 			vote_yes++;
-		else if (ent->vote == VOTE_NO)
+		else if (ent->client->resp.vote == VOTE_NO)
  			vote_no++;
-		else if (ent->vote == VOTE_HOLD)
+		else if (ent->client->resp.vote == VOTE_HOLD)
  			vote_hold++;
 	}
 
@@ -1532,6 +1560,56 @@ static void TDM_CheckVote (void)
 		vote.success = VOTE_NOT_SUCCESS;
 	else
 		vote.success = VOTE_NOT_ENOUGH_VOTES;
+}
+
+/*
+==============
+TDM_ResetVotableVariables
+==============
+Everyone has left the server, so reset anything they voted back to defaults
+*/
+static void TDM_ResetVotableVariables (void)
+{
+	cvarsave_t	*var;
+
+	gi.dprintf ("Resetting votable variables to defaults.\n");
+
+	var = preserved_vars;
+
+	while (var->variable_name)
+	{
+		gi.cvar_set (var->variable_name, var->default_string);
+		var++;
+	}
+
+	TDM_UpdateConfigStrings (true);
+}	
+
+/*
+==============
+TDM_Disconnected
+==============
+A player disconnected, do things.
+*/
+void TDM_Disconnected (edict_t *ent)
+{
+	if (ent->client->resp.team)
+		TDM_LeftTeam (ent);
+
+	TDM_TeamsChanged ();
+
+	if (tdm_match_status == MM_WARMUP && teaminfo[TEAM_SPEC].players == 0 && teaminfo[TEAM_A].players == 0 && teaminfo[TEAM_B].players == 0)
+	{
+		if (vote.active)
+			TDM_RemoveVote ();
+			
+		TDM_ResetVotableVariables ();
+	}
+	else
+		TDM_CheckVote ();
+
+	//zero for connecting clients on server browsers
+	ent->client->ps.stats[STAT_FRAGS] = 0;
 }
 
 /*
@@ -1549,7 +1627,7 @@ static void TDM_ApplyVote (void)
 	{
 		sprintf (value, "%d", vote.newtimelimit * 60);
 		g_match_time = gi.cvar_set ("g_match_time", value);
-		gi.bprintf (PRINT_CHAT, "New timelimit: %d\n", (int)vote.newtimelimit);
+		gi.bprintf (PRINT_CHAT, "New timelimit: %d minutes\n", (int)vote.newtimelimit);
 	}
 
 	if (vote.flags & VOTE_MAP)
@@ -1612,6 +1690,13 @@ static void TDM_ApplyVote (void)
 		sprintf (value, "%d", vote.telemode);
 		g_teleporter_nofreeze = gi.cvar_set ("g_teleporter_nofreeze", value);
 	}
+
+	if (vote.flags & VOTE_OVERTIME)
+	{
+		sprintf (value, "%d", vote.overtimemins * 60);
+		g_overtime = gi.cvar_set ("g_overtime", value);
+		gi.bprintf (PRINT_CHAT, "New overtime: %d minutes\n", (int)vote.overtimemins);
+	}
 }
 
 /*
@@ -1639,12 +1724,18 @@ static void TDM_AnnounceVote (void)
 	
 	if (vote.flags & VOTE_MAP)
 	{
+		if (what[0])
+			strcat (what, ", ");
 		strcat (what, va ("%smap %s", what[0] ? ", " : "", vote.newmap));
 	}
 	
 	if (vote.flags & VOTE_WEAPONS)
 	{
 		int			j;
+
+		if (what[0])
+			strcat (what, ", ");
+
 		strcat (what, va("weapons"));
 		for (j = 0; j < sizeof(weaponvotes) / sizeof(weaponvotes[1]); j++)
 		{
@@ -1659,14 +1750,21 @@ static void TDM_AnnounceVote (void)
 		}
 	}
 
+	//FIXME: should this really be able to be snuck in with all the other flags? :)
 	if (vote.flags & VOTE_KICK)
 	{
+		if (what[0])
+			strcat (what, ", ");
 		strcat (what, va("kick %s", vote.victim->client->pers.netname));
 	}
 	
 	if (vote.flags & VOTE_POWERUPS)
 	{
 		int			j;
+
+		if (what[0])
+			strcat (what, ", ");
+
 		strcat (what, va("powerups"));
 		for (j = 0; j < sizeof(powerupvotes) / sizeof(powerupvotes[1]); j++)
 		{
@@ -1683,6 +1781,9 @@ static void TDM_AnnounceVote (void)
 	
 	if (vote.flags & VOTE_GAMEMODE)
 	{
+		if (what[0])
+			strcat (what, ", ");
+
 		if (vote.gamemode == GAMEMODE_TDM)
 			strcat (what, "mode TDM");
 		else if (vote.gamemode == GAMEMODE_ITDM)
@@ -1693,6 +1794,9 @@ static void TDM_AnnounceVote (void)
 
 	if (vote.flags & VOTE_TIEMODE)
 	{
+		if (what[0])
+			strcat (what, ", ");
+
 		if (vote.tiemode == 0)
 			strcat (what, "no overtime");
 		else if (vote.tiemode == 1)
@@ -1703,6 +1807,9 @@ static void TDM_AnnounceVote (void)
 
 	if (vote.flags & VOTE_SWITCHMODE)
 	{
+		if (what[0])
+			strcat (what, ", ");
+
 		if (vote.switchmode == 0)
 			strcat (what, "normal weapon switch");
 		else if (vote.switchmode == 1)
@@ -1713,10 +1820,21 @@ static void TDM_AnnounceVote (void)
 
 	if (vote.flags & VOTE_TELEMODE)
 	{
+		if (what[0])
+			strcat (what, ", ");
+
 		if (vote.telemode == 0)
 			strcat (what, "normal teleporter mode");
 		else if (vote.telemode == 1)
 			strcat (what, "no freeze teleporter mode");
+	}
+
+	if (vote.flags & VOTE_TIMELIMIT)
+	{
+		if (what[0])
+			strcat (what, ", ");
+
+		strcat (what, va("overtime %d", vote.overtimemins));
 	}
 
 	gi.bprintf (PRINT_CHAT, "%s%s\n", message, what);
@@ -1762,7 +1880,7 @@ static void TDM_Vote_f (edict_t *ent)
 		value = gi.argv(2);
 		if (!value[0])
 		{
-			gi.cprintf (ent, PRINT_HIGH, "Usage: vote timelimit <mins>\n");
+			gi.cprintf (ent, PRINT_HIGH, "Usage: vote %s <mins>\n", cmd);
 			return;
 		}
 
@@ -1774,9 +1892,9 @@ static void TDM_Vote_f (edict_t *ent)
 		}
 
 		//check current timelimit
-		if(g_match_time->value == limit * 60)
+		if (g_match_time->value == limit * 60)
 		{
-			gi.cprintf (ent, PRINT_HIGH, "Timelimit is already set to %d.\n", limit);
+			gi.cprintf (ent, PRINT_HIGH, "Timelimit is already at %d minutes.\n", limit);
 			return;
 		}
 
@@ -1789,10 +1907,10 @@ static void TDM_Vote_f (edict_t *ent)
 		vote.flags |= VOTE_TIMELIMIT;
 		vote.newtimelimit = limit;
 		vote.initiator = ent;
-		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
+		vote.end_frame = level.framenum + g_vote_time->value * (1 / FRAMETIME);
 		vote.active = true;
 		TDM_AnnounceVote ();
-		ent->vote = VOTE_YES;
+		ent->client->resp.vote = VOTE_YES;
 	}
 	else if (!Q_stricmp (cmd, "map"))
 	{
@@ -1835,11 +1953,11 @@ static void TDM_Vote_f (edict_t *ent)
 		strcpy (vote.newmap, value);
 
 		vote.flags |= VOTE_MAP;
-		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
+		vote.end_frame = level.framenum + g_vote_time->value * (1 / FRAMETIME);
 		vote.initiator = ent;
 		vote.active = true;
 		TDM_AnnounceVote ();
-		ent->vote = VOTE_YES;
+		ent->client->resp.vote = VOTE_YES;
 	}
 	else if (!Q_stricmp (cmd, "weapons"))
 	{
@@ -1955,11 +2073,11 @@ static void TDM_Vote_f (edict_t *ent)
 
 		vote.newweaponflags = flags;
 		vote.flags |= VOTE_WEAPONS;
-		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
+		vote.end_frame = level.framenum + g_vote_time->value * (1 / FRAMETIME);
 		vote.initiator = ent;
 		vote.active = true;
 		TDM_AnnounceVote ();
-		ent->vote = VOTE_YES;
+		ent->client->resp.vote = VOTE_YES;
 	}
 	else if (!Q_stricmp (cmd, "kick"))
 	{
@@ -1995,11 +2113,11 @@ static void TDM_Vote_f (edict_t *ent)
 
 			vote.victim = victim;
 			vote.flags |= VOTE_KICK;
-			vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
+			vote.end_frame = level.framenum + g_vote_time->value * (1 / FRAMETIME);
 			vote.initiator = ent;
 			vote.active = true;
 			TDM_AnnounceVote ();
-			ent->vote = VOTE_YES;
+			ent->client->resp.vote = VOTE_YES;
 		}
 	}
 	else if (!Q_stricmp (cmd, "powerups"))
@@ -2082,11 +2200,11 @@ static void TDM_Vote_f (edict_t *ent)
 
 		vote.newpowerupflags = flags;
 		vote.flags |= VOTE_POWERUPS;
-		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
+		vote.end_frame = level.framenum + g_vote_time->value * (1 / FRAMETIME);
 		vote.initiator = ent;
 		vote.active = true;
 		TDM_AnnounceVote ();
-		ent->vote = VOTE_YES;
+		ent->client->resp.vote = VOTE_YES;
 	}
 	else if (!Q_stricmp (cmd, "gamemode") || !Q_stricmp (cmd, "mode"))
 	{
@@ -2096,7 +2214,7 @@ static void TDM_Vote_f (edict_t *ent)
 
 		if (!value[0])
 		{
-			gi.cprintf (ent, PRINT_HIGH, "Usage: vote gamemode <tdm/itdm/1v1>\n");
+			gi.cprintf (ent, PRINT_HIGH, "Usage: vote %s <tdm/itdm/1v1>\n", cmd);
 			return;
 		}
 
@@ -2126,11 +2244,11 @@ static void TDM_Vote_f (edict_t *ent)
 
 		vote.flags |= VOTE_GAMEMODE;
 		vote.gamemode = gamemode;
-		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
+		vote.end_frame = level.framenum + g_vote_time->value * (1 / FRAMETIME);
 		vote.initiator = ent;
 		vote.active = true;
 		TDM_AnnounceVote ();
-		ent->vote = VOTE_YES;
+		ent->client->resp.vote = VOTE_YES;
 	}
 	else if (!Q_stricmp (cmd, "tiemode"))
 	{
@@ -2140,7 +2258,7 @@ static void TDM_Vote_f (edict_t *ent)
 
 		if (!value[0])
 		{
-			gi.cprintf (ent, PRINT_HIGH, "Usage: vote tiemode <none/ot/sd>\nnone: game ties after timelimit\not: %g minutes overtime added until a winner\nsd: sudden death, first frag wins\n", g_overtime->value / 60);
+			gi.cprintf (ent, PRINT_HIGH, "Usage: vote tiemode <none/ot/sd>\nnone: game ties after timelimit\not: overtime added until a winner\nsd: sudden death, first frag wins\n");
 			return;
 		}
 
@@ -2171,11 +2289,11 @@ static void TDM_Vote_f (edict_t *ent)
 		vote.flags |= VOTE_TIEMODE;
 		vote.tiemode = tiemode;
 
-		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
+		vote.end_frame = level.framenum + g_vote_time->value * (1 / FRAMETIME);
 		vote.initiator = ent;
 		vote.active = true;
 		TDM_AnnounceVote ();
-		ent->vote = VOTE_YES;
+		ent->client->resp.vote = VOTE_YES;
 	}
 	else if (!Q_stricmp (cmd, "telemode"))
 	{
@@ -2214,11 +2332,11 @@ static void TDM_Vote_f (edict_t *ent)
 		vote.flags |= VOTE_TELEMODE;
 		vote.telemode = telemode;
 
-		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
+		vote.end_frame = level.framenum + g_vote_time->value * (1 / FRAMETIME);
 		vote.initiator = ent;
 		vote.active = true;
 		TDM_AnnounceVote ();
-		ent->vote = VOTE_YES;
+		ent->client->resp.vote = VOTE_YES;
 	}
 	else if (!Q_stricmp (cmd, "switchmode"))
 	{
@@ -2259,11 +2377,50 @@ static void TDM_Vote_f (edict_t *ent)
 		vote.switchmode = switchmode;
 		vote.flags |= VOTE_SWITCHMODE;
 
-		vote.end_frame = level.framenum + g_vote_time->value * (FRAMETIME / 10);
+		vote.end_frame = level.framenum + g_vote_time->value * (1 / FRAMETIME);
 		vote.initiator = ent;
 		vote.active = true;
 		TDM_AnnounceVote ();
-		ent->vote = VOTE_YES;
+		ent->client->resp.vote = VOTE_YES;
+	}
+	else if (!Q_stricmp (cmd, "overtime") || !Q_stricmp (cmd, "ot"))
+	{
+		int		limit;
+
+		value = gi.argv(2);
+		if (!value[0])
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Usage: vote %s <mins>\n", cmd);
+			return;
+		}
+
+		limit = atoi (value);
+		if (limit < 1)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Invalid value.\n");
+			return;
+		}
+
+		//check current timelimit
+		if (g_overtime->value == limit * 60)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Overtime is already at %d minutes.\n", limit);
+			return;
+		}
+
+		if (vote.active)
+		{
+			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+			TDM_RemoveVote ();
+		}
+
+		vote.flags |= VOTE_OVERTIME;
+		vote.overtimemins = limit;
+		vote.initiator = ent;
+		vote.end_frame = level.framenum + g_vote_time->value * (1 / FRAMETIME);
+		vote.active = true;
+		TDM_AnnounceVote ();
+		ent->client->resp.vote = VOTE_YES;
 	}
 	else if (!Q_stricmp (cmd, "yes"))
 	{
@@ -2275,18 +2432,18 @@ static void TDM_Vote_f (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS(2)))
 			return;
 		
-		if (ent->vote == VOTE_HOLD)
+		if (ent->client->resp.vote == VOTE_HOLD)
 		{
-			ent->vote = VOTE_YES;
+			ent->client->resp.vote = VOTE_YES;
 			gi.bprintf (PRINT_HIGH, "%s voted YES.\n", ent->client->pers.netname);
 		}
-		else if (ent->vote == VOTE_YES)
+		else if (ent->client->resp.vote == VOTE_YES)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "You have already voted yes.\n");
 		}
-		else if (ent->vote == VOTE_NO)
+		else if (ent->client->resp.vote == VOTE_NO)
 		{
-			ent->vote = VOTE_YES;
+			ent->client->resp.vote = VOTE_YES;
 			gi.bprintf (PRINT_HIGH, "%s changed his vote to YES.\n", ent->client->pers.netname);
 		}
 	}
@@ -2300,18 +2457,18 @@ static void TDM_Vote_f (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS(2)))
 			return;
 		
-		if (ent->vote == VOTE_HOLD)
+		if (ent->client->resp.vote == VOTE_HOLD)
 		{
-			ent->vote = VOTE_NO;
+			ent->client->resp.vote = VOTE_NO;
 			gi.bprintf (PRINT_HIGH, "%s voted NO.\n", ent->client->pers.netname);
 		}
-		else if (ent->vote == VOTE_NO)
+		else if (ent->client->resp.vote == VOTE_NO)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "You have already voted no.\n");
 		}
-		else if (ent->vote == VOTE_YES)
+		else if (ent->client->resp.vote == VOTE_YES)
 		{
-			ent->vote = VOTE_NO;
+			ent->client->resp.vote = VOTE_NO;
 			gi.bprintf (PRINT_HIGH, "%s changed his vote to NO.\n", ent->client->pers.netname);
 		}
 	}
@@ -2541,6 +2698,58 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 		TDM_Team_f (ent);
 	else if (!Q_stricmp (cmd, "settings"))
 		TDM_Settings_f (ent);
+	else
+		return false;
+
+	return true;
+}
+
+/*
+==============
+TDM_SV_Settings_f
+==============
+Server admin wants to see current settings.
+*/
+void TDM_SV_Settings_f (void)
+{
+	char	*settings;
+	size_t	len;
+	int		i;
+
+	settings = TDM_SettingsString ();
+
+	//no colortext for the console
+	len = strlen (settings);
+	for (i = 0; i < len; i++)
+		settings[i] &= ~0x80;
+
+	gi.dprintf ("%s", settings);
+}
+
+/*
+==============
+TDM_SV_SaveDefaults_f
+==============
+Server admin changed cvars and wants the new ones to be default.
+*/
+void TDM_SV_SaveDefaults_f (void)
+{
+	TDM_SaveDefaultCvars ();
+	gi.dprintf ("Default cvars saved.\n");
+}
+
+/*
+==============
+TDM_ServerCommand
+==============
+Handle a server sv console command.
+*/
+qboolean TDM_ServerCommand (const char *cmd)
+{
+	if (!Q_stricmp (cmd, "settings"))
+		TDM_SV_Settings_f ();
+	else if (!Q_stricmp (cmd, "savedefaults"))
+		TDM_SV_SaveDefaults_f ();
 	else
 		return false;
 
@@ -2877,29 +3086,6 @@ void SelectNextHelpPage (edict_t *ent)
 
 /*
 ==============
-TDM_ResetVotableVariables
-==============
-Everyone has left the server, so reset anything they voted back to defaults
-*/
-void TDM_ResetVotableVariables (void)
-{
-	cvarsave_t	*var;
-
-	gi.dprintf ("Resetting votable variables to defaults.\n");
-
-	var = preserved_vars;
-
-	while (var->variable_name)
-	{
-		gi.cvar_set (var->variable_name, var->default_string);
-		var++;
-	}
-
-	TDM_UpdateConfigStrings (true);
-}	
-
-/*
-==============
 CountPlayers
 ==============
 Count how many players each team has
@@ -3106,25 +3292,17 @@ Single time initialization stuff.
 */
 void TDM_Init (void)
 {
-	cvarsave_t	*preserved;
-	cvar_t		*var;
-
 	strcpy (teaminfo[0].name, "Spectators");
 	strcpy (teaminfo[0].skin, "male/grunt");
 
-	//save whatever the server admin set for restoring later
-	preserved = preserved_vars;
+	TDM_SaveDefaultCvars ();
 
-	while (preserved->variable_name)
-	{
-		var = gi.cvar (preserved->variable_name, NULL, 0);
-		if (!var)
-			gi.error ("TDM_Init: Couldn't preserve %s", preserved->variable_name);
-
-		preserved->default_string = G_CopyString (var->string);
-
-		preserved++;
-	}
+	if (g_gamemode->value == GAMEMODE_ITDM)
+		dmflags = gi.cvar_set ("dmflags", g_itdmflags->string);
+	else if (g_gamemode->value == GAMEMODE_TDM)
+		dmflags = gi.cvar_set ("dmflags", g_tdmflags->string);
+	else if (g_gamemode->value == GAMEMODE_1V1)
+		dmflags = gi.cvar_set ("dmflags", g_1v1flags->string);
 
 	TDM_ResetGameState ();
 }

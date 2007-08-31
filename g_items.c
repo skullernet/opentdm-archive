@@ -728,8 +728,8 @@ void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf
 	if (!ent->item->pickup)
 		return;		// not a grabbable item?
 
-	//can't touch items in warmup
-	if (tdm_match_status < MM_PLAYING)
+	//can't touch items in countdown
+	if (tdm_match_status == MM_COUNTDOWN)
 		return;
 
 	taken = ent->item->pickup(ent, other);
