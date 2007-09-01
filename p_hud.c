@@ -259,7 +259,8 @@ Note that it isn't that hard to overflow the 1400 byte message limit!
 */
 void DeathmatchScoreboard (edict_t *ent)
 {
-	DeathmatchScoreboardMessage (ent, ent->enemy);
+	//DeathmatchScoreboardMessage (ent, ent->enemy);
+	TDM_ScoreBoardMessage (ent);
 	gi.unicast (ent, true);
 }
 
@@ -452,6 +453,9 @@ void G_SetStats (edict_t *ent)
 	ent->client->ps.stats[STAT_TEAM_A_STATUS_INDEX] = CS_GENERAL + 2;
 	ent->client->ps.stats[STAT_TEAM_B_STATUS_INDEX] = CS_GENERAL + 3;
 
+	ent->client->ps.stats[STAT_TEAM_A_SCORE] = teaminfo[TEAM_A].score;
+	ent->client->ps.stats[STAT_TEAM_B_SCORE] = teaminfo[TEAM_B].score;
+
 	ent->client->ps.stats[STAT_TIME_REMAINING] = CS_GENERAL + 4;
 	//
 	// help icon / current weapon if not shown
@@ -501,7 +505,7 @@ void G_SetSpectatorStats (edict_t *ent)
 	// layouts are independant in spectator
 	cl->ps.stats[STAT_LAYOUTS] = 0;
 
-	if (ent->health <= 0 || level.intermissionframe || cl->menu.active)
+	if (level.intermissionframe || cl->menu.active || ent->client->showscores)
 		cl->ps.stats[STAT_LAYOUTS] |= 1;
 
 	if (cl->showinventory && ent->health > 0)

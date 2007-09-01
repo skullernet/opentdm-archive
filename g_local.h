@@ -69,6 +69,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define STAT_TIME_REMAINING				22
 
+#define STAT_TEAM_A_SCORE				23
+#define STAT_TEAM_B_SCORE				24
+
 // dmflags->value flags
 #define	DF_NO_HEALTH		0x00000001	// 1
 #define	DF_NO_ITEMS			0x00000002	// 2

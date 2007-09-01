@@ -967,7 +967,7 @@ void ClientEndServerFrame (edict_t *ent)
 	{
 		// FIXME: add view drifting here?
 		current_client->ps.blend[3] = 0;
-		current_client->ps.fov = 90;
+		//current_client->ps.fov = 90;
 		G_SetStats (ent);
 		return;
 	}
@@ -1063,7 +1063,8 @@ void ClientEndServerFrame (edict_t *ent)
 	// if the scoreboard is up, update it
 	if (ent->client->showscores && !(level.framenum & 31) )
 	{
-		DeathmatchScoreboardMessage (ent, ent->enemy);
+		//DeathmatchScoreboardMessage (ent, ent->enemy);
+		TDM_ScoreBoardMessage (ent);
 		gi.unicast (ent, false);
 	}
 }

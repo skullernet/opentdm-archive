@@ -875,7 +875,7 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	if (gi.argc () < 2 && !arg0)
 		return;
 
-	if (tdm_match_status >= MM_COUNTDOWN && !ent->client->resp.team)
+	if (tdm_match_status > MM_COUNTDOWN && !ent->client->resp.team)
 	{
 		//Observers can talk only to each other during the match.
 		team = true;
@@ -1053,8 +1053,8 @@ void ClientCommand (edict_t *ent)
 		Cmd_Notarget_f (ent);
 	else if (Q_stricmp (cmd, "noclip") == 0)
 		Cmd_Noclip_f (ent);
-	else if (Q_stricmp (cmd, "inven") == 0)
-		Cmd_Inven_f (ent);
+	//else if (Q_stricmp (cmd, "inven") == 0)
+	//	Cmd_Inven_f (ent);
 	else if (Q_stricmp (cmd, "invnext") == 0)
 		SelectNextItem (ent, -1);
 	else if (Q_stricmp (cmd, "invprev") == 0)

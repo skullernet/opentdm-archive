@@ -362,6 +362,9 @@ void TDM_BeginMatch (void)
 	tdm_match_status = MM_PLAYING;
 	TDM_ResetLevel ();
 
+	gi.bprintf (PRINT_HIGH, "Fight!\n");
+
+	//should already be 0, check this is needed
 	teaminfo[TEAM_A].score = teaminfo[TEAM_B].score = 0;
 
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
@@ -385,7 +388,220 @@ function.
 */
 void TDM_ScoreBoardMessage (edict_t *ent)
 {
-	//TODO: implement scoreboard
+	//TODO: implement proper scoreboard
+	char	entry[1024];
+	char	string[1400];
+	int		len;
+	int		i, j, k, n;
+	int		sorted[2][MAX_CLIENTS];
+	int		sortedscores[2][MAX_CLIENTS];
+	int		score, total[2], totalscore[2];
+	int		last[2];
+	int		width[2];
+	gclient_t	*cl;
+	edict_t		*cl_ent;
+	int team;
+	int maxsize = 1200;
+	
+	// sort the clients by team and score
+	total[0] = total[1] = 0;
+	last[0] = last[1] = 0;
+	totalscore[0] = totalscore[1] = 0;
+	for (i=0 ; i < game.maxclients ; i++)
+	{
+		cl_ent = g_edicts + 1 + i;
+		if (!cl_ent->inuse)
+			continue;
+		if (game.clients[i].resp.team == TEAM_A)
+			team = 0;
+		else if (game.clients[i].resp.team == TEAM_B)
+			team = 1;
+		else
+			continue; // unknown team?
+
+		score = game.clients[i].resp.score;
+		for (j=0 ; j<total[team] ; j++)
+		{
+			if (score > sortedscores[team][j])
+				break;
+		}
+
+		for (k=total[team] ; k>j ; k--)
+		{
+			sorted[team][k] = sorted[team][k-1];
+			sortedscores[team][k] = sortedscores[team][k-1];
+		}
+		sorted[team][j] = i;
+		sortedscores[team][j] = score;
+		totalscore[team] += score;
+		total[team]++;
+	}
+
+	// print level name and exit rules
+	// add the clients in sorted order
+	*string = 0;
+	len = 0;
+
+	if (teaminfo[TEAM_A].score > 9 || teaminfo[TEAM_A].score < 0)
+		width[0] = 2;
+	else if (teaminfo[TEAM_A].score > 99)
+		width[0] = 3;
+	else
+		width[0] = 1;
+
+	if (teaminfo[TEAM_B].score > 9 || teaminfo[TEAM_B].score < 0)
+		width[1] = 2;
+	else if (teaminfo[TEAM_B].score > 99)
+		width[1] = 3;
+	else
+		width[1] = 1;
+
+	// team one
+	sprintf(string, //"xv 8 yv 8 picn tag1 "
+		"xv -176 yv 8 stat_string 18 "
+		"xv 30 yv 28 string \"%4d players\" "
+		"xv 8 yv 16 num %d 23 "
+		//"xv 168 yv 8 picn tag1 "
+		"xv -16 yv 8 stat_string 19  "
+		"xv 190 yv 28 string \"%4d players\" "
+		"xv 166 yv 16 num %d 24 ",
+		total[0], width[0],
+		total[1], width[1]);
+	len = strlen(string);
+
+	for (i=0 ; i<16 ; i++)
+	{
+		if (i >= total[0] && i >= total[1])
+			break; // we're done
+
+#if 0 //ndef NEW_SCORE
+		// set up y
+		sprintf(entry, "yv %d ", 42 + i * 8);
+		if (maxsize - len > strlen(entry)) {
+			strcat(string, entry);
+			len = strlen(string);
+		}
+#else
+		*entry = 0;
+#endif
+
+		// left side
+		if (i < total[0]) {
+			cl = &game.clients[sorted[0][i]];
+			cl_ent = g_edicts + 1 + sorted[0][i];
+
+#if 0 //ndef NEW_SCORE
+			sprintf(entry+strlen(entry),
+			"xv 0 %s \"%3d %3d %-12.12s\" ",
+			(cl_ent == ent) ? "string2" : "string",
+			cl->resp.score, 
+			(cl->ping > 999) ? 999 : cl->ping, 
+			cl->pers.netname);
+
+			if (cl_ent->client->pers.inventory[ITEM_INDEX(flag2_item)])
+				strcat(entry, "xv 56 picn sbfctf2 ");
+#else
+			sprintf(entry+strlen(entry),
+				"ctf 0 %d %d %d %d ",
+				42 + i * 8,
+				sorted[0][i],
+				cl->resp.score,
+				cl->ping > 999 ? 999 : cl->ping);
+#endif
+
+			if (maxsize - len > strlen(entry)) {
+				strcat(string, entry);
+				len = strlen(string);
+				last[0] = i;
+			}
+		}
+
+		// right side
+		if (i < total[1]) {
+			cl = &game.clients[sorted[1][i]];
+			cl_ent = g_edicts + 1 + sorted[1][i];
+
+#if 0 //ndef NEW_SCORE
+			sprintf(entry+strlen(entry),
+			"xv 160 %s \"%3d %3d %-12.12s\" ",
+			(cl_ent == ent) ? "string2" : "string",
+			cl->resp.score, 
+			(cl->ping > 999) ? 999 : cl->ping, 
+			cl->pers.netname);
+
+			if (cl_ent->client->pers.inventory[ITEM_INDEX(flag1_item)])
+				strcat(entry, "xv 216 picn sbfctf1 ");
+
+#else
+
+			sprintf(entry+strlen(entry),
+				"ctf 160 %d %d %d %d ",
+				42 + i * 8,
+				sorted[1][i],
+				cl->resp.score,
+				cl->ping > 999 ? 999 : cl->ping);
+
+#endif
+			if (maxsize - len > strlen(entry)) {
+				strcat(string, entry);
+				len = strlen(string);
+				last[1] = i;
+			}
+		}
+	}
+
+	// put in spectators if we have enough room
+	if (last[0] > last[1])
+		j = last[0];
+	else
+		j = last[1];
+	j = (j + 2) * 8 + 42;
+
+	k = n = 0;
+	if (maxsize - len > 50) {
+		for (i = 0; i < maxclients->value; i++) {
+			cl_ent = g_edicts + 1 + i;
+			cl = &game.clients[i];
+			if (!cl_ent->inuse ||
+				cl_ent->solid != SOLID_NOT ||
+				cl_ent->client->resp.team != TEAM_SPEC)
+				continue;
+
+			if (!k) {
+				k = 1;
+				sprintf(entry, "xv 0 yv %d string2 \"Spectators\" ", j);
+				strcat(string, entry);
+				len = strlen(string);
+				j += 8;
+			}
+
+			sprintf(entry+strlen(entry),
+				"ctf %d %d %d %d %d ",
+				(n & 1) ? 160 : 0, // x
+				j, // y
+				i, // playernum
+				cl->resp.score,
+				cl->ping > 999 ? 999 : cl->ping);
+			if (maxsize - len > strlen(entry)) {
+				strcat(string, entry);
+				len = strlen(string);
+			}
+			
+			if (n & 1)
+				j += 8;
+			n++;
+		}
+	}
+
+	if (total[0] - last[0] > 1) // couldn't fit everyone
+		sprintf(string + strlen(string), "xv 8 yv %d string \"..and %d more\" ",
+			42 + (last[0]+1)*8, total[0] - last[0] - 1);
+	if (total[1] - last[1] > 1) // couldn't fit everyone
+		sprintf(string + strlen(string), "xv 168 yv %d string \"..and %d more\" ",
+			42 + (last[1]+1)*8, total[1] - last[1] - 1);
+
+	gi.WriteByte (svc_layout);
+	gi.WriteString (string);
 }
 
 /*
@@ -471,6 +687,32 @@ char *TDM_SettingsString (void)
 
 /*
 ==============
+TDM_RemoveVote
+==============
+Reset vote and all players' votes.
+*/
+static void TDM_RemoveVote (void)
+{
+	edict_t	*ent;
+
+	memset (&vote, 0, sizeof(vote));
+	/*vote.flags = 0;
+	vote.active = false;
+	vote.victim = NULL;
+	vote.initiator = NULL;
+	vote.success = VOTE_NOT_ENOUGH_VOTES;*/
+
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+	{
+		if (!ent->inuse)
+			continue;
+		
+		ent->client->resp.vote = VOTE_HOLD;
+	}
+}
+
+/*
+==============
 TDM_BeginCountdown
 ==============
 All players are ready so start the countdown
@@ -480,6 +722,10 @@ void TDM_BeginCountdown (void)
 	gi.bprintf (PRINT_HIGH, "Match Settings:\n%s", TDM_SettingsString ());
 
 	gi.bprintf (PRINT_CHAT, "All players ready! Starting countdown (%g secs)...\n", g_match_countdown->value);
+
+	//remove any vote so it doesn't change settings mid-match :D
+	if (vote.active)
+		TDM_RemoveVote ();
 
 	tdm_match_status = MM_COUNTDOWN;
 	level.match_start_framenum = level.framenum + (int)(g_match_countdown->value / FRAMETIME);
@@ -607,32 +853,6 @@ qboolean TDM_RateLimited (edict_t *ent, int penalty)
 	return false;
 }
 
-/*
-==============
-TDM_RemoveVote
-==============
-Reset vote and all players' votes.
-*/
-static void TDM_RemoveVote (void)
-{
-	edict_t	*ent;
-
-	memset (&vote, 0, sizeof(vote));
-	/*vote.flags = 0;
-	vote.active = false;
-	vote.victim = NULL;
-	vote.initiator = NULL;
-	vote.success = VOTE_NOT_ENOUGH_VOTES;*/
-
-	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
-	{
-		if (!ent->inuse)
-			continue;
-		
-		ent->client->resp.vote = VOTE_HOLD;
-	}
-}
-
 void TDM_Overtime (void)
 {
 	level.match_end_framenum = level.framenum + (int)(g_overtime->value / FRAMETIME);
@@ -694,10 +914,10 @@ void TDM_CheckTimes (void)
 			{
 				gi.sound (world, 0, gi.soundindex ("world/10_0.wav"), 1, ATTN_NONE, 0);
 			}
-			else if (remaining > 0 && remaining <= (int)(5.0f / FRAMETIME) && remaining % (int)(1.0f / FRAMETIME) == 0)
+			/*else if (remaining > 0 && remaining <= (int)(5.0f / FRAMETIME) && remaining % (int)(1.0f / FRAMETIME) == 0)
 			{
 				gi.bprintf (PRINT_HIGH, "%d\n", (int)(remaining * FRAMETIME));
-			}
+			}*/
 			else if (remaining == 0)
 			{
 				if (teaminfo[TEAM_A].score == teaminfo[TEAM_B].score)
@@ -1423,6 +1643,57 @@ void TDM_Teamskin_f (edict_t *ent)
 
 /*
 ==============
+TDM_UpdateTeamNames
+==============
+A rather messy function to handle team names in TDM and 1v1.
+*/
+void TDM_UpdateTeamNames (void)
+{
+	if (g_gamemode->value == GAMEMODE_1V1)
+	{
+		if (teaminfo[TEAM_A].captain)
+		{
+			if (strcmp (teaminfo[TEAM_A].name, teaminfo[TEAM_A].captain->client->pers.netname))
+			{
+				strncpy (teaminfo[TEAM_A].name, teaminfo[TEAM_A].captain->client->pers.netname, sizeof(teaminfo[TEAM_A].name)-1);
+				g_team_a_name->modified = true;
+			}
+		}
+		else
+		{
+			if (strcmp (teaminfo[TEAM_A].name, "Player 1"))
+			{
+				strcpy (teaminfo[TEAM_A].name, "Player 1");
+				g_team_a_name->modified = true;
+			}
+		}	
+
+		if (teaminfo[TEAM_B].captain)
+		{
+			if (strcmp (teaminfo[TEAM_B].name, teaminfo[TEAM_B].captain->client->pers.netname))
+			{
+				strncpy (teaminfo[TEAM_B].name, teaminfo[TEAM_B].captain->client->pers.netname, sizeof(teaminfo[TEAM_B].name)-1);
+				g_team_b_name->modified = true;
+			}
+		}
+		else
+		{
+			if (strcmp (teaminfo[TEAM_B].name, "Player 2"))
+			{
+				strcpy (teaminfo[TEAM_B].name, "Player 2");
+				g_team_b_name->modified = true;
+			}
+		}	
+	}
+	else
+	{
+		strncpy (teaminfo[TEAM_A].name, g_team_a_name->string, sizeof(teaminfo[TEAM_A].name)-1);
+		strncpy (teaminfo[TEAM_B].name, g_team_b_name->string, sizeof(teaminfo[TEAM_B].name)-1);
+	}
+}
+
+/*
+==============
 TDM_Teamname_f
 ==============
 Set teamname (captain/admin only).
@@ -1491,6 +1762,8 @@ void TDM_Teamname_f (edict_t *ent)
 	}
 
 	gi.bprintf (PRINT_HIGH, "Team '%s' renamed to '%s'.\n", teaminfo[ent->client->resp.team].name, value);
+
+	TDM_UpdateTeamNames ();
 
 	TDM_UpdateConfigStrings(false);
 }
@@ -2697,7 +2970,7 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 		TDM_Changeteamstatus_f (ent, true);
 	else if (!Q_stricmp (cmd, "teamnotready") || !Q_stricmp (cmd, "notreadyteam"))
 		TDM_Changeteamstatus_f (ent, false);
-	else if (!Q_stricmp (cmd, "menu") || !Q_stricmp (cmd, "ctfmenu"))
+	else if (!Q_stricmp (cmd, "menu") || !Q_stricmp (cmd, "ctfmenu") || !Q_stricmp (cmd, "inven"))
 		TDM_ShowTeamMenu (ent);
 	else if (!Q_stricmp (cmd, "commands"))
 		TDM_Commands_f (ent);
@@ -2831,57 +3104,6 @@ void TDM_SetInitialItems (edict_t *ent)
 			client->selected_item = ITEM_INDEX(item);
 			client->inventory[client->selected_item] = 1;
 			break;
-	}
-}
-
-/*
-==============
-TDM_UpdateTeamNames
-==============
-A rather messy function to handle team names in TDM and 1v1.
-*/
-void TDM_UpdateTeamNames (void)
-{
-	if (g_gamemode->value == GAMEMODE_1V1)
-	{
-		if (teaminfo[TEAM_A].captain)
-		{
-			if (strcmp (teaminfo[TEAM_A].name, teaminfo[TEAM_A].captain->client->pers.netname))
-			{
-				strncpy (teaminfo[TEAM_A].name, teaminfo[TEAM_A].captain->client->pers.netname, sizeof(teaminfo[TEAM_A].name)-1);
-				g_team_a_name->modified = true;
-			}
-		}
-		else
-		{
-			if (strcmp (teaminfo[TEAM_A].name, "Player 1"))
-			{
-				strcpy (teaminfo[TEAM_A].name, "Player 1");
-				g_team_a_name->modified = true;
-			}
-		}	
-
-		if (teaminfo[TEAM_B].captain)
-		{
-			if (strcmp (teaminfo[TEAM_B].name, teaminfo[TEAM_B].captain->client->pers.netname))
-			{
-				strncpy (teaminfo[TEAM_B].name, teaminfo[TEAM_B].captain->client->pers.netname, sizeof(teaminfo[TEAM_B].name)-1);
-				g_team_b_name->modified = true;
-			}
-		}
-		else
-		{
-			if (strcmp (teaminfo[TEAM_B].name, "Player 2"))
-			{
-				strcpy (teaminfo[TEAM_B].name, "Player 2");
-				g_team_b_name->modified = true;
-			}
-		}	
-	}
-	else
-	{
-		strncpy (teaminfo[TEAM_A].name, g_team_a_name->string, sizeof(teaminfo[TEAM_A].name)-1);
-		strncpy (teaminfo[TEAM_B].name, g_team_b_name->string, sizeof(teaminfo[TEAM_B].name)-1);
 	}
 }
 
@@ -3282,6 +3504,7 @@ void TDM_ResetGameState (void)
 		{
 			ent->client->resp.last_command_frame = 0;
 			ent->client->resp.last_invited_by = NULL;
+			ent->client->resp.score = 0;
 			if (ent->client->resp.team != TEAM_SPEC)
 			{
 				ent->client->resp.team = TEAM_SPEC;
@@ -3472,6 +3695,8 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 
 				if (last_secs < 60)
 					TDM_SetColorText (time_buffer);
+				else if (last_secs == 60)
+					gi.bprintf (PRINT_HIGH, "1 minute remaining.\n");
 
 				gi.configstring (CS_GENERAL + 4, time_buffer);
 			}

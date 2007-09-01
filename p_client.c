@@ -1361,8 +1361,6 @@ void ClientDisconnect (edict_t *ent)
 	if (!ent->client)
 		return;
 
-	gi.bprintf (PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
-
 	// send effect (only if they were in game)
 	if (ent->client->resp.team)
 	{
@@ -1385,6 +1383,8 @@ void ClientDisconnect (edict_t *ent)
 	ent->client->pers.connected = false;
 
 	TDM_Disconnected (ent);
+
+	gi.bprintf (PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
 
 	playernum = ent-g_edicts-1;
 	gi.configstring (CS_PLAYERSKINS+playernum, "");
