@@ -303,11 +303,9 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 		}
 		if (message)
 		{
-			//no death messages in warmup
+			gi.bprintf (PRINT_MEDIUM, "%s %s.\n", self->client->pers.netname, message);
 			if (tdm_match_status >= MM_PLAYING)
 			{
-				gi.bprintf (PRINT_MEDIUM, "%s %s.\n", self->client->pers.netname, message);
-
 				if (deathmatch->value)
 					self->client->resp.score--;
 				teaminfo[self->client->resp.team].score--;
@@ -394,9 +392,10 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 			{
 				if (deathmatch->value)
 				{
+					gi.bprintf (PRINT_MEDIUM,"%s %s %s%s\n", self->client->pers.netname, message, attacker->client->pers.netname, message2);
+
 					if (tdm_match_status >= MM_PLAYING)
 					{
-						gi.bprintf (PRINT_MEDIUM,"%s %s %s%s\n", self->client->pers.netname, message, attacker->client->pers.netname, message2);
 						if (ff)
 						{
 							attacker->client->resp.score--;
@@ -414,9 +413,9 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 		}
 	}
 
+	gi.bprintf (PRINT_MEDIUM,"%s died.\n", self->client->pers.netname);
 	if (deathmatch->value && tdm_match_status >= MM_PLAYING)
 	{
-		gi.bprintf (PRINT_MEDIUM,"%s died.\n", self->client->pers.netname);
 		self->client->resp.score--;
 		teaminfo[self->client->resp.team].score--;
 	}
