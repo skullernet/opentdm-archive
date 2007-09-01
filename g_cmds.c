@@ -413,14 +413,16 @@ void Cmd_Use_f (edict_t *ent)
 	it = FindItem (s);
 	if (!it)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "unknown item: %s\n", s);
+		gi.cprintf (ent, PRINT_HIGH, "Unknown item: %s\n", s);
 		return;
 	}
+
 	if (!it->use)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Item is not usable.\n");
 		return;
 	}
+
 	index = ITEM_INDEX(it);
 	if (!ent->client->inventory[index])
 	{
@@ -687,8 +689,18 @@ Cmd_Kill_f
 */
 void Cmd_Kill_f (edict_t *ent)
 {
+	if (!ent->client->resp.team)
+		return;
+
 	if((level.framenum - ent->client->respawn_framenum) < 5 * (1 / FRAMETIME))
 		return;
+
+	if (tdm_match_status == MM_COUNTDOWN)
+		return;
+
+	if (ent->health <= 0)
+		return;
+
 	ent->flags &= ~FL_GODMODE;
 	ent->health = 0;
 	meansOfDeath = MOD_SUICIDE;

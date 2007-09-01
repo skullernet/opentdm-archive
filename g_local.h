@@ -1187,6 +1187,7 @@ typedef enum
 	ENT_FUNC_TRAIN,
 	ENT_DOOR_TRIGGER,
 	ENT_PLAT_TRIGGER,
+	ENT_BODYQUE,
 } enttype_t;
 
 struct edict_s

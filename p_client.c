@@ -873,6 +873,7 @@ void InitBodyQue (void)
 	{
 		ent = G_Spawn();
 		ent->classname = "bodyque";
+		ent->enttype = ENT_BODYQUE;
 	}
 }
 
@@ -1579,10 +1580,6 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		}
 		else if (!client->weapon_thunk)
 		{
-			//r1: don't allow any attack during countdown
-			if (tdm_match_status == MM_COUNTDOWN)
-				client->latched_buttons &= ~BUTTON_ATTACK;
-
 			client->weapon_thunk = true;
 			Think_Weapon (ent);
 		}

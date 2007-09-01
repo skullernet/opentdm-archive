@@ -301,6 +301,13 @@ void Think_Weapon (edict_t *ent)
 	if (tdm_match_status == MM_TIMEOUT)
 		return;
 
+	//r1: don't allow any attack during countdown
+	if (tdm_match_status == MM_COUNTDOWN)
+	{
+		ent->client->buttons &= ~BUTTON_ATTACK;
+		ent->client->latched_buttons &= ~BUTTON_ATTACK;
+	}
+
 	// call active weapon think routine
 	if (ent->client->weapon && ent->client->weapon->weaponthink)
 	{

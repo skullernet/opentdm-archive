@@ -272,6 +272,13 @@ void TDM_ResetLevel (void)
 		if (!ent->inuse)
 			continue;
 
+		//handle body que specially, just unlink it
+		if (ent->enttype == ENT_BODYQUE)
+		{
+			gi.unlinkentity (ent);
+			continue;
+		}
+
 		if (
 			(ent->enttype == ENT_DOOR_TRIGGER || ent->enttype == ENT_PLAT_TRIGGER)
 			||
@@ -1578,7 +1585,7 @@ static void TDM_ResetVotableVariables (void)
 
 	while (var->variable_name)
 	{
-		gi.cvar_set (var->variable_name, var->default_string);
+		gi.cvar_forceset (var->variable_name, var->default_string);
 		var++;
 	}
 
@@ -1627,7 +1634,7 @@ static void TDM_ApplyVote (void)
 	{
 		sprintf (value, "%d", vote.newtimelimit * 60);
 		g_match_time = gi.cvar_set ("g_match_time", value);
-		gi.bprintf (PRINT_CHAT, "New timelimit: %d minutes\n", (int)vote.newtimelimit);
+		gi.bprintf (PRINT_CHAT, "New timelimit: %d minute%s\n", (int)vote.newtimelimit, vote.newtimelimit == 1 ? "" : "s");
 	}
 
 	if (vote.flags & VOTE_MAP)
@@ -1695,7 +1702,7 @@ static void TDM_ApplyVote (void)
 	{
 		sprintf (value, "%d", vote.overtimemins * 60);
 		g_overtime = gi.cvar_set ("g_overtime", value);
-		gi.bprintf (PRINT_CHAT, "New overtime: %d minutes\n", (int)vote.overtimemins);
+		gi.bprintf (PRINT_CHAT, "New overtime: %d minute%s\n", (int)vote.overtimemins, vote.overtimemins == 1 ? "" : "s");
 	}
 }
 
@@ -1829,7 +1836,7 @@ static void TDM_AnnounceVote (void)
 			strcat (what, "no freeze teleporter mode");
 	}
 
-	if (vote.flags & VOTE_TIMELIMIT)
+	if (vote.flags & VOTE_OVERTIME)
 	{
 		if (what[0])
 			strcat (what, ", ");
@@ -2906,6 +2913,8 @@ void JoinedTeam (edict_t *ent)
 {
 	if (g_gamemode->value != GAMEMODE_1V1)
 		gi.bprintf (PRINT_HIGH, "%s joined team '%s'\n", ent->client->pers.netname, teaminfo[ent->client->resp.team].name);
+	else
+		gi.bprintf (PRINT_HIGH, "%s joined the game.\n", ent->client->pers.netname);
 
 	ent->client->resp.ready = false;
 
