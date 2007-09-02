@@ -19,6 +19,47 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 #include "g_local.h"
 
+void ChaseEyeHack (edict_t *ent, edict_t *new, edict_t *old)
+{
+	//yes this is sent twice on purpose - sending unreliable will ensure model is hidden
+	//at the same time the new packetentities arrives, otherwise there will be a brief
+	//duration if there is pending reliable where the model blocks the view.
+
+	if (new)
+	{
+		gi.WriteByte (svc_configstring);
+		gi.WriteShort (CS_PLAYERSKINS + (new - g_edicts) - 1);
+		gi.WriteString (va ("%s\\opentdm/null", new->client->pers.netname));
+		gi.unicast (ent, true);
+
+		gi.WriteByte (svc_configstring);
+		gi.WriteShort (CS_PLAYERSKINS + (new - g_edicts) - 1);
+		gi.WriteString (va ("%s\\opentdm/null", new->client->pers.netname));
+		gi.unicast (ent, false);
+	}
+
+	if (old)
+	{
+		gi.WriteByte (svc_configstring);
+		gi.WriteShort (CS_PLAYERSKINS + (old - g_edicts) - 1);
+		gi.WriteString (va ("%s\\%s", old->client->pers.netname, teaminfo[old->client->resp.team].skin));
+		gi.unicast (ent, true);
+
+		gi.WriteByte (svc_configstring);
+		gi.WriteShort (CS_PLAYERSKINS + (old - g_edicts) - 1);
+		gi.WriteString (va ("%s\\%s", old->client->pers.netname, teaminfo[old->client->resp.team].skin));
+		gi.unicast (ent, false);
+	}
+}
+
+void DisableChaseCam (edict_t *ent)
+{
+	ChaseEyeHack (ent, NULL, ent->client->chase_target);
+
+	ent->client->chase_target = NULL;
+	ent->client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
+}
+
 void UpdateChaseCam(edict_t *ent)
 {
 	vec3_t o, ownerv, goal;
@@ -36,19 +77,21 @@ void UpdateChaseCam(edict_t *ent)
 		ChaseNext(ent);
 		if (ent->client->chase_target == old)
 		{
-			ent->client->chase_target = NULL;
-			ent->client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
+			DisableChaseCam (ent);
 			return;
 		}
 	}
 
 	targ = ent->client->chase_target;
 
-	VectorCopy(targ->s.origin, ownerv);
-	VectorCopy(ent->s.origin, oldgoal);
+	//VectorCopy(targ->s.origin, ownerv);
+	//VectorCopy(ent->s.origin, oldgoal);
 
-	ownerv[2] += targ->viewheight;
+	VectorCopy (targ->s.origin, goal);
 
+	goal[2] += targ->viewheight;
+
+	/*
 	VectorCopy(targ->client->v_angle, angles);
 	if (angles[PITCH] > 56)
 		angles[PITCH] = 56;
@@ -84,39 +127,42 @@ void UpdateChaseCam(edict_t *ent)
 	if (trace.fraction < 1) {
 		VectorCopy(trace.endpos, goal);
 		goal[2] += 6;
-	}
 
-	if (targ->deadflag)
-		ent->client->ps.pmove.pm_type = PM_DEAD;
-	else
-		ent->client->ps.pmove.pm_type = PM_FREEZE;
+	}*/
 
 	VectorCopy(goal, ent->s.origin);
+	
 	for (i=0 ; i<3 ; i++)
 		ent->client->ps.pmove.delta_angles[i] = ANGLE2SHORT(targ->client->v_angle[i] - ent->client->resp.cmd_angles[i]);
 
-	if (targ->deadflag) {
+	if (targ->deadflag)
+	{
 		ent->client->ps.viewangles[ROLL] = 40;
 		ent->client->ps.viewangles[PITCH] = -15;
 		ent->client->ps.viewangles[YAW] = targ->client->killer_yaw;
-	} else {
+		ent->client->ps.pmove.pm_type = PM_DEAD;
+	}
+	else
+	{
 		VectorCopy(targ->client->v_angle, ent->client->ps.viewangles);
 		VectorCopy(targ->client->v_angle, ent->client->v_angle);
+		ent->client->ps.pmove.pm_type = PM_FREEZE;
 	}
 
 	ent->viewheight = 0;
 	ent->client->ps.pmove.pm_flags |= PMF_NO_PREDICTION;
-	gi.linkentity(ent);
+	gi.linkentity (ent);
 }
 
 void ChaseNext(edict_t *ent)
 {
 	int i;
-	edict_t *e;
+	edict_t *e, *old;
 
 	if (!ent->client->chase_target)
 		return;
 
+	old = ent->client->chase_target;
 	i = ent->client->chase_target - g_edicts;
 	do
 	{
@@ -133,6 +179,9 @@ void ChaseNext(edict_t *ent)
 			break;
 	} while (e != ent->client->chase_target);
 
+	if (e != old)
+		ChaseEyeHack (ent, e, old);
+
 	ent->client->chase_target = e;
 	ent->client->update_chase = true;
 }
@@ -140,10 +189,12 @@ void ChaseNext(edict_t *ent)
 void ChasePrev(edict_t *ent)
 {
 	int i;
-	edict_t *e;
+	edict_t *e, *old;
 
 	if (!ent->client->chase_target)
 		return;
+
+	old = ent->client->chase_target;
 
 	i = ent->client->chase_target - g_edicts;
 	do
@@ -160,6 +211,9 @@ void ChasePrev(edict_t *ent)
 			break;
 	} while (e != ent->client->chase_target);
 
+	if (e != old)
+		ChaseEyeHack (ent, e, old);
+
 	ent->client->chase_target = e;
 	ent->client->update_chase = true;
 }
@@ -174,6 +228,7 @@ void GetChaseTarget(edict_t *ent)
 		other = g_edicts + i;
 		if (other->inuse && other->client->resp.team)
 		{
+			ChaseEyeHack (ent, other, ent->client->chase_target);
 			ent->client->chase_target = other;
 			ent->client->update_chase = true;
 			UpdateChaseCam(ent);

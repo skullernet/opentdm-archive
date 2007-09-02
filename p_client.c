@@ -907,14 +907,13 @@ void CopyToBodyQue (edict_t *ent)
 		gi.WritePosition (body->s.origin);
 		gi.WriteDir (vec3_origin);
 		gi.multicast (body->s.origin, MULTICAST_PVS);
-
-		body->s.event = EV_OTHER_TELEPORT;
 	}
 	gi.unlinkentity (ent);
 
 	gi.unlinkentity (body);
 	body->s = ent->s;
 	body->s.number = body - g_edicts;
+	body->s.event = EV_OTHER_TELEPORT;
 
 	body->svflags = ent->svflags;
 	VectorCopy (ent->mins, body->mins);
@@ -938,6 +937,10 @@ void respawn (edict_t *self)
 {
 	if (deathmatch->value || coop->value)
 	{
+		// remove spectator mode
+		if (self->client->chase_target)
+			DisableChaseCam (self);
+
 		// spectator's don't leave bodies
 		if (self->movetype != MOVETYPE_NOCLIP && self->movetype != MOVETYPE_WALK)
 			CopyToBodyQue (self);
@@ -1224,6 +1227,8 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	{
 		strncpy (ent->client->pers.netname, s, sizeof(ent->client->pers.netname)-1);
 		gi.configstring (CS_PLAYERSKINS + playernum, va ("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->resp.team].skin));
+
+		TDM_UpdateTeamNames ();
 	}
 
 	// fov
@@ -1439,13 +1444,10 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	level.current_entity = ent;
 	client = ent->client;
 
-	if (level.intermissionframe)
+	//no movement during map or match intermission
+	if (level.intermissionframe || level.match_score_end_framenum)
 	{
 		client->ps.pmove.pm_type = PM_FREEZE;
-		// can exit intermission after five seconds
-		//wision: removed (ucmd->buttons & BUTTON_ANY).. don't wait for player interaction
-		if (level.framenum > level.intermissionframe + 5.0 * (1 / FRAMETIME))
-			level.exitintermission = true;
 		return;
 	}
 
@@ -1594,8 +1596,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 
 				if (client->chase_target)
 				{
-					client->chase_target = NULL;
-					client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
+					DisableChaseCam (ent);
 				}
 				else
 					GetChaseTarget(ent);
@@ -1606,12 +1607,12 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	}
 
 	// update chase cam if being followed
-	for (i = 1; i <= game.maxclients; i++)
+	/*for (i = 1; i <= game.maxclients; i++)
 	{
 		other = g_edicts + i;
 		if (other->inuse && other->client->chase_target == ent)
 			UpdateChaseCam(other);
-	}
+	}*/
 }
 
 

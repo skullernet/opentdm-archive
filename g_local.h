@@ -30,7 +30,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // the "gameversion" client command will print this plus compile date
 #define	GAMEVERSION	"OpenTDM"
 
-#define	OPENTDM_VERSION	"0.1 beta"
+#ifdef OPENTDM_RELEASE
+#define	OPENTDM_VERSION	"1.0"
+#else
+#define	OPENTDM_VERSION "$Revision$"
+#endif
 
 // protocol bytes that can be directly added to messages
 #define	svc_muzzleflash		1
@@ -39,7 +43,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	svc_layout			4
 #define	svc_inventory		5
 #define	svc_stufftext		11
-
+#define	svc_configstring	13
 
 // player_state->stats[] indexes
 #define STAT_HEALTH_ICON		0
@@ -96,6 +100,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define GAMEMODE_TDM	0
 #define GAMEMODE_ITDM	1
 #define GAMEMODE_1V1	2
+
+#define CS_TDM_SPECTATOR_STRINGS (CS_GENERAL + MAX_CLIENTS)
+
+#define CS_TDM_TEAM_A_NAME	(CS_GENERAL + 0)
+#define CS_TDM_TEAM_B_NAME	(CS_GENERAL + 1)
+
+#define CS_TDM_TEAM_A_STATUS	(CS_GENERAL + 2)
+#define CS_TDM_TEAM_B_STATUS	(CS_GENERAL + 3)
+
+#define	CS_TDM_TIMELIMIT_STRING	(CS_GENERAL + 4)
+
 
 // otdm flags
 //i don't like the way this is done, gametype should be global, not a flag
@@ -499,6 +514,7 @@ typedef struct
 	int			match_start_framenum;
 	int			match_end_framenum;
 	int			match_score_end_framenum;
+	int			next_ready_nag_framenum;
 	const char	*entity_string;
 } level_locals_t;
 
@@ -732,6 +748,7 @@ extern	cvar_t	*g_admin_password;
 extern	cvar_t	*g_match_time;
 extern	cvar_t	*g_match_countdown;
 extern	cvar_t	*g_vote_time;
+extern	cvar_t	*g_intermission_time;
 
 extern	cvar_t	*g_tdmflags;
 extern	cvar_t	*g_itdmflags;
@@ -961,6 +978,7 @@ void UpdateChaseCam(edict_t *ent);
 void ChaseNext(edict_t *ent);
 void ChasePrev(edict_t *ent);
 void GetChaseTarget(edict_t *ent);
+void DisableChaseCam (edict_t *ent);
 
 //opentdm
 
@@ -993,10 +1011,11 @@ void TDM_MapChanged (void);
 void TDM_LeftTeam (edict_t *ent);
 void TDM_Disconnected (edict_t *ent);
 qboolean TDM_ServerCommand (const char *cmd);
+void TDM_UpdateTeamNames (void);
 
 extern matchmode_t	tdm_match_status;
 extern pmenu_t joinmenu[];
-#define MENUSIZE_JOINMENU 17
+#define MENUSIZE_JOINMENU 18
 
 //============================================================================
 
@@ -1016,14 +1035,15 @@ extern pmenu_t joinmenu[];
 
 typedef struct
 {
-	int		players;
-	int		score;
-	char	name[32];
-	char	skin[32];
-	char	statname[32];
-	char	statstatus[16];
-	qboolean		locked;
-	edict_t	*captain;
+	int			players;
+	int			score;
+	char		name[32];
+	char		skin[32];
+	char		statname[32];
+	char		statstatus[16];
+	qboolean	locked;
+	qboolean	ready;
+	edict_t		*captain;
 } teaminfo_t;
 
 typedef enum
@@ -1091,9 +1111,7 @@ struct gclient_s
 	pmove_state_t		old_pmove;	// for detecting out-of-pmove changes
 
 	qboolean	showscores;			// set layout stat
-	qboolean	showinventory;		// set layout stat
-	qboolean	showhelp;
-	qboolean	showhelpicon;
+	//qboolean	showinventory;		// set layout stat
 
 	int			ammo_index;
 

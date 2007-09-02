@@ -223,6 +223,7 @@ void InitGame (void)
 	g_match_time = gi.cvar ("g_match_time", "600", 0);
 	g_match_countdown = gi.cvar ("g_match_countdown", "15", 0);
 	g_vote_time = gi.cvar ("g_vote_time", "30", 0);
+	g_intermission_time = gi.cvar ("g_intermission_time", "7.5", 0);
 
 	g_tdmflags = gi.cvar ("g_tdmflags", "1040", 0);
 	g_itdmflags = gi.cvar ("g_itdmflags", "142427", 0);

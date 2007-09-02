@@ -810,18 +810,18 @@ G_SetClientSound
 */
 void G_SetClientSound (edict_t *ent)
 {
-	const char	*weap;
+	int			index;
 
 	if (ent->client->weapon)
-		weap = ent->client->weapon->classname;
+		index = ITEM_INDEX (ent->client->weapon);
 	else
-		weap = "";
+		index = 0;
 
 	if (ent->waterlevel && (ent->watertype&(CONTENTS_LAVA|CONTENTS_SLIME)) )
 		ent->s.sound = snd_fry;
-	else if (strcmp(weap, "weapon_railgun") == 0)
+	else if (index == ITEM_WEAPON_RAILGUN)
 		ent->s.sound = gi.soundindex("weapons/rg_hum.wav");
-	else if (strcmp(weap, "weapon_bfg") == 0)
+	else if (index == ITEM_WEAPON_BFG)
 		ent->s.sound = gi.soundindex("weapons/bfg_hum.wav");
 	else if (ent->client->weapon_sound)
 		ent->s.sound = ent->client->weapon_sound;
@@ -1042,8 +1042,6 @@ void ClientEndServerFrame (edict_t *ent)
 		G_SetSpectatorStats(ent);
 	else
 		G_SetStats (ent);
-
-	G_CheckChaseStats(ent);
 
 	G_SetClientEvent (ent);
 

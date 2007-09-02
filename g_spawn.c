@@ -880,6 +880,11 @@ void SP_worldspawn (edict_t *ent)
 	gi.modelindex ("models/objects/gibs/skull/tris.md2");
 	gi.modelindex ("models/objects/gibs/head2/tris.md2");
 
+	//this is to force precache of the opentdm 'invisible player' model so it
+	//is auto downloaded (hopefully!)
+	gi.modelindex ("players/opentdm/tris.md2");
+	gi.modelindex ("players/opentdm/weapon.md2");
+
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is doublebright.
 //

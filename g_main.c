@@ -88,6 +88,7 @@ cvar_t	*g_admin_password;
 cvar_t	*g_match_time;
 cvar_t	*g_match_countdown;
 cvar_t	*g_vote_time;
+cvar_t	*g_intermission_time;
 
 cvar_t	*g_tdmflags;
 cvar_t	*g_itdmflags;
@@ -211,6 +212,17 @@ void ClientEndServerFrames (void)
 	int		i;
 	edict_t	*ent;
 
+	//run now to copy results out to spectators
+	for (i=0 ; i < game.maxclients; i++)
+	{
+		ent = g_edicts + 1 + i;
+
+		if (!ent->inuse || !ent->client || !ent->client->chase_target)
+			continue;
+
+		G_CheckChaseStats(ent);
+	}
+
 	// calc the player views now that all pushing
 	// and damage has been added
 	for (i=0 ; i < game.maxclients; i++)
@@ -220,7 +232,6 @@ void ClientEndServerFrames (void)
 			continue;
 		ClientEndServerFrame (ent);
 	}
-
 }
 
 /*
@@ -361,10 +372,11 @@ void ExitLevel (void)
 	{
 		Com_sprintf (command, sizeof(command), "gamemap \"%s\"\n", level.changemap);
 		gi.AddCommandString (command);
+		level.exitintermission = 2;
 	}
-
-	level.changemap = NULL;
-	level.exitintermission = 0;
+	else
+		level.exitintermission = 0;
+	
 	level.intermissionframe = 0;
 	ClientEndServerFrames ();
 
@@ -400,8 +412,17 @@ void G_RunFrame (void)
 
 	if (level.exitintermission)
 	{
-		ExitLevel ();
-		return;
+		if (level.exitintermission == 2)
+		{
+			//if we got here, the map change from ExitLevel didn't work
+			gi.bprintf (PRINT_CHAT, "ERROR: Map '%s' was not found on the server.\n", level.changemap);
+			level.exitintermission = 0;
+		}
+		else
+		{
+			ExitLevel ();
+			return;
+		}
 	}
 
 	//

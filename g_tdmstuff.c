@@ -1,3 +1,23 @@
+/*
+Copyright (C) 1997-2001 Id Software, Inc.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+*/
+
 #include "g_local.h"
 
 teaminfo_t	teaminfo[MAX_TEAMS];
@@ -136,6 +156,7 @@ void JoinTeam1 (edict_t *ent);
 void JoinTeam2 (edict_t *ent);
 void ToggleChaseCam (edict_t *ent);
 void SelectNextHelpPage (edict_t *ent);
+void TDM_UpdateTeamNames (void);
 
 static char teamStatus[MAX_TEAMS][32];
 static char teamJoinText[MAX_TEAMS][32];
@@ -160,7 +181,7 @@ pmenu_t joinmenu[] =
 	{ "ENTER to select",	PMENU_ALIGN_LEFT, NULL, NULL },
 	{ "ESC to Exit Menu",	PMENU_ALIGN_LEFT, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ "v" OPENTDM_VERSION,	PMENU_ALIGN_RIGHT, NULL, NULL },
+	{ "*b" OPENTDM_VERSION,	PMENU_ALIGN_RIGHT, NULL, NULL },
 };
 
 /*const pmenu_t helpmenu[][] =
@@ -272,9 +293,10 @@ void TDM_ResetLevel (void)
 		if (!ent->inuse)
 			continue;
 
-		//handle body que specially, just unlink it
+		//handle body que specially, just remove effects and unlink it
 		if (ent->enttype == ENT_BODYQUE)
 		{
+			ent->s.modelindex = ent->s.effects = ent->s.sound = ent->s.renderfx = 0;
 			gi.unlinkentity (ent);
 			continue;
 		}
@@ -625,7 +647,7 @@ char *TDM_SettingsString (void)
 	strcat (settings, TDM_SetColorText(va("%s\n", gamemode_text[(int)g_gamemode->value])));
 
 	strcat (settings, "Timelimit: ");
-	strcat (settings, TDM_SetColorText(va("%g minutes\n", g_match_time->value / 60)));
+	strcat (settings, TDM_SetColorText(va("%g minute%s\n", g_match_time->value / 60, g_match_time->value / 60 == 1 ? "" : "s")));
 
 	strcat (settings, "Overtime: ");
 	switch ((int)g_tie_mode->value)
@@ -634,7 +656,7 @@ char *TDM_SettingsString (void)
 			strcat (settings, TDM_SetColorText(va ("disabled")));
 			break;
 		case 1:
-			strcat (settings, TDM_SetColorText(va ("%g minutes\n", g_overtime->value / 60)));
+			strcat (settings, TDM_SetColorText(va ("%g minute%s\n", g_overtime->value / 60, g_overtime->value / 60 == 1 ? "" : "s")));
 			break;
 		case 2:
 			strcat (settings, TDM_SetColorText(va ("Sudden death\n")));
@@ -713,6 +735,29 @@ static void TDM_RemoveVote (void)
 
 /*
 ==============
+TDM_FindPlayerForTeam
+==============
+Returns first matching player of team. Used in situations where
+team is without captain so we can't use teaminfo.captain.
+*/
+static edict_t *TDM_FindPlayerForTeam (unsigned team)
+{
+	edict_t	*ent;
+
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+	{
+		if (!ent->inuse)
+			continue;
+
+		if (ent->client->resp.team == team)
+			return ent;
+	}
+
+	return NULL;
+}
+
+/*
+==============
 TDM_BeginCountdown
 ==============
 All players are ready so start the countdown
@@ -728,6 +773,10 @@ void TDM_BeginCountdown (void)
 		TDM_RemoveVote ();
 
 	tdm_match_status = MM_COUNTDOWN;
+
+	//called to apply a temporary hack for people who do 1v1 on tdm mode
+	TDM_UpdateTeamNames ();
+
 	level.match_start_framenum = level.framenum + (int)(g_match_countdown->value / FRAMETIME);
 }
 
@@ -758,7 +807,7 @@ void TDM_BeginIntermission (void)
 	int		i;
 	edict_t	*ent, *client;
 
-	level.intermissionframe = level.framenum;
+	//level.intermissionframe = level.framenum;
 
 	// find an intermission spot
 	ent = G_Find (NULL, FOFS(classname), "info_player_intermission");
@@ -831,7 +880,8 @@ void TDM_EndMatch (void)
 		gi.bprintf (PRINT_HIGH, "%s wins, %d to %d.\n", teaminfo[winner].name, teaminfo[winner].score, teaminfo[loser].score);
 	}
 
-	level.match_score_end_framenum = level.framenum + (5.0f / FRAMETIME);
+	level.match_end_framenum = 0;
+	level.match_score_end_framenum = level.framenum + (7.5f / FRAMETIME);
 	TDM_BeginIntermission ();
 }
 
@@ -857,7 +907,8 @@ void TDM_Overtime (void)
 {
 	level.match_end_framenum = level.framenum + (int)(g_overtime->value / FRAMETIME);
 
-	gi.bprintf (PRINT_HIGH, "Scores are tied %d - %d, adding %g minutes overtime.\n", teaminfo[TEAM_A].score, teaminfo[TEAM_A].score, g_overtime->value / 60);
+	gi.bprintf (PRINT_HIGH, "Scores are tied %d - %d, adding %g minute%s overtime.\n",
+		teaminfo[TEAM_A].score, teaminfo[TEAM_A].score, g_overtime->value / 60, g_overtime->value / 60 == 1 ? "" : "s");
 
 	tdm_match_status = MM_OVERTIME;
 }
@@ -867,6 +918,49 @@ void TDM_SuddenDeath (void)
 	gi.bprintf (PRINT_HIGH, "Scores are tied %d - %d, entering Sudden Death!\n", teaminfo[TEAM_A].score, teaminfo[TEAM_A].score);
 
 	tdm_match_status = MM_SUDDEN_DEATH;
+}
+
+/*
+==============
+TDM_NagUnreadyPlayers
+==============
+Show who isn't ready, only called if >= 50% of other players are ready.
+*/
+void TDM_NagUnreadyPlayers (void)
+{
+	char	message[1000];
+	edict_t	*ent;
+	int		len;
+
+	len = 0;
+
+	message[0] = '\0';
+
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+	{
+		if (!ent->inuse)
+			continue;
+
+		if (ent->client->resp.team == TEAM_SPEC)
+			continue;
+
+		if (ent->client->resp.ready)
+			continue;
+
+		if (message[0])
+		{
+			len += 2;
+			strcat (message, ", ");
+		}
+
+		len += strlen (ent->client->pers.netname);
+		strcat (message, ent->client->pers.netname);
+
+		if (len >= sizeof(message)-20)
+			break;
+	}
+
+	gi.bprintf (PRINT_CHAT, "Waiting on %s\n", message);
 }
 
 /*
@@ -935,6 +1029,19 @@ void TDM_CheckTimes (void)
 		}
 	}
 
+	//end of map intermission - same as regular dm style
+	if (level.intermissionframe && level.framenum - level.intermissionframe == SECS(g_intermission_time->value))
+	{
+		level.exitintermission = 1;
+	}
+
+	if (level.next_ready_nag_framenum && level.next_ready_nag_framenum == level.framenum)
+	{
+		TDM_NagUnreadyPlayers ();
+		level.next_ready_nag_framenum = level.framenum + SECS(20);
+	}
+
+	//between match intermission - scores only
 	if (level.match_score_end_framenum)
 	{
 		int	remaining;
@@ -962,8 +1069,10 @@ void TDM_CheckMatchStart (void)
 {
 	edict_t	*ent;
 	int		ready[MAX_TEAMS];
+	int		total_players, total_ready;
 
 	ready[TEAM_A] = ready[TEAM_B] = 0;
+	total_ready = total_players = 0;
 
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
@@ -974,12 +1083,28 @@ void TDM_CheckMatchStart (void)
 			continue;
 
 		if (ent->client->resp.ready)
+		{
+			total_ready++;
 			ready[ent->client->resp.team]++;
+		}
+
+		total_players++;
 	}
 
-	if (teaminfo[TEAM_A].players && ready[TEAM_A] == teaminfo[TEAM_A].players &&
-		teaminfo[TEAM_B].players && ready[TEAM_B] == teaminfo[TEAM_B].players)
+	if (teaminfo[TEAM_A].players && ready[TEAM_A] == teaminfo[TEAM_A].players)
+		teaminfo[TEAM_A].ready = true;
+	else
+		teaminfo[TEAM_A].ready = false;
+
+	if (teaminfo[TEAM_B].players && ready[TEAM_B] == teaminfo[TEAM_B].players)
+		teaminfo[TEAM_B].ready = true;
+	else
+		teaminfo[TEAM_B].ready = false;
+
+	if (teaminfo[TEAM_A].ready && teaminfo[TEAM_B].ready)
 	{
+		level.next_ready_nag_framenum = 0;
+
 		//wision: do NOT restart match during the match
 		//r1: under what conditions can/did this happen? late joining shouldn't be possible?
 		if (tdm_match_status < MM_COUNTDOWN)
@@ -987,6 +1112,14 @@ void TDM_CheckMatchStart (void)
 	}
 	else
 	{
+		if (total_players >= 2 && total_ready >= total_players / 2)
+		{
+			if (!level.next_ready_nag_framenum)
+				level.next_ready_nag_framenum = level.framenum + SECS(20);
+		}
+		else
+			level.next_ready_nag_framenum = 0;
+
 		if (level.match_start_framenum)
 		{
 			gi.bprintf (PRINT_CHAT, "Countdown aborted!\n");
@@ -1687,8 +1820,50 @@ void TDM_UpdateTeamNames (void)
 	}
 	else
 	{
-		strncpy (teaminfo[TEAM_A].name, g_team_a_name->string, sizeof(teaminfo[TEAM_A].name)-1);
-		strncpy (teaminfo[TEAM_B].name, g_team_b_name->string, sizeof(teaminfo[TEAM_B].name)-1);
+		if (tdm_match_status >= MM_COUNTDOWN && teaminfo[TEAM_A].players == 1 && teaminfo[TEAM_B].players == 1)
+		{
+			if (strcmp (teaminfo[TEAM_A].name, TDM_FindPlayerForTeam (TEAM_A)->client->pers.netname))
+			{
+				strncpy (teaminfo[TEAM_A].name, TDM_FindPlayerForTeam (TEAM_A)->client->pers.netname, sizeof(teaminfo[TEAM_A].name)-1);
+				g_team_a_name->modified = true;
+			}
+
+			if (strcmp (teaminfo[TEAM_B].name, TDM_FindPlayerForTeam (TEAM_B)->client->pers.netname))
+			{
+				strncpy (teaminfo[TEAM_B].name, TDM_FindPlayerForTeam (TEAM_B)->client->pers.netname, sizeof(teaminfo[TEAM_B].name)-1);
+				g_team_b_name->modified = true;
+			}
+		}
+		else
+		{
+			if (strcmp (teaminfo[TEAM_A].name, g_team_a_name->string))
+			{
+				strncpy (teaminfo[TEAM_A].name, g_team_a_name->string, sizeof(teaminfo[TEAM_A].name)-1);
+				g_team_a_name->modified = true;
+			}
+
+			if (strcmp (teaminfo[TEAM_B].name, g_team_b_name->string))
+			{
+				strncpy (teaminfo[TEAM_B].name, g_team_b_name->string, sizeof(teaminfo[TEAM_B].name)-1);
+				g_team_b_name->modified = true;
+			}
+		}
+	}
+
+	if (g_gamemode->value != GAMEMODE_1V1)
+	{
+		edict_t	*ent;
+
+		for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+		{
+			if (!ent->inuse)
+				continue;
+
+			if (ent->client->resp.team == TEAM_A && g_team_a_name->modified)
+				gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, va("%s (%s)", ent->client->pers.netname, teaminfo[TEAM_A].skin));
+			else if (ent->client->resp.team == TEAM_B && g_team_b_name->modified)
+				gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, va("%s (%s)", ent->client->pers.netname, teaminfo[TEAM_B].skin));
+		}
 	}
 }
 
@@ -1826,7 +2001,10 @@ static void TDM_CheckVote (void)
 		if (!ent->inuse)
 			continue;
 
-		else if (ent->client->resp.vote == VOTE_YES)
+		if (!ent->client->resp.team)
+			continue;
+
+		if (ent->client->resp.vote == VOTE_YES)
 			vote_yes++;
 		else if (ent->client->resp.vote == VOTE_NO)
  			vote_no++;
@@ -1836,7 +2014,7 @@ static void TDM_CheckVote (void)
 
 	if (vote_yes > vote_hold + vote_no)
 		vote.success = VOTE_SUCCESS;
-	else if(vote_no > vote_hold + vote_yes)
+	else if (vote_no > vote_hold + vote_yes)
 		vote.success = VOTE_NOT_SUCCESS;
 	else
 		vote.success = VOTE_NOT_ENOUGH_VOTES;
@@ -2131,11 +2309,20 @@ static void TDM_Vote_f (edict_t *ent)
 	const char *cmd;
 	const char *value;
 
-	if (gi.argc() < 2)
+	if (!Q_stricmp (gi.argv(0), "yes") || !Q_stricmp (gi.argv(0), "no"))
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: vote <timelimit/map/kick/powerups/weapons/gamemode/tiemode/telemode/switchmode> <value>\n"
-			"For weapon/powerup votes, specify multiple combinations of + or -, eg -bfg, +quad -invuln, etc\n");
-		return;
+		cmd = gi.argv(0);
+	}
+	else
+	{
+		if (gi.argc() < 2)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Usage: vote <timelimit/map/kick/powerups/weapons/gamemode/tiemode/telemode/switchmode> <value>\n"
+				"For weapon/powerup votes, specify multiple combinations of + or -, eg -bfg, +quad -invuln, etc\n");
+			return;
+		}
+
+		cmd = gi.argv(1);
 	}
 
 	if (tdm_match_status != MM_WARMUP)
@@ -2144,7 +2331,11 @@ static void TDM_Vote_f (edict_t *ent)
 		return;
 	}
 
-	cmd = gi.argv(1);
+	if (!ent->client->resp.team)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "You must be on a team to vote or propose new settings.\n");
+		return;
+	}
 
 	//if initiator wants to change vote reset the vote and start again
 	if (vote.active && vote.initiator != ent && Q_stricmp (cmd, "yes") && Q_stricmp (cmd, "no"))
@@ -2155,7 +2346,7 @@ static void TDM_Vote_f (edict_t *ent)
 
 	if (!Q_stricmp (cmd, "timelimit") || !Q_stricmp (cmd, "tl"))
 	{
-		int		limit;
+		unsigned		limit;
 
 		value = gi.argv(2);
 		if (!value[0])
@@ -2164,8 +2355,10 @@ static void TDM_Vote_f (edict_t *ent)
 			return;
 		}
 
-		limit = atoi (value);
-		if (limit < 1)
+		limit = strtoul (value, NULL, 10);
+
+		//one day should be sufficient.. :)
+		if (limit < 1 || limit > 1440)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "Invalid timelimit value.\n");
 			return;
@@ -2174,12 +2367,21 @@ static void TDM_Vote_f (edict_t *ent)
 		//check current timelimit
 		if (g_match_time->value == limit * 60)
 		{
-			gi.cprintf (ent, PRINT_HIGH, "Timelimit is already at %d minutes.\n", limit);
+			gi.cprintf (ent, PRINT_HIGH, "Timelimit is already at %d minute%s.\n", limit, limit == 1 ? "" : "s");
 			return;
 		}
 
 		if (vote.active)
 		{
+			if (limit == vote.newtimelimit)
+			{
+				gi.cprintf (ent, PRINT_HIGH, "You've already started a vote for that timelimit.\n");
+				return;
+			}
+
+			if (TDM_RateLimited (ent, SECS(2)))
+				return;			
+			
 			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
 			TDM_RemoveVote ();
 		}
@@ -2226,6 +2428,15 @@ static void TDM_Vote_f (edict_t *ent)
 
 		if (vote.active)
 		{
+			if (!strcmp (vote.newmap , value))
+			{
+				gi.cprintf (ent, PRINT_HIGH, "You've already started a vote for %s.\n", value);
+				return;
+			}
+
+			if (TDM_RateLimited (ent, SECS(2)))
+				return;
+
 			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
 			TDM_RemoveVote ();
 		}
@@ -2347,6 +2558,15 @@ static void TDM_Vote_f (edict_t *ent)
 
 		if (vote.active)
 		{
+			if (flags == vote.newweaponflags)
+			{
+				gi.cprintf (ent, PRINT_HIGH, "You've already started a vote for that weapon config.\n");
+				return;
+			}
+
+			if (TDM_RateLimited (ent, SECS(2)))
+				return;
+
 			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
 			TDM_RemoveVote ();
 		}
@@ -2387,6 +2607,15 @@ static void TDM_Vote_f (edict_t *ent)
 
 			if (vote.active)
 			{
+				if (victim == vote.victim)
+				{
+					gi.cprintf (ent, PRINT_HIGH, "You've already started a vote to kick %s.\n", vote.victim->client->pers.netname);
+					return;
+				}
+
+				if (TDM_RateLimited (ent, SECS(2)))
+					return;
+
 				gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
 				TDM_RemoveVote ();
 			}
@@ -2474,6 +2703,15 @@ static void TDM_Vote_f (edict_t *ent)
 
 		if (vote.active)
 		{
+			if (flags == vote.newpowerupflags)
+			{
+				gi.cprintf (ent, PRINT_HIGH, "You've already started a vote for that powerup config.\n");
+				return;
+			}
+			
+			if (TDM_RateLimited (ent, SECS(2)))
+				return;
+			
 			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
 			TDM_RemoveVote ();
 		}
@@ -2518,6 +2756,15 @@ static void TDM_Vote_f (edict_t *ent)
 
 		if (vote.active)
 		{
+			if (vote.gamemode == gamemode)
+			{
+				gi.cprintf (ent, PRINT_HIGH, "You've already started a vote for that game mode.\n");
+				return;
+			}
+			
+			if (TDM_RateLimited (ent, SECS(2)))
+				return;			
+			
 			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
 			TDM_RemoveVote ();
 		}
@@ -2562,6 +2809,15 @@ static void TDM_Vote_f (edict_t *ent)
 
 		if (vote.active)
 		{
+			if (tiemode == vote.tiemode)
+			{
+				gi.cprintf (ent, PRINT_HIGH, "You've already started a vote for that tie mode.\n");
+				return;
+			}
+
+			if (TDM_RateLimited (ent, SECS(2)))
+				return;
+
 			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
 			TDM_RemoveVote ();
 		}
@@ -2605,6 +2861,15 @@ static void TDM_Vote_f (edict_t *ent)
 
 		if (vote.active)
 		{
+			if (telemode == vote.telemode)
+			{
+				gi.cprintf (ent, PRINT_HIGH, "You've already started a vote for that teleporter mode.\n");
+				return;
+			}
+
+			if (TDM_RateLimited (ent, SECS(2)))
+				return;
+
 			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
 			TDM_RemoveVote ();
 		}
@@ -2650,6 +2915,15 @@ static void TDM_Vote_f (edict_t *ent)
 
 		if (vote.active)
 		{
+			if (switchmode == vote.switchmode)
+			{
+				gi.cprintf (ent, PRINT_HIGH, "You've already started a vote for that weapon switch mode.\n");
+				return;
+			}
+
+			if (TDM_RateLimited (ent, SECS(2)))
+				return;
+
 			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
 			TDM_RemoveVote ();
 		}
@@ -2665,7 +2939,7 @@ static void TDM_Vote_f (edict_t *ent)
 	}
 	else if (!Q_stricmp (cmd, "overtime") || !Q_stricmp (cmd, "ot"))
 	{
-		int		limit;
+		unsigned		limit;
 
 		value = gi.argv(2);
 		if (!value[0])
@@ -2675,7 +2949,7 @@ static void TDM_Vote_f (edict_t *ent)
 		}
 
 		limit = atoi (value);
-		if (limit < 1)
+		if (limit < 1 || limit > 1440)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "Invalid value.\n");
 			return;
@@ -2684,12 +2958,21 @@ static void TDM_Vote_f (edict_t *ent)
 		//check current timelimit
 		if (g_overtime->value == limit * 60)
 		{
-			gi.cprintf (ent, PRINT_HIGH, "Overtime is already at %d minutes.\n", limit);
+			gi.cprintf (ent, PRINT_HIGH, "Overtime is already at %d minute%s.\n", limit, limit == 1 ? "" : "s");
 			return;
 		}
 
 		if (vote.active)
 		{
+			if (limit == vote.overtimemins)
+			{
+				gi.cprintf (ent, PRINT_HIGH, "You've already started a vote for that overtime limit.\n");
+				return;
+			}
+
+			if (TDM_RateLimited (ent, SECS(2)))
+				return;
+
 			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
 			TDM_RemoveVote ();
 		}
@@ -2952,6 +3235,8 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 		TDM_Captain_f (ent);
 	else if (!Q_stricmp (cmd, "vote"))
 		TDM_Vote_f (ent);
+	else if (!Q_stricmp (cmd, "yes") || !Q_stricmp (cmd, "no"))
+		TDM_Vote_f (ent);
 	else if (!Q_stricmp (cmd, "lockteam") || !Q_stricmp (cmd, "lock"))
 		TDM_Lockteam_f (ent, true);
 	else if (!Q_stricmp (cmd, "unlockteam") || !Q_stricmp (cmd, "unlock"))
@@ -3150,6 +3435,12 @@ void JoinedTeam (edict_t *ent)
 
 	//wision: set skin for new player
 	gi.configstring (CS_PLAYERSKINS + (ent - g_edicts) - 1, va("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->resp.team].skin));
+
+	if (g_gamemode->value != GAMEMODE_1V1)
+		gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, va ("%s (%s)", ent->client->pers.netname, teaminfo[ent->client->resp.team].name));
+	else
+		gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, ent->client->pers.netname);
+
 	TDM_TeamsChanged ();
 	respawn (ent);
 }
@@ -3275,8 +3566,7 @@ void ToggleChaseCam (edict_t *ent)
 
 	if (ent->client->chase_target)
 	{
-		ent->client->chase_target = NULL;
-		ent->client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
+		DisableChaseCam (ent);
 	}
 	else
 		GetChaseTarget(ent);
@@ -3352,19 +3642,14 @@ void UpdateMatchStatus (void)
 {
 	int team;
 
-	if (tdm_match_status < MM_PLAYING)
-		return;
-
-	//duplicated - eg TDM_LeftTeam + ClientDisconnect
-	if (level.match_end_framenum == level.framenum)
+	if (tdm_match_status < MM_PLAYING || level.intermissionframe)
 		return;
 
 	for (team = 1; team < MAX_TEAMS; team++)
 	{
 		if (teaminfo[team].players < 1)
 		{
-			level.match_end_framenum = level.framenum;
-			TDM_CheckTimes();
+			TDM_EndMatch ();
 			break;
 		}
 	}
@@ -3495,8 +3780,10 @@ void TDM_ResetGameState (void)
 	teaminfo[TEAM_A].players = teaminfo[TEAM_B].players = 0;
 	teaminfo[TEAM_A].captain = teaminfo[TEAM_B].captain = NULL;
 	teaminfo[TEAM_A].locked = teaminfo[TEAM_B].locked = false;
+	teaminfo[TEAM_A].ready = teaminfo[TEAM_B].ready = false;
 
 	TDM_UpdateTeamNames ();
+	UpdateTeamMenu ();
 
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
@@ -3505,15 +3792,17 @@ void TDM_ResetGameState (void)
 			ent->client->resp.last_command_frame = 0;
 			ent->client->resp.last_invited_by = NULL;
 			ent->client->resp.score = 0;
+			ent->client->showscores = false;
+
 			if (ent->client->resp.team != TEAM_SPEC)
 			{
 				ent->client->resp.team = TEAM_SPEC;
 				PutClientInServer (ent);
 			}
+
+			TDM_ShowTeamMenu (ent);
 		}
 	}
-
-	UpdateTeamMenu ();
 }
 
 /*
@@ -3586,6 +3875,7 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 {
 	static int			last_time_remaining = -1;
 	static int			last_scores[MAX_TEAMS] = {-1, -1, -1};
+	static qboolean		last_ready_status[MAX_TEAMS] = {false, false, false};
 	static matchmode_t	last_mode = MM_INVALID;
 	int					time_remaining;
 
@@ -3593,14 +3883,14 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 	{
 		g_team_a_name->modified = false;
 		sprintf (teaminfo[TEAM_A].statname, "%31s", teaminfo[TEAM_A].name);
-		gi.configstring (CS_GENERAL + 0, teaminfo[TEAM_A].statname);
+		gi.configstring (CS_TDM_TEAM_A_NAME, teaminfo[TEAM_A].statname);
 	}
 
 	if (g_team_b_name->modified || forceUpdate)
 	{
 		g_team_b_name->modified = false;
 		sprintf (teaminfo[TEAM_B].statname, "%31s", teaminfo[TEAM_B].name);
-		gi.configstring (CS_GENERAL + 1, teaminfo[TEAM_B].statname);
+		gi.configstring (CS_TDM_TEAM_B_NAME, teaminfo[TEAM_B].statname);
 	}
 
 	if (g_team_a_skin->modified || g_team_b_skin->modified || forceUpdate)
@@ -3609,9 +3899,14 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 		TDM_SetSkins ();
 	}
 
-	if (tdm_match_status != last_mode || forceUpdate)
+	if (tdm_match_status != last_mode || forceUpdate ||
+		last_ready_status[TEAM_A] != teaminfo[TEAM_A].ready ||
+		last_ready_status[TEAM_B] != teaminfo[TEAM_B].ready)
 	{
 		last_mode = tdm_match_status;
+
+		last_ready_status[TEAM_A] = teaminfo[TEAM_A].ready;
+		last_ready_status[TEAM_B] = teaminfo[TEAM_B].ready;
 
 		switch (tdm_match_status)
 		{
@@ -3619,10 +3914,23 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 				sprintf (teaminfo[TEAM_A].statstatus, "%15s", "READY");
 				sprintf (teaminfo[TEAM_B].statstatus, "%15s", "READY");
 				break;
+
 			case MM_WARMUP:
-				sprintf (teaminfo[TEAM_A].statstatus, "%15s", "WARMUP");
-				sprintf (teaminfo[TEAM_B].statstatus, "%15s", "WARMUP");
+				if (teaminfo[TEAM_A].ready)
+					sprintf (teaminfo[TEAM_A].statstatus, "%15s", "READY");
+				else
+					sprintf (teaminfo[TEAM_A].statstatus, "%15s", "WARMUP");
+
+				if (teaminfo[TEAM_B].ready)
+					sprintf (teaminfo[TEAM_B].statstatus, "%15s", "READY");
+				else
+					sprintf (teaminfo[TEAM_B].statstatus, "%15s", "WARMUP");
 				break;
+
+			case MM_SUDDEN_DEATH:
+				gi.configstring (CS_TDM_TIMELIMIT_STRING, "Sudden Death");
+				//intentional fallthrough?
+
 			default:
 				sprintf (teaminfo[TEAM_A].statstatus, "%15d", teaminfo[TEAM_A].score);
 				sprintf (teaminfo[TEAM_B].statstatus, "%15d", teaminfo[TEAM_B].score);
@@ -3630,8 +3938,8 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 				last_scores[TEAM_B] = teaminfo[TEAM_B].score;
 				break;
 		}
-		gi.configstring (CS_GENERAL + 2, teaminfo[TEAM_A].statstatus);
-		gi.configstring (CS_GENERAL + 3, teaminfo[TEAM_B].statstatus);
+		gi.configstring (CS_TDM_TEAM_A_STATUS, teaminfo[TEAM_A].statstatus);
+		gi.configstring (CS_TDM_TEAM_B_STATUS, teaminfo[TEAM_B].statstatus);
 	}
 
 	if (tdm_match_status >= MM_PLAYING)
@@ -3644,7 +3952,7 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 			{
 				last_scores[i] = teaminfo[i].score;
 				sprintf (teaminfo[i].statstatus, "%15d", teaminfo[i].score);
-				gi.configstring (CS_GENERAL + 2 + (i - TEAM_A), teaminfo[i].statstatus);
+				gi.configstring (CS_TDM_TEAM_A_STATUS + (i - TEAM_A), teaminfo[i].statstatus);
 			}
 		}
 	}
@@ -3673,33 +3981,26 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 
 		last_time_remaining = time_remaining;
 
-		if (tdm_match_status == MM_SUDDEN_DEATH)
+		secs = ceil((float)time_remaining * FRAMETIME);
+
+		if (secs < 0)
+			secs = 0;
+
+		if (secs != last_secs || forceUpdate)
 		{
-			gi.configstring (CS_GENERAL + 4, "Sudden Death");
-		}
-		else
-		{
-			secs = ceil((float)time_remaining * FRAMETIME);
+			last_secs = secs;
 
-			if (secs < 0)
-				secs = 0;
+			mins = secs / 60;
+			secs -= (mins * 60);
 
-			if (secs != last_secs || forceUpdate)
-			{
-				last_secs = secs;
+			sprintf (time_buffer, "%2d:%.2d", mins, secs);
 
-				mins = secs / 60;
-				secs -= (mins * 60);
+			if (last_secs < 60)
+				TDM_SetColorText (time_buffer);
+			else if (last_secs == 60 && tdm_match_status >= MM_PLAYING)
+				gi.bprintf (PRINT_HIGH, "1 minute remaining.\n");
 
-				sprintf (time_buffer, "%2d:%.2d", mins, secs);
-
-				if (last_secs < 60)
-					TDM_SetColorText (time_buffer);
-				else if (last_secs == 60)
-					gi.bprintf (PRINT_HIGH, "1 minute remaining.\n");
-
-				gi.configstring (CS_GENERAL + 4, time_buffer);
-			}
+			gi.configstring (CS_TDM_TIMELIMIT_STRING, time_buffer);
 		}
 	}
 }

@@ -33,6 +33,9 @@ void MoveClientToIntermission (edict_t *ent)
 {
 	PMenu_Close (ent);
 
+	if (ent->client->chase_target)
+		DisableChaseCam (ent);
+
 	if (deathmatch->value || coop->value)
 		ent->client->showscores = true;
 
@@ -274,8 +277,8 @@ Display the scoreboard
 */
 void Cmd_Score_f (edict_t *ent)
 {
-	ent->client->showinventory = false;
-	ent->client->showhelp = false;
+	//ent->client->showinventory = false;
+	//ent->client->showhelp = false;
 
 	if (!deathmatch->value && !coop->value)
 		return;
@@ -439,24 +442,24 @@ void G_SetStats (edict_t *ent)
 	if (ent->health <= 0 || level.intermissionframe || ent->client->showscores || ent->client->menu.active)
 		ent->client->ps.stats[STAT_LAYOUTS] |= 1;
 
-	if (ent->client->showinventory && ent->health > 0)
-		ent->client->ps.stats[STAT_LAYOUTS] |= 2;
+	//if (ent->client->showinventory && ent->health > 0)
+	//	ent->client->ps.stats[STAT_LAYOUTS] |= 2;
 
 	//
 	// frags
 	//
 	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 
-	ent->client->ps.stats[STAT_TEAM_A_NAME_INDEX] = CS_GENERAL + 0;
-	ent->client->ps.stats[STAT_TEAM_B_NAME_INDEX] = CS_GENERAL + 1;
+	ent->client->ps.stats[STAT_TEAM_A_NAME_INDEX] = CS_TDM_TEAM_A_NAME;
+	ent->client->ps.stats[STAT_TEAM_B_NAME_INDEX] = CS_TDM_TEAM_B_NAME;
 
-	ent->client->ps.stats[STAT_TEAM_A_STATUS_INDEX] = CS_GENERAL + 2;
-	ent->client->ps.stats[STAT_TEAM_B_STATUS_INDEX] = CS_GENERAL + 3;
+	ent->client->ps.stats[STAT_TEAM_A_STATUS_INDEX] = CS_TDM_TEAM_A_STATUS;
+	ent->client->ps.stats[STAT_TEAM_B_STATUS_INDEX] = CS_TDM_TEAM_B_STATUS;
 
 	ent->client->ps.stats[STAT_TEAM_A_SCORE] = teaminfo[TEAM_A].score;
 	ent->client->ps.stats[STAT_TEAM_B_SCORE] = teaminfo[TEAM_B].score;
 
-	ent->client->ps.stats[STAT_TIME_REMAINING] = CS_GENERAL + 4;
+	ent->client->ps.stats[STAT_TIME_REMAINING] = CS_TDM_TIMELIMIT_STRING;
 	//
 	// help icon / current weapon if not shown
 	//
@@ -476,16 +479,15 @@ G_CheckChaseStats
 */
 void G_CheckChaseStats (edict_t *ent)
 {
-	int i;
-	gclient_t *cl;
+	if (!ent->client->chase_target)
+		return;
 
-	for (i = 1; i <= game.maxclients; i++) {
-		cl = g_edicts[i].client;
-		if (!g_edicts[i].inuse || cl->chase_target != ent)
-			continue;
-		memcpy(cl->ps.stats, ent->client->ps.stats, sizeof(cl->ps.stats));
-		G_SetSpectatorStats(g_edicts + i);
-	}
+	memcpy (ent->client->ps.stats, ent->client->chase_target->client->ps.stats, sizeof(ent->client->ps.stats));
+
+	UpdateChaseCam (ent);
+
+	if (!ent->client->chase_target)
+		return;
 }
 
 /*
@@ -508,11 +510,11 @@ void G_SetSpectatorStats (edict_t *ent)
 	if (level.intermissionframe || cl->menu.active || ent->client->showscores)
 		cl->ps.stats[STAT_LAYOUTS] |= 1;
 
-	if (cl->showinventory && ent->health > 0)
-		cl->ps.stats[STAT_LAYOUTS] |= 2;
+	//if (cl->showinventory && ent->health > 0)
+	//	cl->ps.stats[STAT_LAYOUTS] |= 2;
 
 	if (cl->chase_target && cl->chase_target->inuse)
-		cl->ps.stats[STAT_CHASE] = CS_PLAYERSKINS + 
+		cl->ps.stats[STAT_CHASE] = CS_TDM_SPECTATOR_STRINGS + 
 			(cl->chase_target - g_edicts) - 1;
 	else
 		cl->ps.stats[STAT_CHASE] = 0;

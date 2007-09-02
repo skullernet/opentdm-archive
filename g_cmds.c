@@ -485,7 +485,7 @@ void Cmd_Drop_f (edict_t *ent)
 Cmd_Inven_f
 =================
 */
-void Cmd_Inven_f (edict_t *ent)
+/*void Cmd_Inven_f (edict_t *ent)
 {
 	int			i;
 	gclient_t	*cl;
@@ -520,7 +520,7 @@ void Cmd_Inven_f (edict_t *ent)
 		gi.WriteShort (cl->inventory[i]);
 	}
 	gi.unicast (ent, true);
-}
+}*/
 
 /*
 =================
@@ -715,8 +715,8 @@ Cmd_PutAway_f
 void Cmd_PutAway_f (edict_t *ent)
 {
 	ent->client->showscores = false;
-	ent->client->showhelp = false;
-	ent->client->showinventory = false;
+	//ent->client->showhelp = false;
+	//ent->client->showinventory = false;
 
 	if (ent->client->menu.active)
 		PMenu_Close (ent);
