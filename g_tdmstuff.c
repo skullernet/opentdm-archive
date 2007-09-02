@@ -181,7 +181,7 @@ pmenu_t joinmenu[] =
 	{ "ENTER to select",	PMENU_ALIGN_LEFT, NULL, NULL },
 	{ "ESC to Exit Menu",	PMENU_ALIGN_LEFT, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ "*b" OPENTDM_VERSION,	PMENU_ALIGN_RIGHT, NULL, NULL },
+	{ "*" OPENTDM_VERSION,	PMENU_ALIGN_RIGHT, NULL, NULL },
 };
 
 /*const pmenu_t helpmenu[][] =
