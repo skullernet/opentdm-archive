@@ -42,6 +42,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	svc_temp_entity		3
 #define	svc_layout			4
 #define	svc_inventory		5
+#define svc_sound			9
 #define	svc_stufftext		11
 #define	svc_configstring	13
 
@@ -110,6 +111,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define CS_TDM_TEAM_B_STATUS	(CS_GENERAL + 3)
 
 #define	CS_TDM_TIMELIMIT_STRING	(CS_GENERAL + 4)
+
+#define CS_TDM_TEAM_A_PIC		(CS_GENERAL + 5)
+#define CS_TDM_TEAM_B_PIC		(CS_GENERAL + 5)
 
 
 // otdm flags
@@ -515,7 +519,11 @@ typedef struct
 	int			match_end_framenum;
 	int			match_score_end_framenum;
 	int			next_ready_nag_framenum;
+	int			match_resume_framenum;
 	const char	*entity_string;
+	edict_t		*tdm_timeout_caller;
+	int			realframenum;
+	int			last_tdm_match_status;
 } level_locals_t;
 
 
@@ -829,7 +837,7 @@ const gitem_t	*FindItem (const char *pickup_name);
 #define	ITEM_INDEX(x) ((x)-itemlist)
 edict_t *Drop_Item (edict_t *ent, const gitem_t *item);
 void SetRespawn (edict_t *ent, float delay);
-void ChangeWeapon (edict_t *ent, int activateFrame);
+void ChangeWeapon (edict_t *ent);
 void SpawnItem (edict_t *ent, const gitem_t *item);
 void Think_Weapon (edict_t *ent);
 int ArmorIndex (edict_t *ent);
@@ -948,7 +956,6 @@ void ClientEndServerFrame (edict_t *ent);
 void MoveClientToIntermission (edict_t *client);
 void G_SetStats (edict_t *ent);
 void G_SetSpectatorStats (edict_t *ent);
-void G_CheckChaseStats (edict_t *ent);
 void ValidateSelectedItem (edict_t *ent);
 void DeathmatchScoreboardMessage (edict_t *client, edict_t *killer);
 
@@ -979,6 +986,7 @@ void ChaseNext(edict_t *ent);
 void ChasePrev(edict_t *ent);
 void GetChaseTarget(edict_t *ent);
 void DisableChaseCam (edict_t *ent);
+void ChaseEyeHack (edict_t *ent, edict_t *newplayer, edict_t *oldplayer);
 
 //opentdm
 
@@ -1012,6 +1020,8 @@ void TDM_LeftTeam (edict_t *ent);
 void TDM_Disconnected (edict_t *ent);
 qboolean TDM_ServerCommand (const char *cmd);
 void TDM_UpdateTeamNames (void);
+void TDM_SetupSounds (void);
+void TDM_GlobalClientSound (edict_t *ent, int channel, int soundindex, float volume, float attenuation, float timeofs);
 
 extern matchmode_t	tdm_match_status;
 extern pmenu_t joinmenu[];
@@ -1033,6 +1043,28 @@ extern pmenu_t joinmenu[];
 #define TEAM_B		2
 #define	MAX_TEAMS	3
 
+enum
+{
+	SND_DEATH1,
+	SND_DEATH2,
+	SND_DEATH3,
+	SND_DEATH4,
+	SND_FALL1,
+	SND_FALL2,
+	SND_GURP1,
+	SND_GURP2,
+	SND_JUMP1,
+	SND_PAIN25_1,
+	SND_PAIN25_2,
+	SND_PAIN50_1,
+	SND_PAIN50_2,
+	SND_PAIN75_1,
+	SND_PAIN75_2,
+	SND_PAIN100_1,
+	SND_PAIN100_2,
+	SND_MAX,
+};
+
 typedef struct
 {
 	int			players;
@@ -1044,7 +1076,11 @@ typedef struct
 	qboolean	locked;
 	qboolean	ready;
 	edict_t		*captain;
+	int			sounds[SND_MAX];
+	//char		*soundpath[SND_MAX];
 } teaminfo_t;
+
+extern int soundcache[MAX_SOUNDS];
 
 typedef enum
 {

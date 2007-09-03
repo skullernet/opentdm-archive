@@ -171,7 +171,7 @@ The old weapon has been dropped all the way, so make the new one
 current
 ===============
 */
-void ChangeWeapon (edict_t *ent, int activateFrame)
+void ChangeWeapon (edict_t *ent)
 {
 	int i;
 
@@ -210,16 +210,8 @@ void ChangeWeapon (edict_t *ent, int activateFrame)
 
 	ent->client->ps.gunindex = gi.modelindex(ent->client->weapon->view_model);
 
-	if (activateFrame && g_fast_weap_switch->value == 2)
-	{
-		ent->client->weaponstate = WEAPON_READY;
-		ent->client->ps.gunframe = activateFrame;
-	}
-	else
-	{
-		ent->client->weaponstate = WEAPON_ACTIVATING;
-		ent->client->ps.gunframe = 0;
-	}
+	ent->client->weaponstate = WEAPON_ACTIVATING;
+	ent->client->ps.gunframe = 0;
 
 	ent->client->anim_priority = ANIM_PAIN;
 	if(ent->client->ps.pmove.pm_flags & PMF_DUCKED)
@@ -294,7 +286,7 @@ void Think_Weapon (edict_t *ent)
 	if (ent->health < 1)
 	{
 		ent->client->newweapon = NULL;
-		ChangeWeapon (ent, 0);
+		ChangeWeapon (ent);
 	}
 
 	// don't run weapons at all during timeout, preserve reload frame etc
@@ -410,7 +402,7 @@ void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST,
 	{
 		if (ent->client->ps.gunframe == FRAME_DEACTIVATE_LAST)
 		{
-			ChangeWeapon (ent, FRAME_ACTIVATE_LAST);
+			ChangeWeapon (ent);
 			return;
 		}
 		else if ((FRAME_DEACTIVATE_LAST - ent->client->ps.gunframe) == 4)
@@ -435,6 +427,9 @@ void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST,
 
 	if (ent->client->weaponstate == WEAPON_ACTIVATING)
 	{
+		if (g_fast_weap_switch->value == 2)
+			ent->client->ps.gunframe = FRAME_ACTIVATE_LAST;
+
 		if (ent->client->ps.gunframe == FRAME_ACTIVATE_LAST)
 		{
 			ent->client->weaponstate = WEAPON_READY;
@@ -452,12 +447,11 @@ void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST,
 
 		if (g_fast_weap_switch->value >= 1)
 		{
-			ChangeWeapon (ent, FRAME_ACTIVATE_LAST);
+			ChangeWeapon (ent);
 			return;
 		}
 		else
 			ent->client->ps.gunframe = FRAME_DEACTIVATE_FIRST;
-
 
 
 		if ((FRAME_DEACTIVATE_LAST - FRAME_DEACTIVATE_FIRST) < 4)
@@ -625,7 +619,7 @@ void Weapon_Grenade (edict_t *ent)
 {
 	if ((ent->client->newweapon) && (ent->client->weaponstate == WEAPON_READY))
 	{
-		ChangeWeapon (ent, 0);
+		ChangeWeapon (ent);
 		return;
 	}
 

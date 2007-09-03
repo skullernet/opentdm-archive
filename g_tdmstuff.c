@@ -122,6 +122,8 @@ typedef struct vote_s
 
 vote_t	vote;
 
+int soundcache[MAX_SOUNDS];
+
 //ugly define for variable frametime support
 #define SECS(x) (x*(1/FRAMETIME))
 
@@ -151,16 +153,39 @@ cvarsave_t preserved_vars[] =
 	{NULL, NULL},
 };
 
+const char *soundnames[17] = {
+	"death1.wav",
+	"death2.wav",
+	"death3.wav",
+	"death4.wav",
+	"fall1.wav",
+	"fall2.wav",
+	"gurp1.wav",
+	"gurp2.wav",
+	"jump1.wav",
+	"pain25_1.wav",
+	"pain25_2.wav",
+	"pain50_1.wav",
+	"pain50_2.wav",
+	"pain75_1.wav",
+	"pain75_2.wav",
+	"pain100_1.wav",
+	"pain100_2.wav",
+};
+
 void droptofloor (edict_t *ent);
 void JoinTeam1 (edict_t *ent);
 void JoinTeam2 (edict_t *ent);
 void ToggleChaseCam (edict_t *ent);
 void SelectNextHelpPage (edict_t *ent);
 void TDM_UpdateTeamNames (void);
+void TDM_SetSkins (void);
 
 static char teamStatus[MAX_TEAMS][32];
 static char teamJoinText[MAX_TEAMS][32];
 const int	teamJoinEntries[MAX_TEAMS] = {9, 3, 6};
+
+static char	last_player_model[MAX_TEAMS][32];
 
 pmenu_t joinmenu[] =
 {
@@ -479,16 +504,16 @@ void TDM_ScoreBoardMessage (edict_t *ent)
 		width[1] = 1;
 
 	// team one
-	sprintf(string, //"xv 8 yv 8 picn tag1 "
+	sprintf(string, "xv 8 yv -24 picn /players/%s_i.pcx "
 		"xv -176 yv 8 stat_string 18 "
 		"xv 30 yv 28 string \"%4d players\" "
 		"xv 8 yv 16 num %d 23 "
-		//"xv 168 yv 8 picn tag1 "
+		"xv 168 yv -24 picn /players/%s_i.pcx "
 		"xv -16 yv 8 stat_string 19  "
 		"xv 190 yv 28 string \"%4d players\" "
 		"xv 166 yv 16 num %d 24 ",
-		total[0], width[0],
-		total[1], width[1]);
+		teaminfo[TEAM_A].skin, total[0], width[0],
+		teaminfo[TEAM_B].skin, total[1], width[1]);
 	len = strlen(string);
 
 	for (i=0 ; i<16 ; i++)
@@ -598,12 +623,13 @@ void TDM_ScoreBoardMessage (edict_t *ent)
 			}
 
 			sprintf(entry+strlen(entry),
-				"ctf %d %d %d %d %d ",
+				"xv %d yv %d string \"%s%s P:%d\" ",
 				(n & 1) ? 160 : 0, // x
 				j, // y
-				i, // playernum
-				cl->resp.score,
+				cl->pers.netname,
+				cl->chase_target ? va(" (%s)", cl->chase_target->client->pers.netname) : "",
 				cl->ping > 999 ? 999 : cl->ping);
+
 			if (maxsize - len > strlen(entry)) {
 				strcat(string, entry);
 				len = strlen(string);
@@ -758,6 +784,21 @@ static edict_t *TDM_FindPlayerForTeam (unsigned team)
 
 /*
 ==============
+TDM_Is1V1
+==============
+Return true if it's 1v1, regardless of game mode. Used to avoid printing
+team name when teamname = playername due to the 'pseudo 1v1' mode.
+*/
+static qboolean TDM_Is1V1 (void)
+{
+	if (g_gamemode->value == GAMEMODE_1V1 || (teaminfo[TEAM_A].players == 1 && teaminfo[TEAM_B].players == 1 && tdm_match_status >= MM_COUNTDOWN))
+		return true;
+
+	return false;
+}
+
+/*
+==============
 TDM_BeginCountdown
 ==============
 All players are ready so start the countdown
@@ -880,6 +921,7 @@ void TDM_EndMatch (void)
 		gi.bprintf (PRINT_HIGH, "%s wins, %d to %d.\n", teaminfo[winner].name, teaminfo[winner].score, teaminfo[loser].score);
 	}
 
+	level.match_resume_framenum = 0;
 	level.match_end_framenum = 0;
 	level.match_score_end_framenum = level.framenum + (7.5f / FRAMETIME);
 	TDM_BeginIntermission ();
@@ -988,6 +1030,25 @@ void TDM_CheckTimes (void)
 		else if (remaining == 0)
 		{
 			TDM_BeginMatch ();
+		}
+	}
+
+	if (level.match_resume_framenum)
+	{
+		int		remaining;
+
+		remaining = level.match_resume_framenum - level.realframenum;		
+		
+		if (remaining > 0 && remaining <= (int)(5.0f / FRAMETIME) && remaining % (int)(1.0f / FRAMETIME) == 0)
+		{
+			gi.bprintf (PRINT_HIGH, "%d\n", (int)(remaining * FRAMETIME));
+		}
+		else if (remaining == 0)
+		{
+			gi.bprintf (PRINT_HIGH, "Fight!\n");
+			level.tdm_timeout_caller = 0;
+			level.match_resume_framenum = 0;
+			tdm_match_status = level.last_tdm_match_status;
 		}
 	}
 
@@ -1140,6 +1201,20 @@ void TDM_Ready_f (edict_t *ent)
 	if (!ent->client->resp.team)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You must be on a team to be ready.\n");
+		return;
+	}
+
+	if (tdm_match_status == MM_TIMEOUT)
+	{
+		if (level.tdm_timeout_caller != ent && !ent->client->pers.admin)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Only %s or an admin can resume play.\n", level.tdm_timeout_caller->client->pers.netname);
+			return;
+		}
+
+		gi.sound (world, 0, gi.soundindex ("world/10_0.wav"), 1, ATTN_NONE, 0);
+		gi.bprintf (PRINT_CHAT, "Game resuming in 10 seconds...\n");
+		level.match_resume_framenum = level.realframenum + SECS(10.4);
 		return;
 	}
 
@@ -1782,6 +1857,8 @@ A rather messy function to handle team names in TDM and 1v1.
 */
 void TDM_UpdateTeamNames (void)
 {
+	edict_t	*ent;
+
 	if (g_gamemode->value == GAMEMODE_1V1)
 	{
 		if (teaminfo[TEAM_A].captain)
@@ -1820,7 +1897,7 @@ void TDM_UpdateTeamNames (void)
 	}
 	else
 	{
-		if (tdm_match_status >= MM_COUNTDOWN && teaminfo[TEAM_A].players == 1 && teaminfo[TEAM_B].players == 1)
+		if (TDM_Is1V1())
 		{
 			if (strcmp (teaminfo[TEAM_A].name, TDM_FindPlayerForTeam (TEAM_A)->client->pers.netname))
 			{
@@ -1850,19 +1927,24 @@ void TDM_UpdateTeamNames (void)
 		}
 	}
 
-	if (g_gamemode->value != GAMEMODE_1V1)
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
-		edict_t	*ent;
+		if (!ent->inuse)
+			continue;
 
-		for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+		if (ent->client->resp.team == TEAM_A && g_team_a_name->modified)
 		{
-			if (!ent->inuse)
-				continue;
-
-			if (ent->client->resp.team == TEAM_A && g_team_a_name->modified)
-				gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, va("%s (%s)", ent->client->pers.netname, teaminfo[TEAM_A].skin));
-			else if (ent->client->resp.team == TEAM_B && g_team_b_name->modified)
-				gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, va("%s (%s)", ent->client->pers.netname, teaminfo[TEAM_B].skin));
+			if (TDM_Is1V1())
+				gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, ent->client->pers.netname);
+			else
+				gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, va("%s (%s)", ent->client->pers.netname, teaminfo[TEAM_A].name));
+		}
+		else if (ent->client->resp.team == TEAM_B && g_team_b_name->modified)
+		{
+			if (TDM_Is1V1())
+				gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, ent->client->pers.netname);
+			else
+				gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, va("%s (%s)", ent->client->pers.netname, teaminfo[TEAM_B].name));
 		}
 	}
 }
@@ -1991,10 +2073,17 @@ Check vote for success or failure.
 */
 static void TDM_CheckVote (void)
 {
-	int vote_hold = 0;
-	int vote_yes = 0;
-	int vote_no = 0;
+	int		vote_hold = 0;
+	int		vote_yes = 0;
+	int		vote_no = 0;
 	edict_t	*ent;
+
+	if ((vote.flags & VOTE_KICK) && !vote.victim->inuse)
+	{
+		gi.bprintf (PRINT_HIGH, "Vote cancelled.\n");
+		TDM_RemoveVote ();
+		return;
+	}
 
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
@@ -3169,6 +3258,11 @@ void TDM_Team_f (edict_t *ent)
 
 		JoinTeam2 (ent);
 	}
+	else if (!Q_stricmp (value, "0") || !Q_stricmp (value, "S") || !Q_stricmp (value, "O") ||
+		!Q_stricmp (value, "spec") || !Q_stricmp (value, "obs"))
+	{
+		ToggleChaseCam (ent);
+	}
 	else
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Unknown team: %s\n", value);
@@ -3184,6 +3278,39 @@ Shows current match settings.
 void TDM_Settings_f (edict_t *ent)
 {
 	gi.cprintf (ent, PRINT_HIGH, "%s", TDM_SettingsString ());
+}
+
+/*
+==============
+TDM_Timeout_f
+==============
+Call a timeout.
+*/
+void TDM_Timeout_f (edict_t *ent)
+{
+	if (!ent->client->resp.team)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Only players may call a time out.\n");
+		return;
+	}
+
+	if (tdm_match_status < MM_PLAYING)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "You can only call a time out during a match.\n");
+		return;
+	}
+
+	level.tdm_timeout_caller = ent;
+
+	level.last_tdm_match_status = tdm_match_status;
+	tdm_match_status = MM_TIMEOUT;
+
+	if (TDM_Is1V1 ())
+		gi.bprintf (PRINT_CHAT, "%s called a time out.\n", ent->client->pers.netname);
+	else
+		gi.bprintf (PRINT_CHAT, "%s (%s) called a time out.\n", ent->client->pers.netname, teaminfo[ent->client->resp.team].name);
+
+	gi.cprintf (ent, PRINT_HIGH, "Match paused. Use 'ready' to resume play.\n");
 }
 
 /*
@@ -3223,48 +3350,71 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 		}
 	}
 
-	if (!Q_stricmp (cmd, "ready"))
-		TDM_Ready_f (ent);
-	else if (!Q_stricmp (cmd, "notready") || !Q_stricmp (cmd, "unready"))
-		TDM_NotReady_f (ent);
-	else if (!Q_stricmp (cmd, "kickplayer") || !Q_stricmp (cmd, "removeplayer") || !Q_stricmp (cmd, "remove"))
-		TDM_KickPlayer_f (ent);
-	else if (!Q_stricmp (cmd, "admin"))
-		TDM_Admin_f (ent);
-	else if (!Q_stricmp (cmd, "captain"))
-		TDM_Captain_f (ent);
-	else if (!Q_stricmp (cmd, "vote"))
-		TDM_Vote_f (ent);
-	else if (!Q_stricmp (cmd, "yes") || !Q_stricmp (cmd, "no"))
-		TDM_Vote_f (ent);
-	else if (!Q_stricmp (cmd, "lockteam") || !Q_stricmp (cmd, "lock"))
-		TDM_Lockteam_f (ent, true);
-	else if (!Q_stricmp (cmd, "unlockteam") || !Q_stricmp (cmd, "unlock"))
-		TDM_Lockteam_f (ent, false);
-	else if (!Q_stricmp (cmd, "pickplayer") || !Q_stricmp (cmd, "pick"))
-		TDM_PickPlayer_f (ent);
-	else if (!Q_stricmp (cmd, "invite"))
-		TDM_Invite_f (ent);
-	else if (!Q_stricmp (cmd, "accept"))
-		TDM_Accept_f (ent);
-	else if (!Q_stricmp (cmd, "teamskin"))
-		TDM_Teamskin_f (ent);
-	else if (!Q_stricmp (cmd, "teamname"))
-		TDM_Teamname_f (ent);
-	else if (!Q_stricmp (cmd, "teamready") || !Q_stricmp (cmd, "readyteam"))
-		TDM_Changeteamstatus_f (ent, true);
-	else if (!Q_stricmp (cmd, "teamnotready") || !Q_stricmp (cmd, "notreadyteam"))
-		TDM_Changeteamstatus_f (ent, false);
-	else if (!Q_stricmp (cmd, "menu") || !Q_stricmp (cmd, "ctfmenu") || !Q_stricmp (cmd, "inven"))
-		TDM_ShowTeamMenu (ent);
-	else if (!Q_stricmp (cmd, "commands"))
-		TDM_Commands_f (ent);
-	else if (!Q_stricmp (cmd, "join") || !Q_stricmp (cmd, "team"))
-		TDM_Team_f (ent);
-	else if (!Q_stricmp (cmd, "settings"))
-		TDM_Settings_f (ent);
+	//only a few commands work in time out mode
+	if (tdm_match_status == MM_TIMEOUT)
+	{
+		if (!Q_stricmp (cmd, "commands"))
+			TDM_Commands_f (ent);
+		else if (!Q_stricmp (cmd, "settings"))
+			TDM_Settings_f (ent);
+		else if (!Q_stricmp (cmd, "teamskin"))
+			TDM_Teamskin_f (ent);
+		else if (!Q_stricmp (cmd, "teamname"))
+			TDM_Teamname_f (ent);
+		else if (!Q_stricmp (cmd, "ready"))
+			TDM_Ready_f (ent);
+		else
+			return false;
+	}
 	else
-		return false;
+	{
+		if (!Q_stricmp (cmd, "ready"))
+			TDM_Ready_f (ent);
+		else if (!Q_stricmp (cmd, "notready") || !Q_stricmp (cmd, "unready") || !Q_stricmp (cmd, "noready"))
+			TDM_NotReady_f (ent);
+		else if (!Q_stricmp (cmd, "kickplayer") || !Q_stricmp (cmd, "removeplayer") || !Q_stricmp (cmd, "remove"))
+			TDM_KickPlayer_f (ent);
+		else if (!Q_stricmp (cmd, "admin"))
+			TDM_Admin_f (ent);
+		else if (!Q_stricmp (cmd, "captain"))
+			TDM_Captain_f (ent);
+		else if (!Q_stricmp (cmd, "vote"))
+			TDM_Vote_f (ent);
+		else if (!Q_stricmp (cmd, "yes") || !Q_stricmp (cmd, "no"))
+			TDM_Vote_f (ent);
+		else if (!Q_stricmp (cmd, "lockteam") || !Q_stricmp (cmd, "lock"))
+			TDM_Lockteam_f (ent, true);
+		else if (!Q_stricmp (cmd, "unlockteam") || !Q_stricmp (cmd, "unlock"))
+			TDM_Lockteam_f (ent, false);
+		else if (!Q_stricmp (cmd, "pickplayer") || !Q_stricmp (cmd, "pick"))
+			TDM_PickPlayer_f (ent);
+		else if (!Q_stricmp (cmd, "invite"))
+			TDM_Invite_f (ent);
+		else if (!Q_stricmp (cmd, "accept"))
+			TDM_Accept_f (ent);
+		else if (!Q_stricmp (cmd, "teamskin"))
+			TDM_Teamskin_f (ent);
+		else if (!Q_stricmp (cmd, "teamname"))
+			TDM_Teamname_f (ent);
+		else if (!Q_stricmp (cmd, "teamready") || !Q_stricmp (cmd, "readyteam"))
+			TDM_Changeteamstatus_f (ent, true);
+		else if (!Q_stricmp (cmd, "teamnotready") || !Q_stricmp (cmd, "notreadyteam"))
+			TDM_Changeteamstatus_f (ent, false);
+		else if (!Q_stricmp (cmd, "menu") || !Q_stricmp (cmd, "ctfmenu") || !Q_stricmp (cmd, "inven"))
+			TDM_ShowTeamMenu (ent);
+		else if (!Q_stricmp (cmd, "commands"))
+			TDM_Commands_f (ent);
+		else if (!Q_stricmp (cmd, "join") || !Q_stricmp (cmd, "team"))
+			TDM_Team_f (ent);
+		else if (!Q_stricmp (cmd, "settings"))
+			TDM_Settings_f (ent);
+		else if (!Q_stricmp (cmd, "observer") || !Q_stricmp (cmd, "spectate") || !Q_stricmp (cmd, "chase"))
+			ToggleChaseCam (ent);
+		else if (!Q_stricmp (cmd, "calltime") | !Q_stricmp (cmd, "pause") || !Q_stricmp (cmd, "ctime"))
+			TDM_Timeout_f (ent);
+		else
+			return false;
+	}
 
 	return true;
 }
@@ -3461,8 +3611,12 @@ void TDM_LeftTeam (edict_t *ent)
 	if (teaminfo[ent->client->resp.team].captain == ent)
 		TDM_SetCaptain (ent->client->resp.team, NULL);
 
+	//resume play if this guy called TO
+	if (tdm_match_status == MM_TIMEOUT && level.tdm_timeout_caller == ent)
+		TDM_Ready_f (ent);
+
 	//r1: messy team name fix for 1v1
-	TDM_UpdateTeamNames ();
+	//TDM_UpdateTeamNames ();
 
 	oldteam = ent->client->resp.team;
 
@@ -3514,6 +3668,296 @@ qboolean CanJoin (edict_t *ent, unsigned team)
 
 /*
 ==============
+TDM_SetupSounds
+==============
+First time setup of sound paths, caches commonly used client sounds indexes.
+*/
+void TDM_SetupSounds (void)
+{
+	int		i;
+	char	path[MAX_QPATH];
+
+	strcpy (path, "*");
+
+	for (i = 0; i < SND_MAX; i++)
+	{
+		strcpy (path + 1, soundnames[i]);
+		soundcache[i] = gi.soundindex (path);
+	}
+}
+
+// a sound without an ent or pos will be a local only sound
+#define	SND_VOLUME		(1<<0)		// a byte
+#define	SND_ATTENUATION	(1<<1)		// a byte
+#define	SND_POS			(1<<2)		// three coordinates
+#define	SND_ENT			(1<<3)		// a short 0-2: channel, 3-12: entity
+#define	SND_OFFSET		(1<<4)		// a byte, msec offset from frame start
+
+#define DEFAULT_SOUND_PACKET_VOLUME	1.0f
+#define DEFAULT_SOUND_PACKET_ATTENUATION 1.0f
+
+/*
+==============
+TDM_GlobalClientSound
+==============
+Gross, ugly, disgustingly nasty hack for in-eyes mode. We run all the sound
+processing code ourselves, and we temporarily throw configstrings at in-eyes
+mode players to revert the sexed sound to the correct model, play the sound
+and then revert to invisible. Since no svc_frame comes in between this, client
+never notices except for sound purposes. Hah.
+*/
+void TDM_GlobalClientSound (edict_t *ent, int channel, int soundindex, float volume, float attenuation, float timeofs)
+{
+	int			entnum;
+	int			sendchan;
+    int			flags;
+	vec3_t		origin_v;
+	qboolean	use_phs;
+	qboolean	force_pos;
+	edict_t		*client;
+
+	entnum = ent - g_edicts;
+
+	if (channel & CHAN_NO_PHS_ADD)	// no PHS flag
+	{
+		use_phs = false;
+		channel &= 7;
+	}
+	else
+		use_phs = true;
+
+	sendchan = (entnum<<3) | (channel&7);
+
+	force_pos = false;
+	flags = 0;
+
+	if (volume != DEFAULT_SOUND_PACKET_VOLUME)
+		flags |= SND_VOLUME;
+
+	if (attenuation != DEFAULT_SOUND_PACKET_ATTENUATION)
+		flags |= SND_ATTENUATION;
+
+	if (attenuation == ATTN_NONE)
+	{
+		use_phs = false;
+	}
+	else
+	{
+		// the client doesn't know that bmodels have weird origins
+		// the origin can also be explicitly set
+		if ( (ent->svflags & SVF_NOCLIENT)
+			|| (ent->s.solid == SOLID_BSP)) {
+			flags |= SND_POS;
+			force_pos = true;
+			}
+
+		// use the entity origin unless it is a bmodel or explicitly specified
+		if (ent->s.solid == SOLID_BSP)
+		{
+			origin_v[0] = ent->s.origin[0]+0.5f*(ent->mins[0]+ent->maxs[0]);
+			origin_v[1] = ent->s.origin[1]+0.5f*(ent->mins[1]+ent->maxs[1]);
+			origin_v[2] = ent->s.origin[2]+0.5f*(ent->mins[2]+ent->maxs[2]);
+		}
+		else
+		{
+			VectorCopy (ent->s.origin, origin_v);
+		}
+	}
+
+	// always send the entity number for channel overrides
+	flags |= SND_ENT;
+
+	if (timeofs)
+		flags |= SND_OFFSET;
+
+	for (client = g_edicts + 1; client < g_edicts + game.maxclients; client++)
+	{
+		if (!client->inuse)
+			continue;
+
+		if (use_phs)
+		{
+			if (force_pos)
+			{
+				flags |= SND_POS;
+			}
+			else
+			{
+				if (!gi.inPHS (client->s.origin, origin_v))
+					continue;
+
+				if (!gi.inPVS (client->s.origin, origin_v))
+					flags |= SND_POS;
+				else
+					flags &= ~SND_POS;
+			}
+		}
+
+		if (client->client->chase_target)
+		{
+			gi.WriteByte (svc_configstring);
+			gi.WriteShort (CS_PLAYERSKINS + (client->client->chase_target - g_edicts) -1);
+			gi.WriteString (va ("%s\\%s", client->client->chase_target->client->pers.netname, teaminfo[client->client->chase_target->client->resp.team].skin));
+			//gi.unicast (client, false);
+		}
+
+		gi.WriteByte (svc_sound);
+		gi.WriteByte (flags);
+		gi.WriteByte (soundindex);
+
+		if (flags & SND_VOLUME)
+			gi.WriteByte ((int)(volume*255));
+
+		if (flags & SND_ATTENUATION)
+			gi.WriteByte ((int)(attenuation*64));
+
+		if (flags & SND_OFFSET)
+			gi.WriteByte ((int)(timeofs*1000));
+
+		if (flags & SND_ENT)
+			gi.WriteShort (sendchan);
+
+		if (flags & SND_POS)
+			gi.WritePosition (origin_v);
+
+		if (client->client->chase_target)
+		{
+			gi.WriteByte (svc_configstring);
+			gi.WriteShort (CS_PLAYERSKINS + (client->client->chase_target - g_edicts) -1);
+			gi.WriteString (va ("%s\\opentdm/null", client->client->chase_target->client->pers.netname));
+			//gi.unicast (client, false);
+		}
+
+		gi.unicast (client, false);
+	}
+}
+
+/*void TDM_SetupSounds (void)
+{
+	int		i, j;
+	char	model[MAX_TEAMS][32];
+	char	path[MAX_QPATH];
+	char	*p;
+
+	strcpy (model[TEAM_A], teaminfo[TEAM_A].skin);
+	strcpy (model[TEAM_B], teaminfo[TEAM_B].skin);
+
+	p = strchr (model[TEAM_A], '/');
+	if (p)
+		p[0] = 0;
+
+	p = strchr (model[TEAM_B], '/');
+	if (p)
+		p[0] = 0;
+
+	for (i = 0; i < SND_MAX; i++)
+	{
+		for (j = TEAM_A; j <= TEAM_B; j++)
+		{
+			//"fake" path to keep q2 client/server happy
+			sprintf (path, "*%s", soundnames[i]);
+			teaminfo[j].sounds[i] = gi.soundindex (path);
+
+			//real path. oh god.
+			sprintf (path, "#players/%s/%s", model[j], soundnames[i]);
+			teaminfo[j].soundpath[i] = G_CopyString (path);
+		}
+	}
+
+	strcpy (last_player_model[TEAM_A], model[TEAM_A]);
+	strcpy (last_player_model[TEAM_B], model[TEAM_B]);
+}*/
+
+/*
+==============
+TDM_UpdateSounds
+==============
+Skins changed, so broadcast new sound configstrings.
+*/
+/*void TDM_UpdateSounds (void)
+{
+	int			i;
+	char		model[MAX_TEAMS][32];
+	char		path[MAX_QPATH];
+	char		*p;
+
+	//sounds not inited yet
+	if (!teaminfo[TEAM_A].sounds[0])
+		return;
+
+	strcpy (model[TEAM_A], teaminfo[TEAM_A].skin);
+	strcpy (model[TEAM_B], teaminfo[TEAM_B].skin);
+
+	p = strchr (model[TEAM_A], '/');
+	if (p)
+		p[0] = 0;
+
+	p = strchr (model[TEAM_B], '/');
+	if (p)
+		p[0] = 0;
+
+	if (strcmp (model[TEAM_A], last_player_model[TEAM_A]))
+	{
+		strcpy (last_player_model[TEAM_A], model[TEAM_A]);
+		for (i = 0; i < SND_MAX; i++)
+		{
+			if (teaminfo[TEAM_A].soundpath[i])
+				gi.TagFree (teaminfo[TEAM_A].soundpath[i]);
+
+			sprintf (path, "#players/%s/%s", model[TEAM_A], soundnames[i]);
+			gi.WriteByte (svc_configstring);
+			gi.WriteShort (CS_SOUNDS + teaminfo[TEAM_A].sounds[i]);
+			gi.WriteString (path);
+			gi.multicast (NULL, MULTICAST_ALL_R);
+			teaminfo[TEAM_A].soundpath[i] = G_CopyString (path);
+			//gi.configstring (CS_SOUNDS + teaminfo[TEAM_A].sounds[i], path);
+		}
+	}
+
+	if (strcmp (model[TEAM_B], last_player_model[TEAM_B]))
+	{
+		strcpy (last_player_model[TEAM_B], model[TEAM_B]);
+		for (i = 0; i < SND_MAX; i++)
+		{
+			if (teaminfo[TEAM_B].soundpath[i])
+				gi.TagFree (teaminfo[TEAM_B].soundpath[i]);
+			sprintf (path, "#players/%s/%s", model[TEAM_B], soundnames[i]);
+			gi.WriteByte (svc_configstring);
+			gi.WriteShort (CS_SOUNDS + teaminfo[TEAM_B].sounds[i]);
+			gi.WriteString (path);
+			gi.multicast (NULL, MULTICAST_ALL_R);
+			teaminfo[TEAM_B].soundpath[i] = G_CopyString (path);
+			//gi.configstring (CS_SOUNDS + teaminfo[TEAM_B].sounds[i], path);
+		}
+	}
+}*/
+
+/*
+==============
+TDM_SendSoundStrings
+==============
+Client entered the server, send sound strings
+*/
+/*void TDM_SendSoundStrings (edict_t *ent)
+{
+	int	i;
+
+	for (i = 0; i < SND_MAX; i++)
+	{
+		gi.WriteByte (svc_configstring);
+		gi.WriteShort (CS_SOUNDS + teaminfo[TEAM_A].sounds[i]);
+		gi.WriteString (teaminfo[TEAM_A].soundpath[i]);
+		gi.unicast (ent, true);
+
+		gi.WriteByte (svc_configstring);
+		gi.WriteShort (CS_SOUNDS + teaminfo[TEAM_B].sounds[i]);
+		gi.WriteString (teaminfo[TEAM_B].soundpath[i]);
+		gi.unicast (ent, true);
+	}
+}*/
+
+/*
+==============
 JoinTeam1
 ==============
 Player joined Team A via menu
@@ -3552,7 +3996,8 @@ void JoinTeam2 (edict_t *ent)
 ==============
 ToggleChaseCam
 ==============
-Player hit Spectator menu option
+Player hit Spectator menu option or used
+chase command.
 */
 void ToggleChaseCam (edict_t *ent)
 {
@@ -3565,9 +4010,7 @@ void ToggleChaseCam (edict_t *ent)
 	}
 
 	if (ent->client->chase_target)
-	{
 		DisableChaseCam (ent);
-	}
 	else
 		GetChaseTarget(ent);
 
@@ -3642,13 +4085,15 @@ void UpdateMatchStatus (void)
 {
 	int team;
 
-	if (tdm_match_status < MM_PLAYING || level.intermissionframe)
+	if (tdm_match_status < MM_PLAYING || level.intermissionframe || level.match_score_end_framenum)
 		return;
 
 	for (team = 1; team < MAX_TEAMS; team++)
 	{
 		if (teaminfo[team].players < 1)
 		{
+			//FIXME: mark as forfeit somehow
+			//teaminfo[team].score = 0;
 			TDM_EndMatch ();
 			break;
 		}
@@ -3741,6 +4186,7 @@ on every map load.
 void TDM_SetupClient (edict_t *ent)
 {
 	ent->client->resp.team = TEAM_SPEC;
+	//TDM_SendSoundStrings (ent);
 	TDM_TeamsChanged ();
 	TDM_ShowTeamMenu (ent);
 
@@ -3758,7 +4204,12 @@ void TDM_MapChanged (void)
 	//wision: apply item settings
 	//r1: not needed, this is handled automatically in SpawnEntities
 	//TDM_ResetLevel ();
+	//memset (teaminfo[TEAM_A].soundpath, 0, sizeof(teaminfo[TEAM_A].soundpath));
+	//memset (teaminfo[TEAM_B].soundpath, 0, sizeof(teaminfo[TEAM_B].soundpath));
+
 	TDM_ResetGameState ();
+	TDM_SetSkins ();
+	TDM_SetupSounds ();
 	TDM_UpdateConfigStrings (true);
 }
 
@@ -3783,6 +4234,7 @@ void TDM_ResetGameState (void)
 	teaminfo[TEAM_A].ready = teaminfo[TEAM_B].ready = false;
 
 	TDM_UpdateTeamNames ();
+	//TDM_SetSkins ();
 	UpdateTeamMenu ();
 
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
@@ -3839,18 +4291,27 @@ void TDM_SetSkins (void)
 	edict_t		*ent;
 	const char	*newskin, *oldskin;
 	unsigned 	i;
+	int			index;
 
 	for (i = TEAM_A; i <= TEAM_B; i++)
 	{
 		oldskin = teaminfo[i].skin;
 
 		if (i == TEAM_A)
+		{
+			index = CS_TDM_TEAM_A_PIC;
 			newskin = g_team_a_skin->string;
+		}
 		else
+		{
+			index = CS_TDM_TEAM_B_PIC;
 			newskin = g_team_b_skin->string;
+		}
 
 		if (!strcmp (oldskin, newskin))
 			continue;
+
+		gi.configstring (index, va("/players/%s_i.pcx", newskin));
 
 		strncpy (teaminfo[i].skin, newskin, sizeof(teaminfo[i].skin)-1);
 
@@ -3860,9 +4321,23 @@ void TDM_SetSkins (void)
 				continue;
 
 			if (ent->client->resp.team == i)
+			{
 				gi.configstring (CS_PLAYERSKINS + (ent - g_edicts) - 1, va("%s\\%s", ent->client->pers.netname, teaminfo[i].skin));
+			}	
+		}
+
+		//fix skin hack for spectators
+		for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+		{
+			if (!ent->inuse)
+				continue;
+
+			if (ent->client->chase_target)
+				ChaseEyeHack (ent, ent->client->chase_target, NULL);
 		}
 	}
+
+	//TDM_UpdateSounds ();
 }
 
 /*
@@ -3961,6 +4436,12 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 	{
 		case MM_COUNTDOWN:
 			time_remaining = level.match_start_framenum - level.framenum;
+			break;
+		case MM_TIMEOUT:
+			if (level.match_resume_framenum)
+				time_remaining = level.match_resume_framenum - level.realframenum;
+			else
+				time_remaining = level.match_end_framenum - level.framenum;
 			break;
 		case MM_WARMUP:
 			time_remaining = g_match_time->value * 10 - 1;

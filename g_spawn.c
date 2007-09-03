@@ -815,7 +815,9 @@ void SP_worldspawn (edict_t *ent)
 	gi.soundindex ("items/respawn1.wav");
 
 	// sexed sounds
-	gi.soundindex ("*death1.wav");
+	//ugly hack for tdm / invisible eyes mode, we reserve soundindexes directly
+
+	/*gi.soundindex ("*death1.wav");
 	gi.soundindex ("*death2.wav");
 	gi.soundindex ("*death3.wav");
 	gi.soundindex ("*death4.wav");
@@ -831,7 +833,8 @@ void SP_worldspawn (edict_t *ent)
 	gi.soundindex ("*pain75_1.wav");
 	gi.soundindex ("*pain75_2.wav");
 	gi.soundindex ("*pain100_1.wav");
-	gi.soundindex ("*pain100_2.wav");
+	gi.soundindex ("*pain100_2.wav");*/
+
 
 	// sexed models
 	// THIS ORDER MUST MATCH THE DEFINES IN g_local.h

@@ -83,6 +83,9 @@ void SelectNextItem (edict_t *ent, int itflags)
 		return;
 	}
 
+	if (tdm_match_status == MM_TIMEOUT)
+		return;
+
 	// scan  for the next valid one
 	for (i=1 ; i<=MAX_ITEMS ; i++)
 	{
@@ -120,6 +123,9 @@ void SelectPrevItem (edict_t *ent, int itflags)
 		ChasePrev(ent);
 		return;
 	}
+
+	if (tdm_match_status == MM_TIMEOUT)
+		return;
 
 	// scan  for the next valid one
 	for (i=1 ; i<=MAX_ITEMS ; i++)
@@ -409,6 +415,9 @@ void Cmd_Use_f (edict_t *ent)
 	const gitem_t	*it;
 	char			*s;
 
+	if (tdm_match_status == MM_TIMEOUT)
+		return;
+
 	s = gi.args();
 	it = FindItem (s);
 	if (!it)
@@ -537,6 +546,9 @@ void Cmd_InvUse_f (edict_t *ent)
 		return;
 	}
 
+	if (tdm_match_status == MM_TIMEOUT)
+		return;
+
 	if (ent->health <= 0)
 		return;
 
@@ -568,6 +580,9 @@ void Cmd_WeapPrev_f (edict_t *ent)
 	int				i, index;
 	const gitem_t	*it;
 	int				selected_weapon;
+
+	if (tdm_match_status == MM_TIMEOUT)
+		return;
 
 	cl = ent->client;
 
@@ -605,6 +620,9 @@ void Cmd_WeapNext_f (edict_t *ent)
 	const gitem_t	*it;
 	int				selected_weapon;
 
+	if (tdm_match_status == MM_TIMEOUT)
+		return;
+
 	cl = ent->client;
 
 	if (!cl->weapon)
@@ -640,6 +658,9 @@ void Cmd_WeapLast_f (edict_t *ent)
 	int					index;
 	const gitem_t		*it;
 
+	if (tdm_match_status == MM_TIMEOUT)
+		return;
+
 	cl = ent->client;
 
 	if (!cl->weapon || !cl->lastweapon)
@@ -664,6 +685,9 @@ Cmd_InvDrop_f
 void Cmd_InvDrop_f (edict_t *ent)
 {
 	const gitem_t		*it;
+
+	if (tdm_match_status == MM_TIMEOUT)
+		return;
 
 	ValidateSelectedItem (ent);
 
@@ -696,6 +720,9 @@ void Cmd_Kill_f (edict_t *ent)
 		return;
 
 	if (tdm_match_status == MM_COUNTDOWN)
+		return;
+
+	if (tdm_match_status == MM_TIMEOUT)
 		return;
 
 	if (ent->health <= 0)
@@ -792,6 +819,9 @@ void Cmd_Wave_f (edict_t *ent)
 {
 	int		i;
 	gclient_t *cl;
+
+	if (tdm_match_status == MM_TIMEOUT)
+		return;
 
 	//wision: wave flood protection (yeah.. 'some' players are so annoying)
 	if (flood_waves->value)

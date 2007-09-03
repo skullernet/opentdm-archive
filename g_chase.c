@@ -19,35 +19,35 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 #include "g_local.h"
 
-void ChaseEyeHack (edict_t *ent, edict_t *new, edict_t *old)
+void ChaseEyeHack (edict_t *ent, edict_t *newplayer, edict_t *oldplayer)
 {
 	//yes this is sent twice on purpose - sending unreliable will ensure model is hidden
 	//at the same time the new packetentities arrives, otherwise there will be a brief
 	//duration if there is pending reliable where the model blocks the view.
 
-	if (new)
+	if (newplayer)
 	{
 		gi.WriteByte (svc_configstring);
-		gi.WriteShort (CS_PLAYERSKINS + (new - g_edicts) - 1);
-		gi.WriteString (va ("%s\\opentdm/null", new->client->pers.netname));
+		gi.WriteShort (CS_PLAYERSKINS + (newplayer - g_edicts) - 1);
+		gi.WriteString (va ("%s\\opentdm/null", newplayer->client->pers.netname));
 		gi.unicast (ent, true);
 
 		gi.WriteByte (svc_configstring);
-		gi.WriteShort (CS_PLAYERSKINS + (new - g_edicts) - 1);
-		gi.WriteString (va ("%s\\opentdm/null", new->client->pers.netname));
+		gi.WriteShort (CS_PLAYERSKINS + (newplayer - g_edicts) - 1);
+		gi.WriteString (va ("%s\\opentdm/null", newplayer->client->pers.netname));
 		gi.unicast (ent, false);
 	}
 
-	if (old)
+	if (oldplayer)
 	{
 		gi.WriteByte (svc_configstring);
-		gi.WriteShort (CS_PLAYERSKINS + (old - g_edicts) - 1);
-		gi.WriteString (va ("%s\\%s", old->client->pers.netname, teaminfo[old->client->resp.team].skin));
+		gi.WriteShort (CS_PLAYERSKINS + (oldplayer - g_edicts) - 1);
+		gi.WriteString (va ("%s\\%s", oldplayer->client->pers.netname, teaminfo[oldplayer->client->resp.team].skin));
 		gi.unicast (ent, true);
 
 		gi.WriteByte (svc_configstring);
-		gi.WriteShort (CS_PLAYERSKINS + (old - g_edicts) - 1);
-		gi.WriteString (va ("%s\\%s", old->client->pers.netname, teaminfo[old->client->resp.team].skin));
+		gi.WriteShort (CS_PLAYERSKINS + (oldplayer - g_edicts) - 1);
+		gi.WriteString (va ("%s\\%s", oldplayer->client->pers.netname, teaminfo[oldplayer->client->resp.team].skin));
 		gi.unicast (ent, false);
 	}
 }

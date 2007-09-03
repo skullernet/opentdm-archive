@@ -474,24 +474,6 @@ void G_SetStats (edict_t *ent)
 
 /*
 ===============
-G_CheckChaseStats
-===============
-*/
-void G_CheckChaseStats (edict_t *ent)
-{
-	if (!ent->client->chase_target)
-		return;
-
-	memcpy (ent->client->ps.stats, ent->client->chase_target->client->ps.stats, sizeof(ent->client->ps.stats));
-
-	UpdateChaseCam (ent);
-
-	if (!ent->client->chase_target)
-		return;
-}
-
-/*
-===============
 G_SetSpectatorStats
 ===============
 */
@@ -501,6 +483,13 @@ void G_SetSpectatorStats (edict_t *ent)
 
 	if (!cl->chase_target)
 		G_SetStats (ent);
+	else
+	{
+		memcpy (cl->ps.stats, cl->chase_target->client->ps.stats, sizeof(cl->ps.stats));
+		cl->ps.gunindex = cl->chase_target->client->ps.gunindex;
+		cl->ps.gunframe = cl->chase_target->client->ps.gunframe;
+		VectorCopy (cl->chase_target->client->ps.gunangles, cl->ps.gunangles);
+	}
 
 	cl->ps.stats[STAT_SPECTATOR] = 1;
 

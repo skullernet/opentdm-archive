@@ -132,17 +132,17 @@ void P_DamageFeedback (edict_t *player)
 	// play an apropriate pain sound
 	if ((level.time > player->pain_debounce_time) && !(player->flags & FL_GODMODE) && (client->invincible_framenum <= level.framenum))
 	{
-		r = 1 + (rand()&1);
-		player->pain_debounce_time = level.time + 0.7 * (1 / FRAMETIME);
+		r = rand() & 1;
+		player->pain_debounce_time = level.time + 0.7f * (1 / FRAMETIME);
 		if (player->health < 25)
-			l = 25;
+			l = SND_PAIN25_1;
 		else if (player->health < 50)
-			l = 50;
+			l = SND_PAIN50_1;
 		else if (player->health < 75)
-			l = 75;
+			l = SND_PAIN75_1;
 		else
-			l = 100;
-		gi.sound (player, CHAN_VOICE, gi.soundindex(va("*pain%i_%i.wav", l, r)), 1, ATTN_NORM, 0);
+			l = SND_PAIN100_1;
+		TDM_GlobalClientSound (player, CHAN_VOICE, soundcache[l + r], 1, ATTN_NORM, 0);
 	}
 
 	// the total alpha of the blend is always proportional to count
@@ -174,8 +174,8 @@ void P_DamageFeedback (edict_t *player)
 	{
 		kick = kick * 100 / player->health;
 
-		if (kick < count*0.5)
-			kick = count*0.5;
+		if (kick < count*0.5f)
+			kick = count*0.5f;
 		if (kick > 50)
 			kick = 50;
 
@@ -183,10 +183,10 @@ void P_DamageFeedback (edict_t *player)
 		VectorNormalize (v);
 		
 		side = DotProduct (v, right);
-		client->v_dmg_roll = kick*side*0.3;
+		client->v_dmg_roll = kick*side*0.3f;
 		
 		side = -DotProduct (v, forward);
-		client->v_dmg_pitch = kick*side*0.3;
+		client->v_dmg_pitch = kick*side*0.3f;
 
 		client->v_dmg_time = level.time + DAMAGE_TIME;
 	}
@@ -549,9 +549,9 @@ void P_FallingDamage (edict_t *ent)
 		if (ent->health > 0)
 		{
 			if (delta >= 55)
-				ent->s.event = EV_FALLFAR;
+				TDM_GlobalClientSound (ent, CHAN_AUTO, soundcache[SND_FALL1], 1, ATTN_NORM, 0);
 			else
-				ent->s.event = EV_FALL;
+				TDM_GlobalClientSound (ent, CHAN_AUTO, soundcache[SND_FALL2], 1, ATTN_NORM, 0);
 		}
 		ent->pain_debounce_time = level.time;	// no normal pain sound
 		damage = (delta-30)/2;
@@ -682,9 +682,9 @@ void P_WorldEffects (void)
 				if (current_player->health <= current_player->dmg)
 					gi.sound (current_player, CHAN_VOICE, gi.soundindex("player/drown1.wav"), 1, ATTN_NORM, 0);
 				else if (rand()&1)
-					gi.sound (current_player, CHAN_VOICE, gi.soundindex("*gurp1.wav"), 1, ATTN_NORM, 0);
+					TDM_GlobalClientSound (current_player, CHAN_VOICE, soundcache[SND_GURP1], 1, ATTN_NORM, 0);
 				else
-					gi.sound (current_player, CHAN_VOICE, gi.soundindex("*gurp2.wav"), 1, ATTN_NORM, 0);
+					TDM_GlobalClientSound (current_player, CHAN_VOICE, soundcache[SND_GURP2], 1, ATTN_NORM, 0);
 
 				current_player->pain_debounce_time = level.time;
 

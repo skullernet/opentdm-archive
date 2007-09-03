@@ -611,7 +611,7 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 				self->client->anim_end = FRAME_death308;
 				break;
 			}
-			gi.sound (self, CHAN_VOICE, gi.soundindex(va("*death%i.wav", (rand()%4)+1)), 1, ATTN_NORM, 0);
+			TDM_GlobalClientSound (self, CHAN_VOICE, soundcache[SND_DEATH1 + rand() % 4], 1, ATTN_NORM, 0);
 		}
 	}
 
@@ -1120,7 +1120,7 @@ void PutClientInServer (edict_t *ent)
 
 	// force the current weapon up
 	client->newweapon = client->weapon;
-	ChangeWeapon (ent, 0);
+	ChangeWeapon (ent);
 }
 
 /*
@@ -1445,7 +1445,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	client = ent->client;
 
 	//no movement during map or match intermission
-	if (level.intermissionframe || level.match_score_end_framenum)
+	if (level.intermissionframe || level.match_score_end_framenum || (tdm_match_status == MM_TIMEOUT && ent->client->resp.team))
 	{
 		client->ps.pmove.pm_type = PM_FREEZE;
 		return;
@@ -1515,7 +1515,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 
 		if (ent->groundentity && !pm.groundentity && (pm.cmd.upmove >= 10) && (pm.waterlevel == 0))
 		{
-			gi.sound(ent, CHAN_VOICE, gi.soundindex("*jump1.wav"), 1, ATTN_NORM, 0);
+			TDM_GlobalClientSound (ent, CHAN_VOICE, soundcache[SND_JUMP1], 1, ATTN_NORM, 0);
 		}
 
 		ent->viewheight = pm.viewheight;

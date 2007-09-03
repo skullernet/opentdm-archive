@@ -220,7 +220,8 @@ void ClientEndServerFrames (void)
 		if (!ent->inuse || !ent->client || !ent->client->chase_target)
 			continue;
 
-		G_CheckChaseStats(ent);
+		//this copies before the stats
+		UpdateChaseCam (ent);
 	}
 
 	// calc the player views now that all pushing
@@ -231,6 +232,19 @@ void ClientEndServerFrames (void)
 		if (!ent->inuse || !ent->client)
 			continue;
 		ClientEndServerFrame (ent);
+	}
+
+
+	//run now to copy results out to spectators
+	for (i=0 ; i < game.maxclients; i++)
+	{
+		ent = g_edicts + 1 + i;
+
+		if (!ent->inuse || !ent->client || !ent->client->chase_target)
+			continue;
+
+		//this copies after the stats
+		G_SetSpectatorStats (ent);
 	}
 }
 
@@ -405,54 +419,60 @@ void G_RunFrame (void)
 	int		i;
 	edict_t	*ent;
 
-	level.framenum++;
-	level.time = level.framenum;// * FRAMETIME;
+	level.realframenum++;
 
-	// exit intermissions
-
-	if (level.exitintermission)
+	if (tdm_match_status != MM_TIMEOUT)
 	{
-		if (level.exitintermission == 2)
+		level.framenum++;
+		level.time = level.framenum;// * FRAMETIME;
+
+		// exit intermissions
+
+		if (level.exitintermission)
 		{
-			//if we got here, the map change from ExitLevel didn't work
-			gi.bprintf (PRINT_CHAT, "ERROR: Map '%s' was not found on the server.\n", level.changemap);
-			level.exitintermission = 0;
+			if (level.exitintermission == 2)
+			{
+				//if we got here, the map change from ExitLevel didn't work
+				gi.bprintf (PRINT_CHAT, "ERROR: Map '%s' was not found on the server.\n", level.changemap);
+				level.exitintermission = 0;
+			}
+			else
+			{
+				ExitLevel ();
+				return;
+			}
 		}
-		else
+
+		//
+		// treat each object in turn
+		// even the world gets a chance to think
+		//
+		ent = &g_edicts[0];
+		for (i=0 ; i<globals.num_edicts ; i++, ent++)
 		{
-			ExitLevel ();
-			return;
+			if (!ent->inuse)
+				continue;
+
+			level.current_entity = ent;
+
+			VectorCopy (ent->s.origin, ent->s.old_origin);
+
+			// if the ground entity moved, make sure we are still on it
+			if ((ent->groundentity) && (ent->groundentity->linkcount != ent->groundentity_linkcount))
+			{
+				ent->groundentity = NULL;
+			}
+
+			if (i > 0 && i <= game.maxclients)
+			{
+				ClientBeginServerFrame (ent);
+				continue;
+			}
+
+			G_RunEntity (ent);
 		}
 	}
 
-	//
-	// treat each object in turn
-	// even the world gets a chance to think
-	//
-	ent = &g_edicts[0];
-	for (i=0 ; i<globals.num_edicts ; i++, ent++)
-	{
-		if (!ent->inuse)
-			continue;
-
-		level.current_entity = ent;
-
-		VectorCopy (ent->s.origin, ent->s.old_origin);
-
-		// if the ground entity moved, make sure we are still on it
-		if ((ent->groundentity) && (ent->groundentity->linkcount != ent->groundentity_linkcount))
-		{
-			ent->groundentity = NULL;
-		}
-
-		if (i > 0 && i <= game.maxclients)
-		{
-			ClientBeginServerFrame (ent);
-			continue;
-		}
-
-		G_RunEntity (ent);
-	}
 
 	TDM_UpdateConfigStrings (false);
 
