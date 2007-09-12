@@ -505,7 +505,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			cl_ent = g_edicts + 1 + sorted[0][i];
 
 #if 1
-			if (tdm_match_status > MM_COUNTDOWN)
+			if (current_matchinfo.teamplayers)
 			{
 				sprintf(entry+strlen(entry),
 				"xv 0 yv %d %s \"%2d %-12.12s %2dk %2dd %2ds %2dt %3dp\" ",
@@ -550,7 +550,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			cl_ent = g_edicts + 1 + sorted[1][i];
 
 #if 1
-			if (tdm_match_status > MM_COUNTDOWN)
+			if (current_matchinfo.teamplayers)
 			{
 				sprintf(entry+strlen(entry),
 				"xv 0 yv %d %s \"%2d %-12.12s %2dk %2dd %2ds %2dt %3dp\" ",
