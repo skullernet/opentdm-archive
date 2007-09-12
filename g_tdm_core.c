@@ -426,10 +426,10 @@ char *TDM_ScoreBoardString (edict_t *ent)
 		total[team]++;
 	}
 
-	if (total[TEAM_A] > total[TEAM_B])
-		maxplayers = total[TEAM_A];
+	if (total[0] > total[1])
+		maxplayers = total[0];
 	else
-		maxplayers = total[TEAM_B];
+		maxplayers = total[1];
 
 	len = abs(teaminfo[TEAM_A].score);
 

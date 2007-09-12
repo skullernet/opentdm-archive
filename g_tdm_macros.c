@@ -153,6 +153,8 @@ const char *TDM_Macro_Location (edict_t *ent, size_t *length)
 	int			bestindex;
 	const char	*modifier;
 
+	//shut up gcc
+	height = bestindex = 0;
 	bestdist = 99999;
 	modifier = NULL;
 	best = NULL;
