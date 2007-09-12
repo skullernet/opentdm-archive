@@ -77,6 +77,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STAT_TEAM_A_SCORE				23
 #define STAT_TEAM_B_SCORE				24
 
+#define	STAT_TIMEOUT_STRING_INDEX		25
+
 // dmflags->value flags
 #define	DF_NO_HEALTH		0x00000001	// 1
 #define	DF_NO_ITEMS			0x00000002	// 2
@@ -112,8 +114,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	CS_TDM_TIMELIMIT_STRING	(CS_GENERAL + 4)
 
-#define CS_TDM_TEAM_A_PIC		(CS_GENERAL + 5)
-#define CS_TDM_TEAM_B_PIC		(CS_GENERAL + 5)
+#define CS_TDM_TIMEOUT_STIRNG	(CS_GENERAL + 5)
+
+//#define CS_TDM_TEAM_A_PIC		(CS_GENERAL + 5)
+//#define CS_TDM_TEAM_B_PIC		(CS_GENERAL + 6)
 
 
 // otdm flags
@@ -143,10 +147,10 @@ enum
 
 typedef struct pmenu_s
 {
-	char	*text;
-	int		align;
-	void	*arg;
-	void	(*SelectFunc)(edict_t *ent);
+	const char	*text;
+	int			align;
+	void		*arg;
+	void		(*SelectFunc)(edict_t *ent);
 } pmenu_t;
 
 typedef struct pmenuhnd_s
@@ -382,7 +386,6 @@ typedef struct
 	int		armor;
 } gitem_armor_t;
 
-
 // gitem_t->flags
 #define	IT_WEAPON		1		// use makes active weapon
 #define	IT_AMMO			2
@@ -390,6 +393,9 @@ typedef struct
 #define IT_STAY_COOP	8
 #define IT_KEY			16
 #define IT_POWERUP		32
+
+#define HEALTH_IGNORE_MAX	1
+#define HEALTH_TIMED		2
 
 // gitem_t->weapmodel for weapons indicates model index
 #define WEAP_BLASTER			1 
@@ -403,6 +409,9 @@ typedef struct
 #define WEAP_HYPERBLASTER		9 
 #define WEAP_RAILGUN			10
 #define WEAP_BFG				11
+
+typedef struct matchinfo_s matchinfo_t;
+typedef struct teamplayer_s teamplayer_t;
 
 typedef struct gitem_s
 {
@@ -444,16 +453,7 @@ typedef struct gitem_s
 //
 typedef struct
 {
-	char		helpmessage1[512];
-	char		helpmessage2[512];
-	int			helpchanged;	// flash F1 icon if non 0, play sound
-								// and increment only if 1, 2, or 3
-
 	gclient_t	*clients;		// [maxclients]
-
-	// can't store spawnpoint in level, because
-	// it would get overwritten by the savegame restore
-	char		spawnpoint[512];	// needed for coop respawns
 
 	// store latched cvars here that we want to get at often
 	int			maxclients;
@@ -465,7 +465,7 @@ typedef struct
 	// items
 	int			num_items;
 
-	qboolean	autosaved;
+	char		gamedir[MAX_QPATH];
 } game_locals_t;
 
 
@@ -489,41 +489,26 @@ typedef struct
 	vec3_t		intermission_origin;
 	vec3_t		intermission_angle;
 
-	edict_t		*sight_client;	// changed once each frame for coop games
-
-	edict_t		*sight_entity;
-	int			sight_entity_framenum;
-	edict_t		*sound_entity;
-	int			sound_entity_framenum;
-	edict_t		*sound2_entity;
-	int			sound2_entity_framenum;
-
 	int			pic_health;
-
-	int			total_secrets;
-	int			found_secrets;
-
-	int			total_goals;
-	int			found_goals;
-
-	int			total_monsters;
-	int			killed_monsters;
 
 	edict_t		*current_entity;	// entity running from G_RunFrame
 	int			body_que;			// dead bodies
 
-	int			power_cubes;		// ugly necessity for coop
-
 	//tdm stuff
-	int			match_start_framenum;
-	int			match_end_framenum;
-	int			match_score_end_framenum;
-	int			next_ready_nag_framenum;
-	int			match_resume_framenum;
-	const char	*entity_string;
-	edict_t		*tdm_timeout_caller;
-	int			realframenum;
-	int			last_tdm_match_status;
+	int				match_start_framenum;
+	int				match_end_framenum;
+	int				match_score_end_framenum;
+	int				next_ready_nag_framenum;
+	int				match_resume_framenum;
+	const char		*entity_string;
+	teamplayer_t	*tdm_timeout_caller;
+	int				realframenum;
+	int				last_tdm_match_status;
+	qboolean		tdm_pseudo_1v1mode;
+	int				timeout_end_framenum;
+
+	int				numspawns;
+	edict_t			*spawns[32];
 } level_locals_t;
 
 
@@ -685,6 +670,7 @@ extern	int	body_armor_index;*/
 #define MOD_HIT				32
 #define MOD_TARGET_BLASTER	33
 #define MOD_FRIENDLY_FIRE	0x8000000
+//if altering any of these, be sure to update the weaponToTDMG lookup table!!
 
 extern	int	meansOfDeath;
 
@@ -696,18 +682,18 @@ extern	edict_t			*g_edicts;
 #define	LLOFS(x) (int)&(((level_locals_t *)0)->x)
 #define	CLOFS(x) (int)&(((gclient_t *)0)->x)
 
-#ifdef random
+/*#ifdef random
 #undef random
 #endif
 
 #define random()	((rand () & 0x7fff) / ((float)0x7fff))
-#define crandom()	(2.0f * (random() - 0.5f))
+#define crandom()	(2.0f * (random() - 0.5f))*/
 
 extern	cvar_t	*maxentities;
-extern	cvar_t	*deathmatch;
-extern	cvar_t	*coop;
+//extern	cvar_t	*deathmatch;
+//extern	cvar_t	*coop;
 extern	cvar_t	*dmflags;
-extern	cvar_t	*skill;
+//extern	cvar_t	*skill;
 extern	cvar_t	*fraglimit;
 extern	cvar_t	*timelimit;
 extern	cvar_t	*password;
@@ -773,6 +759,14 @@ extern	cvar_t	*g_teleporter_nofreeze;
 extern	cvar_t	*g_overtime;
 extern	cvar_t	*g_tie_mode;
 extern	cvar_t	*g_gamemode;
+extern	cvar_t	*g_respawn_time;
+extern	cvar_t	*g_max_timeout;
+extern	cvar_t	*g_1v1_timeout;
+
+extern	cvar_t	*g_http_enabled;
+extern	cvar_t	*g_http_bind;
+extern	cvar_t	*g_http_proxy;
+extern	cvar_t	*g_http_baseurl;
 
 #define world	(&g_edicts[0])
 
@@ -819,6 +813,15 @@ typedef struct
 extern	field_t fields[];
 extern	const gitem_t	itemlist[];
 
+// a sound without an ent or pos will be a local only sound
+#define	SND_VOLUME		(1<<0)		// a byte
+#define	SND_ATTENUATION	(1<<1)		// a byte
+#define	SND_POS			(1<<2)		// three coordinates
+#define	SND_ENT			(1<<3)		// a short 0-2: channel, 3-12: entity
+#define	SND_OFFSET		(1<<4)		// a byte, msec offset from frame start
+
+#define DEFAULT_SOUND_PACKET_VOLUME	1.0f
+#define DEFAULT_SOUND_PACKET_ATTENUATION 1.0f
 
 //
 // g_cmds.c
@@ -838,6 +841,7 @@ const gitem_t	*FindItem (const char *pickup_name);
 edict_t *Drop_Item (edict_t *ent, const gitem_t *item);
 void SetRespawn (edict_t *ent, float delay);
 void ChangeWeapon (edict_t *ent);
+void SetVWepInfo (edict_t *ent);
 void SpawnItem (edict_t *ent, const gitem_t *item);
 void Think_Weapon (edict_t *ent);
 int ArmorIndex (edict_t *ent);
@@ -861,6 +865,8 @@ void	G_InitEdict (edict_t *e);
 edict_t	*G_Spawn (void);
 void	G_FreeEdict (edict_t *e);
 
+void	G_StuffCmd (edict_t *e, const char *fmt, ...);
+void	G_UnicastSound (edict_t *ent, int index, qboolean reliable);
 void	G_TouchTriggers (edict_t *ent);
 void	G_TouchSolids (edict_t *ent);
 
@@ -999,12 +1005,13 @@ typedef enum
 	MM_TIMEOUT,
 	MM_OVERTIME,
 	MM_SUDDEN_DEATH,
+	MM_SCOREBOARD,
 } matchmode_t;
 
 void ParseEntityString (qboolean respawn);
 
 void TDM_Init (void);
-void TDM_SetupClient (edict_t *ent);
+qboolean TDM_SetupClient (edict_t *ent);
 void TDM_TeamsChanged (void);
 void TDM_ShowTeamMenu (edict_t *ent);
 void TDM_UpdateConfigStrings (qboolean forceUpdate);
@@ -1014,7 +1021,7 @@ qboolean TDM_Command (const char *cmd, edict_t *ent);
 void TDM_CheckMatchStart (void);
 void TDM_CheckTimes (void);
 void TDM_ResetGameState (void);
-void TDM_ScoreBoardMessage (edict_t *ent);
+char *TDM_ScoreBoardString (edict_t *ent);
 void TDM_MapChanged (void);
 void TDM_LeftTeam (edict_t *ent);
 void TDM_Disconnected (edict_t *ent);
@@ -1022,26 +1029,143 @@ qboolean TDM_ServerCommand (const char *cmd);
 void TDM_UpdateTeamNames (void);
 void TDM_SetupSounds (void);
 void TDM_GlobalClientSound (edict_t *ent, int channel, int soundindex, float volume, float attenuation, float timeofs);
+char *TDM_SetColorText (char *buffer);
+void TDM_PlayerNameChanged (edict_t *ent);
+void TDM_WeaponFired (edict_t *ent);
+void TDM_Error (const char *fmt, ...);
+
+void TDM_BeginDamage (void);
+void TDM_Damage (edict_t *ent, edict_t *victim, edict_t *inflictor, int damage);
+void TDM_EndDamage (void);
+
+void TDM_ItemSpawned (edict_t *ent);
+void TDM_ItemGrabbed (edict_t *ent, edict_t *player);
+
+void TDM_MacroExpand (edict_t *ent, char *text, int maxlength);
 
 extern matchmode_t	tdm_match_status;
 extern pmenu_t joinmenu[];
 #define MENUSIZE_JOINMENU 18
 
-//============================================================================
+void HTTP_RunDownloads (void);
 
-// client_t->anim_priority
-#define	ANIM_BASIC		0		// stand / run
-#define	ANIM_WAVE		1
-#define	ANIM_JUMP		2
-#define	ANIM_PAIN		3
-#define	ANIM_ATTACK		4
-#define	ANIM_DEATH		5
-#define	ANIM_REVERSE	6
+//============================================================================
 
 #define	TEAM_SPEC	0
 #define TEAM_A		1
 #define TEAM_B		2
 #define	MAX_TEAMS	3
+
+//combined, these must be < 64 plus some slop for other configstring text
+#define	MAX_TEAMNAME_LENGTH 24
+#define	MAX_TEAMSKIN_LENGTH	24
+
+//this structure is used to hold information about match
+//participants until the match is over, when it is copied
+//to oldmatch. this allows us to track stats/scores even
+//for disconnected players and such.
+enum
+{
+	TDMG_INVALID,
+	TDMG_WORLD,
+	TDMG_BLASTER,
+	TDMG_SHOTGUN,
+	TDMG_SSHOTGUN,
+	TDMG_MACHINEGUN,
+	TDMG_CHAINGUN,
+	TDMG_HANDGRENADE,
+	TDMG_GRENADELAUNCHER,
+	TDMG_ROCKETLAUNCHER,
+	TDMG_HYPERBLASTER,
+	TDMG_RAILGUN,
+	TDMG_BFG10K,
+	TDMG_MAX,
+};
+
+struct teamplayer_s
+{
+	char		name[16];
+	unsigned	team;
+	unsigned	ping;
+	unsigned	joincode;
+
+	//actual players killed
+	unsigned	enemy_kills;
+	unsigned	team_kills;
+	unsigned	suicides;
+	unsigned	deaths;
+
+	//individual weapons
+	unsigned	shots_fired[TDMG_MAX];
+	unsigned	shots_hit[TDMG_MAX];
+
+	//incremented each time a kill is made with a weapon or a death is incurred by one
+	unsigned	killweapons[TDMG_MAX];
+	unsigned	deathweapons[TDMG_MAX];
+
+	//total damage per weapon dealt/received
+	unsigned	damage_dealt[TDMG_MAX];
+	unsigned	damage_received[TDMG_MAX];
+
+	unsigned	items_collected[MAX_ITEMS];
+
+	//pointer to the entity - NULL if they disconnected
+	edict_t		*client;
+
+	//preserved for joincode
+	edict_t		*saved_entity;
+	gclient_t	*saved_client;
+
+	//link to matchinfo
+	matchinfo_t	*matchinfo;
+};
+
+struct matchinfo_s
+{
+	int				game_mode;
+	int				timelimit;
+	int				winning_team;
+	char			mapname[MAX_QPATH];
+	char			scoreboard_string[1400];
+	unsigned		item_spawn_count[MAX_ITEMS];
+
+	char			teamnames[MAX_TEAMS][MAX_TEAMNAME_LENGTH];
+
+	//base of teamplayers array
+	teamplayer_t	*teamplayers;
+	int				num_teamplayers;
+};
+
+extern matchinfo_t	current_matchinfo;
+extern matchinfo_t	old_matchinfo;
+
+typedef enum
+{
+	VOTE_NOT_ENOUGH_VOTES,
+	VOTE_NOT_SUCCESS,
+	VOTE_SUCCESS,
+} vote_success_t;
+
+typedef struct vote_s
+{
+	unsigned		flags;
+	unsigned		newtimelimit;
+	unsigned		newweaponflags;
+	unsigned		newpowerupflags;
+	unsigned		newmodeflags;
+	char			newmap[MAX_QPATH];
+	edict_t			*victim;
+	edict_t			*initiator;
+	int				end_frame;
+	qboolean		active;
+	vote_success_t	success;
+	int				telemode;
+	int				switchmode;
+	int				tiemode;
+	int				gamemode;
+	unsigned		overtimemins;
+	char			configname[32];
+} vote_t;
 
 enum
 {
@@ -1069,15 +1193,14 @@ typedef struct
 {
 	int			players;
 	int			score;
-	char		name[32];
-	char		skin[32];
+	int			oldscore;
+	char		name[MAX_TEAMNAME_LENGTH];
+	char		skin[MAX_TEAMSKIN_LENGTH];
 	char		statname[32];
 	char		statstatus[16];
 	qboolean	locked;
 	qboolean	ready;
 	edict_t		*captain;
-	int			sounds[SND_MAX];
-	//char		*soundpath[SND_MAX];
 } teaminfo_t;
 
 extern int soundcache[MAX_SOUNDS];
@@ -1097,6 +1220,22 @@ typedef enum
 
 extern matchmode_t	tdm_match_status;
 extern teaminfo_t	teaminfo[MAX_TEAMS];
+
+// client_t->anim_priority
+#define	ANIM_BASIC		0		// stand / run
+#define	ANIM_WAVE		1
+#define	ANIM_JUMP		2
+#define	ANIM_PAIN		3
+#define	ANIM_ATTACK		4
+#define	ANIM_DEATH		5
+#define	ANIM_REVERSE	6
+
+enum
+{
+	CHASE_EYES,
+	CHASE_THIRDPERSON,
+	CHASE_MAX,
+};
 
 // client data that stays across multiple level loads
 typedef struct
@@ -1130,6 +1269,7 @@ typedef struct
 	unsigned		last_command_frame;
 	edict_t			*last_invited_by;
 	player_vote_t	vote;
+	teamplayer_t	*teamplayerinfo;
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),
@@ -1147,7 +1287,7 @@ struct gclient_s
 	pmove_state_t		old_pmove;	// for detecting out-of-pmove changes
 
 	qboolean	showscores;			// set layout stat
-	//qboolean	showinventory;		// set layout stat
+	qboolean	showoldscores;			// set layout stat
 
 	int			ammo_index;
 
@@ -1211,6 +1351,7 @@ struct gclient_s
 
 	edict_t		*chase_target;		// player we are chasing
 	qboolean	update_chase;		// need to update chase info?
+	int			chase_mode;
 
 	// values saved and restored from edicts when changing levels
 	int			savedFlags;
@@ -1245,6 +1386,8 @@ typedef enum
 	ENT_DOOR_TRIGGER,
 	ENT_PLAT_TRIGGER,
 	ENT_BODYQUE,
+	ENT_GHOST,
+	ENT_GIB,
 } enttype_t;
 
 struct edict_s

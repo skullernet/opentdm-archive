@@ -24,97 +24,11 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo);
 
 void SP_misc_teleporter_dest (edict_t *ent);
 
-//
-// Gross, ugly, disgustuing hack section
-//
-
-// this function is an ugly as hell hack to fix some map flaws
-//
-// the coop spawn spots on some maps are SNAFU.  There are coop spots
-// with the wrong targetname as well as spots with no name at all
-//
-// we use carnal knowledge of the maps to fix the coop spot targetnames to match
-// that of the nearest named single player spot
-
-static void SP_FixCoopSpots (edict_t *self)
-{
-	edict_t	*spot;
-	vec3_t	d;
-
-	spot = NULL;
-
-	while(1)
-	{
-		spot = G_Find(spot, FOFS(classname), "info_player_start");
-		if (!spot)
-			return;
-		if (!spot->targetname)
-			continue;
-		VectorSubtract(self->s.origin, spot->s.origin, d);
-		if (VectorLength(d) < 384)
-		{
-			if ((!self->targetname) || Q_stricmp(self->targetname, spot->targetname) != 0)
-			{
-//				gi.dprintf("FixCoopSpots changed %s at %s targetname from %s to %s\n", self->classname, vtos(self->s.origin), self->targetname, spot->targetname);
-				self->targetname = spot->targetname;
-			}
-			return;
-		}
-	}
-}
-
-// now if that one wasn't ugly enough for you then try this one on for size
-// some maps don't have any coop spots at all, so we need to create them
-// where they should have been
-
-static void SP_CreateCoopSpots (edict_t *self)
-{
-	edict_t	*spot;
-
-	if(Q_stricmp(level.mapname, "security") == 0)
-	{
-		spot = G_Spawn();
-		spot->classname = "info_player_coop";
-		spot->s.origin[0] = 188 - 64;
-		spot->s.origin[1] = -164;
-		spot->s.origin[2] = 80;
-		spot->targetname = "jail3";
-		spot->s.angles[1] = 90;
-
-		spot = G_Spawn();
-		spot->classname = "info_player_coop";
-		spot->s.origin[0] = 188 + 64;
-		spot->s.origin[1] = -164;
-		spot->s.origin[2] = 80;
-		spot->targetname = "jail3";
-		spot->s.angles[1] = 90;
-
-		spot = G_Spawn();
-		spot->classname = "info_player_coop";
-		spot->s.origin[0] = 188 + 128;
-		spot->s.origin[1] = -164;
-		spot->s.origin[2] = 80;
-		spot->targetname = "jail3";
-		spot->s.angles[1] = 90;
-
-		return;
-	}
-}
-
-
 /*QUAKED info_player_start (1 0 0) (-16 -16 -24) (16 16 32)
 The normal starting point for a level.
 */
 void SP_info_player_start(edict_t *self)
 {
-	if (!coop->value)
-		return;
-	if(Q_stricmp(level.mapname, "security") == 0)
-	{
-		// invoke one of our gross, ugly, disgusting hacks
-		self->think = SP_CreateCoopSpots;
-		self->nextthink = level.time + 1;
-	}
 }
 
 /*QUAKED info_player_deathmatch (1 0 1) (-16 -16 -24) (16 16 32)
@@ -122,11 +36,6 @@ potential spawning position for deathmatch games
 */
 void SP_info_player_deathmatch(edict_t *self)
 {
-	if (!deathmatch->value)
-	{
-		G_FreeEdict (self);
-		return;
-	}
 	SP_misc_teleporter_dest (self);
 }
 
@@ -136,31 +45,7 @@ potential spawning position for coop games
 
 void SP_info_player_coop(edict_t *self)
 {
-	if (!coop->value)
-	{
-		G_FreeEdict (self);
-		return;
-	}
-
-	if((Q_stricmp(level.mapname, "jail2") == 0)   ||
-	   (Q_stricmp(level.mapname, "jail4") == 0)   ||
-	   (Q_stricmp(level.mapname, "mine1") == 0)   ||
-	   (Q_stricmp(level.mapname, "mine2") == 0)   ||
-	   (Q_stricmp(level.mapname, "mine3") == 0)   ||
-	   (Q_stricmp(level.mapname, "mine4") == 0)   ||
-	   (Q_stricmp(level.mapname, "lab") == 0)     ||
-	   (Q_stricmp(level.mapname, "boss1") == 0)   ||
-	   (Q_stricmp(level.mapname, "fact3") == 0)   ||
-	   (Q_stricmp(level.mapname, "biggun") == 0)  ||
-	   (Q_stricmp(level.mapname, "space") == 0)   ||
-	   (Q_stricmp(level.mapname, "command") == 0) ||
-	   (Q_stricmp(level.mapname, "power2") == 0) ||
-	   (Q_stricmp(level.mapname, "strike") == 0))
-	{
-		// invoke one of our gross, ugly, disgusting hacks
-		self->think = SP_FixCoopSpots;
-		self->nextthink = level.time + 1;
-	}
+	G_FreeEdict (self);
 }
 
 
@@ -215,209 +100,223 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 	char		*message2;
 	qboolean	ff;
 
-	if (coop->value && attacker->client)
-		meansOfDeath |= MOD_FRIENDLY_FIRE;
 
-	if (deathmatch->value || coop->value)
+
+	ff = meansOfDeath & MOD_FRIENDLY_FIRE;
+	mod = meansOfDeath & ~MOD_FRIENDLY_FIRE;
+	message = NULL;
+	message2 = "";
+
+	switch (mod)
 	{
-		ff = meansOfDeath & MOD_FRIENDLY_FIRE;
-		mod = meansOfDeath & ~MOD_FRIENDLY_FIRE;
-		message = NULL;
-		message2 = "";
+	case MOD_SUICIDE:
+		message = "suicides";
+		break;
+	case MOD_FALLING:
+		message = "cratered";
+		break;
+	case MOD_CRUSH:
+		message = "was squished";
+		break;
+	case MOD_WATER:
+		message = "sank like a rock";
+		break;
+	case MOD_SLIME:
+		message = "melted";
+		break;
+	case MOD_LAVA:
+		message = "does a back flip into the lava";
+		break;
+	case MOD_EXPLOSIVE:
+	case MOD_BARREL:
+		message = "blew up";
+		break;
+	case MOD_EXIT:
+		message = "found a way out";
+		break;
+	case MOD_TARGET_LASER:
+		message = "saw the light";
+		break;
+	case MOD_TARGET_BLASTER:
+		message = "got blasted";
+		break;
+	case MOD_BOMB:
+	case MOD_SPLASH:
+	case MOD_TRIGGER_HURT:
+		message = "was in the wrong place";
+		break;
+	}
 
+	if (attacker == self)
+	{
 		switch (mod)
 		{
-		case MOD_SUICIDE:
-			message = "suicides";
+		case MOD_HELD_GRENADE:
+			message = "tried to put the pin back in";
 			break;
-		case MOD_FALLING:
-			message = "cratered";
+		case MOD_HG_SPLASH:
+		case MOD_G_SPLASH:
+			if (IsNeutral(self))
+				message = "tripped on its own grenade";
+			else if (IsFemale(self))
+				message = "tripped on her own grenade";
+			else
+				message = "tripped on his own grenade";
 			break;
-		case MOD_CRUSH:
-			message = "was squished";
+		case MOD_R_SPLASH:
+			if (IsNeutral(self))
+				message = "blew itself up";
+			else if (IsFemale(self))
+				message = "blew herself up";
+			else
+				message = "blew himself up";
 			break;
-		case MOD_WATER:
-			message = "sank like a rock";
+		case MOD_BFG_BLAST:
+			message = "should have used a smaller gun";
 			break;
-		case MOD_SLIME:
-			message = "melted";
+		default:
+			if (IsNeutral(self))
+				message = "killed itself";
+			else if (IsFemale(self))
+				message = "killed herself";
+			else
+				message = "killed himself";
 			break;
-		case MOD_LAVA:
-			message = "does a back flip into the lava";
-			break;
-		case MOD_EXPLOSIVE:
-		case MOD_BARREL:
-			message = "blew up";
-			break;
-		case MOD_EXIT:
-			message = "found a way out";
-			break;
-		case MOD_TARGET_LASER:
-			message = "saw the light";
-			break;
-		case MOD_TARGET_BLASTER:
-			message = "got blasted";
-			break;
-		case MOD_BOMB:
-		case MOD_SPLASH:
-		case MOD_TRIGGER_HURT:
-			message = "was in the wrong place";
-			break;
-		}
-		if (attacker == self)
-		{
-			switch (mod)
-			{
-			case MOD_HELD_GRENADE:
-				message = "tried to put the pin back in";
-				break;
-			case MOD_HG_SPLASH:
-			case MOD_G_SPLASH:
-				if (IsNeutral(self))
-					message = "tripped on its own grenade";
-				else if (IsFemale(self))
-					message = "tripped on her own grenade";
-				else
-					message = "tripped on his own grenade";
-				break;
-			case MOD_R_SPLASH:
-				if (IsNeutral(self))
-					message = "blew itself up";
-				else if (IsFemale(self))
-					message = "blew herself up";
-				else
-					message = "blew himself up";
-				break;
-			case MOD_BFG_BLAST:
-				message = "should have used a smaller gun";
-				break;
-			default:
-				if (IsNeutral(self))
-					message = "killed itself";
-				else if (IsFemale(self))
-					message = "killed herself";
-				else
-					message = "killed himself";
-				break;
-			}
-		}
-		if (message)
-		{
-			gi.bprintf (PRINT_MEDIUM, "%s %s.\n", self->client->pers.netname, message);
-			if (tdm_match_status >= MM_PLAYING)
-			{
-				if (deathmatch->value)
-					self->client->resp.score--;
-				teaminfo[self->client->resp.team].score--;
-			}
-			self->enemy = NULL;
-			return;
-		}
-
-		self->enemy = attacker;
-		if (attacker && attacker->client)
-		{
-			switch (mod)
-			{
-			case MOD_BLASTER:
-				message = "was blasted by";
-				break;
-			case MOD_SHOTGUN:
-				message = "was gunned down by";
-				break;
-			case MOD_SSHOTGUN:
-				message = "was blown away by";
-				message2 = "'s super shotgun";
-				break;
-			case MOD_MACHINEGUN:
-				message = "was machinegunned by";
-				break;
-			case MOD_CHAINGUN:
-				message = "was cut in half by";
-				message2 = "'s chaingun";
-				break;
-			case MOD_GRENADE:
-				message = "was popped by";
-				message2 = "'s grenade";
-				break;
-			case MOD_G_SPLASH:
-				message = "was shredded by";
-				message2 = "'s shrapnel";
-				break;
-			case MOD_ROCKET:
-				message = "ate";
-				message2 = "'s rocket";
-				break;
-			case MOD_R_SPLASH:
-				message = "almost dodged";
-				message2 = "'s rocket";
-				break;
-			case MOD_HYPERBLASTER:
-				message = "was melted by";
-				message2 = "'s hyperblaster";
-				break;
-			case MOD_RAILGUN:
-				message = "was railed by";
-				break;
-			case MOD_BFG_LASER:
-				message = "saw the pretty lights from";
-				message2 = "'s BFG";
-				break;
-			case MOD_BFG_BLAST:
-				message = "was disintegrated by";
-				message2 = "'s BFG blast";
-				break;
-			case MOD_BFG_EFFECT:
-				message = "couldn't hide from";
-				message2 = "'s BFG";
-				break;
-			case MOD_HANDGRENADE:
-				message = "caught";
-				message2 = "'s handgrenade";
-				break;
-			case MOD_HG_SPLASH:
-				message = "didn't see";
-				message2 = "'s handgrenade";
-				break;
-			case MOD_HELD_GRENADE:
-				message = "feels";
-				message2 = "'s pain";
-				break;
-			case MOD_TELEFRAG:
-				message = "tried to invade";
-				message2 = "'s personal space";
-				break;
-			}
-			if (message)
-			{
-				if (deathmatch->value)
-				{
-					gi.bprintf (PRINT_MEDIUM,"%s %s %s%s\n", self->client->pers.netname, message, attacker->client->pers.netname, message2);
-
-					if (tdm_match_status >= MM_PLAYING)
-					{
-						if (ff)
-						{
-							attacker->client->resp.score--;
-							teaminfo[attacker->client->resp.team].score--;
-						}
-						else
-						{
-							attacker->client->resp.score++;
-							teaminfo[attacker->client->resp.team].score++;
-						}
-					}
-				}
-				return;
-			}
 		}
 	}
 
+	if (message)
+	{
+		gi.bprintf (PRINT_MEDIUM, "%s %s.\n", self->client->pers.netname, message);
+
+		//take note of this, if we touch teamplayerinfo < MM_PLAYING we crash!
+		if (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD)
+		{
+			self->client->resp.score--;
+			teaminfo[self->client->resp.team].score--;
+			self->client->resp.teamplayerinfo->deaths++;
+			self->client->resp.teamplayerinfo->suicides++;
+		}
+		self->enemy = NULL;
+		return;
+	}
+
+	self->enemy = attacker;
+	if (attacker && attacker->client)
+	{
+		switch (mod)
+		{
+		case MOD_BLASTER:
+			message = "was blasted by";
+			break;
+		case MOD_SHOTGUN:
+			message = "was gunned down by";
+			break;
+		case MOD_SSHOTGUN:
+			message = "was blown away by";
+			message2 = "'s super shotgun";
+			break;
+		case MOD_MACHINEGUN:
+			message = "was machinegunned by";
+			break;
+		case MOD_CHAINGUN:
+			message = "was cut in half by";
+			message2 = "'s chaingun";
+			break;
+		case MOD_GRENADE:
+			message = "was popped by";
+			message2 = "'s grenade";
+			break;
+		case MOD_G_SPLASH:
+			message = "was shredded by";
+			message2 = "'s shrapnel";
+			break;
+		case MOD_ROCKET:
+			message = "ate";
+			message2 = "'s rocket";
+			break;
+		case MOD_R_SPLASH:
+			message = "almost dodged";
+			message2 = "'s rocket";
+			break;
+		case MOD_HYPERBLASTER:
+			message = "was melted by";
+			message2 = "'s hyperblaster";
+			break;
+		case MOD_RAILGUN:
+			message = "was railed by";
+			break;
+		case MOD_BFG_LASER:
+			message = "saw the pretty lights from";
+			message2 = "'s BFG";
+			break;
+		case MOD_BFG_BLAST:
+			message = "was disintegrated by";
+			message2 = "'s BFG blast";
+			break;
+		case MOD_BFG_EFFECT:
+			message = "couldn't hide from";
+			message2 = "'s BFG";
+			break;
+		case MOD_HANDGRENADE:
+			message = "caught";
+			message2 = "'s handgrenade";
+			break;
+		case MOD_HG_SPLASH:
+			message = "didn't see";
+			message2 = "'s handgrenade";
+			break;
+		case MOD_HELD_GRENADE:
+			message = "feels";
+			message2 = "'s pain";
+			break;
+		case MOD_TELEFRAG:
+			message = "tried to invade";
+			message2 = "'s personal space";
+			break;
+		}
+		if (message)
+		{
+			static char tktext[] = " ** team kill **";
+			static char	*tkmessage = NULL;
+
+			if (!tkmessage)
+				tkmessage = TDM_SetColorText (tktext);
+
+			gi.bprintf (PRINT_MEDIUM, "%s %s %s%s%s\n", self->client->pers.netname, message, attacker->client->pers.netname, message2, ff ? tkmessage : "");
+
+			//take note of this, if we touch teamplayerinfo < MM_PLAYING we crash!
+			if (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD)
+			{
+				if (ff)
+				{
+					attacker->client->resp.score--;
+					teaminfo[attacker->client->resp.team].score--;
+
+					self->client->resp.teamplayerinfo->deaths++;
+					attacker->client->resp.teamplayerinfo->team_kills++;
+				}
+				else
+				{
+					attacker->client->resp.score++;
+					teaminfo[attacker->client->resp.team].score++;
+
+					self->client->resp.teamplayerinfo->deaths++;
+					attacker->client->resp.teamplayerinfo->enemy_kills++;
+				}
+			}
+		}
+		return;
+	}
+
 	gi.bprintf (PRINT_MEDIUM,"%s died.\n", self->client->pers.netname);
-	if (deathmatch->value && tdm_match_status >= MM_PLAYING)
+
+	//take note of this, if we touch teamplayerinfo < MM_PLAYING we crash!
+	if (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD)
 	{
 		self->client->resp.score--;
 		teaminfo[self->client->resp.team].score--;
+		self->client->resp.teamplayerinfo->deaths++;
 	}
 }
 
@@ -431,11 +330,8 @@ void TossClientWeapon (edict_t *self)
 	qboolean		quad;
 	float			spread;
 
-	if (!deathmatch->value)
-		return;
-
 	//no drops in warmup / itdm
-	if (tdm_match_status < MM_PLAYING)
+	if (tdm_match_status < MM_PLAYING || tdm_match_status == MM_SCOREBOARD)
 		return;
 
 	if ((int)g_gamemode->value == GAMEMODE_ITDM)
@@ -444,7 +340,8 @@ void TossClientWeapon (edict_t *self)
 	item = self->client->weapon;
 	if (!self->client->inventory[self->client->ammo_index] )
 		item = NULL;
-	if (item && (strcmp (item->pickup_name, "Blaster") == 0))
+
+	if (ITEM_INDEX(item) == ITEM_WEAPON_BLASTER)
 		item = NULL;
 
 	if (!((int)(dmflags->value) & DF_QUAD_DROP))
@@ -546,15 +443,14 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 	if (!self->deadflag)
 	{
-		self->client->respawn_framenum = level.time + 1.0 * (1 / FRAMETIME);
+		self->client->respawn_framenum = level.time + g_respawn_time->value * (1 / FRAMETIME);
 		LookAtKiller (self, inflictor, attacker);
 		self->client->ps.pmove.pm_type = PM_DEAD;
 		ClientObituary (self, inflictor, attacker);
 
 		TossClientWeapon (self);
 
-		if (deathmatch->value)
-			Cmd_Help_f (self);		// show scores
+		Cmd_Help_f (self);		// show scores
 
 		// clear inventory
 		// this is kind of ugly, but it's how we want to handle keys in coop
@@ -611,7 +507,7 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 				self->client->anim_end = FRAME_death308;
 				break;
 			}
-			TDM_GlobalClientSound (self, CHAN_VOICE, soundcache[SND_DEATH1 + rand() % 4], 1, ATTN_NORM, 0);
+			TDM_GlobalClientSound (self, CHAN_VOICE, soundcache[SND_DEATH1 + genrand_int32() % 4], 1, ATTN_NORM, 0);
 		}
 	}
 
@@ -659,6 +555,9 @@ float	PlayersRangeFromSpot (edict_t *spot)
 		if (player->health <= 0)
 			continue;
 
+		if (!player->client->resp.team)
+			continue;
+
 		VectorSubtract (spot->s.origin, player->s.origin, v);
 		playerdistance = VectorLength (v);
 
@@ -671,26 +570,56 @@ float	PlayersRangeFromSpot (edict_t *spot)
 
 /*
 ================
-SelectRandomDeathmatchSpawnPoint
+SelectRandomDeathmatchSpawnPointAvoidingTelefrag
+
+go to a random point, but NOT points with other players
+on them
+================
+*/
+edict_t *SelectRandomDeathmatchSpawnPointAvoidingTelefrag (void)
+{
+	int		i;
+	edict_t	*spawn;
+
+	//all spots could be taken, so don't while(1)
+	for (i = 0; i < 50; i++)
+	{
+		spawn = level.spawns[genrand_int32() % level.numspawns];
+
+		//64 should be safe enough...
+		if (PlayersRangeFromSpot (spawn) < 64)
+			continue;
+
+		return spawn;
+	}
+
+	//oh well, whatever works..
+	return spawn;
+}
+
+/*
+================
+SelectRandomDeathmatchSpawnPointAvoidingTwoClosest
 
 go to a random point, but NOT the two points closest
 to other players
 ================
 */
-edict_t *SelectRandomDeathmatchSpawnPoint (void)
+edict_t *SelectRandomDeathmatchSpawnPointAvoidingTwoClosest (void)
 {
 	edict_t	*spot, *spot1, *spot2;
-	int		count = 0;
 	int		selection;
+	int		i;
 	float	range, range1, range2;
 
 	spot = NULL;
 	range1 = range2 = 99999;
 	spot1 = spot2 = NULL;
 
-	while ((spot = G_Find (spot, FOFS(classname), "info_player_deathmatch")) != NULL)
+	for (i = 0; i < level.numspawns; i++)
 	{
-		count++;
+		spot = level.spawns[i];
+
 		range = PlayersRangeFromSpot(spot);
 		if (range < range1)
 		{
@@ -704,25 +633,17 @@ edict_t *SelectRandomDeathmatchSpawnPoint (void)
 		}
 	}
 
-	if (!count)
+	if (!level.numspawns)
 		return NULL;
 
-	if (count <= 2)
-	{
+	if (level.numspawns <= 2)
 		spot1 = spot2 = NULL;
-	}
-	else
-		count -= 2;
 
-	selection = rand() % count;
-
-	spot = NULL;
 	do
 	{
-		spot = G_Find (spot, FOFS(classname), "info_player_deathmatch");
-		if (spot == spot1 || spot == spot2)
-			selection++;
-	} while(selection--);
+		selection = genrand_int32() % level.numspawns;
+		spot = level.spawns[selection];
+	} while (spot == spot1 || spot == spot2);
 
 	return spot;
 }
@@ -768,49 +689,14 @@ edict_t *SelectFarthestDeathmatchSpawnPoint (void)
 
 edict_t *SelectDeathmatchSpawnPoint (void)
 {
+	if (tdm_match_status >= MM_PLAYING && level.framenum - level.match_start_framenum < 10)
+		return SelectRandomDeathmatchSpawnPointAvoidingTelefrag ();
+
 	if ( (int)(dmflags->value) & DF_SPAWN_FARTHEST)
 		return SelectFarthestDeathmatchSpawnPoint ();
 	else
-		return SelectRandomDeathmatchSpawnPoint ();
+		return SelectRandomDeathmatchSpawnPointAvoidingTwoClosest ();
 }
-
-
-edict_t *SelectCoopSpawnPoint (edict_t *ent)
-{
-	int		index;
-	edict_t	*spot = NULL;
-	char	*target;
-
-	index = ent->client - game.clients;
-
-	// player 0 starts in normal player spawn point
-	if (!index)
-		return NULL;
-
-	spot = NULL;
-
-	// assume there are four coop spots at each spawnpoint
-	while (1)
-	{
-		spot = G_Find (spot, FOFS(classname), "info_player_coop");
-		if (!spot)
-			return NULL;	// we didn't have enough...
-
-		target = spot->targetname;
-		if (!target)
-			target = "";
-		if ( Q_stricmp(game.spawnpoint, target) == 0 )
-		{	// this is a coop spawn point for one of the clients here
-			index--;
-			if (!index)
-				return spot;		// this is it
-		}
-	}
-
-
-	return spot;
-}
-
 
 /*
 ===========
@@ -823,34 +709,27 @@ void	SelectSpawnPoint (edict_t *ent, vec3_t origin, vec3_t angles)
 {
 	edict_t	*spot = NULL;
 
-	if (deathmatch->value)
+	if (ent->client->resp.team)
+	{
 		spot = SelectDeathmatchSpawnPoint ();
-	else if (coop->value)
-		spot = SelectCoopSpawnPoint (ent);
+	}
 
 	// find a single player start spot
 	if (!spot)
 	{
 		while ((spot = G_Find (spot, FOFS(classname), "info_player_start")) != NULL)
 		{
-			if (!game.spawnpoint[0] && !spot->targetname)
-				break;
-
-			if (!game.spawnpoint[0] || !spot->targetname)
-				continue;
-
-			if (Q_stricmp(game.spawnpoint, spot->targetname) == 0)
+			if (!spot->targetname)
 				break;
 		}
 
 		if (!spot)
 		{
-			if (!game.spawnpoint[0])
-			{	// there wasn't a spawnpoint without a target, so use any
-				spot = G_Find (spot, FOFS(classname), "info_player_start");
-			}
+			// there wasn't a spawnpoint without a target, so use any
+			spot = G_Find (spot, FOFS(classname), "info_player_start");
+
 			if (!spot)
-				gi.error ("Couldn't find spawn point %s\n", game.spawnpoint);
+				gi.error ("Couldn't find spawn point\n");
 		}
 	}
 
@@ -911,6 +790,7 @@ void CopyToBodyQue (edict_t *ent)
 	gi.unlinkentity (ent);
 
 	gi.unlinkentity (body);
+
 	body->s = ent->s;
 	body->s.number = body - g_edicts;
 	body->s.event = EV_OTHER_TELEPORT;
@@ -925,6 +805,7 @@ void CopyToBodyQue (edict_t *ent)
 	body->clipmask = ent->clipmask;
 	body->owner = ent->owner;
 	body->movetype = ent->movetype;
+	body->groundentity = ent->groundentity;
 
 	body->die = body_die;
 	body->takedamage = DAMAGE_YES;
@@ -935,37 +816,29 @@ void CopyToBodyQue (edict_t *ent)
 
 void respawn (edict_t *self)
 {
-	if (deathmatch->value || coop->value)
+	// remove spectator mode
+	if (self->client->chase_target)
+		DisableChaseCam (self);
+
+	// spectator's don't leave bodies
+	if (self->movetype != MOVETYPE_NOCLIP && self->movetype != MOVETYPE_WALK)
+		CopyToBodyQue (self);
+
+	self->svflags &= ~SVF_NOCLIENT;
+
+	PutClientInServer (self);
+
+	// add a teleportation effect
+	if (!(self->svflags & SVF_NOCLIENT))
 	{
-		// remove spectator mode
-		if (self->client->chase_target)
-			DisableChaseCam (self);
+		self->s.event = EV_PLAYER_TELEPORT;
 
-		// spectator's don't leave bodies
-		if (self->movetype != MOVETYPE_NOCLIP && self->movetype != MOVETYPE_WALK)
-			CopyToBodyQue (self);
-
-		self->svflags &= ~SVF_NOCLIENT;
-
-		PutClientInServer (self);
-
-		// add a teleportation effect
-		if (!(self->svflags & SVF_NOCLIENT))
-		{
-			self->s.event = EV_PLAYER_TELEPORT;
-
-			// hold in place briefly
-			self->client->ps.pmove.pm_flags = PMF_TIME_TELEPORT;
-			self->client->ps.pmove.pm_time = 14;
-		}
-
-		self->client->respawn_framenum = level.time;
-
-		return;
+		// hold in place briefly
+		self->client->ps.pmove.pm_flags = PMF_TIME_TELEPORT;
+		self->client->ps.pmove.pm_time = 14;
 	}
 
-	// restart the entire server
-	gi.AddCommandString ("menu_loadgame\n");
+	self->client->respawn_framenum = level.time;
 }
 
 
@@ -990,6 +863,7 @@ void PutClientInServer (edict_t *ent)
 	int		i;
 	client_persistant_t	saved;
 	client_respawn_t	respsaved;
+	qboolean		rejoined;
 
 	//char		userinfo[MAX_INFO_STRING];
 
@@ -1053,7 +927,7 @@ void PutClientInServer (edict_t *ent)
 	client->ps.pmove.origin[1] = spawn_origin[1]*8;
 	client->ps.pmove.origin[2] = spawn_origin[2]*8;
 
-	if (deathmatch->value && ((int)dmflags->value & DF_FIXED_FOV))
+	if ((int)dmflags->value & DF_FIXED_FOV)
 	{
 		client->ps.fov = 90;
 	}
@@ -1093,10 +967,12 @@ void PutClientInServer (edict_t *ent)
 	VectorCopy (ent->s.angles, client->ps.viewangles);
 	VectorCopy (ent->s.angles, client->v_angle);
 
+	rejoined = false;
+
 	if (ent->client->resp.joinstate == JS_FIRST_JOIN)
 	{
-		TDM_SetupClient (ent);
 		ent->client->resp.joinstate = JS_JOINED;
+		rejoined = TDM_SetupClient (ent);
 	}
 
 	// spawn a spectator
@@ -1104,6 +980,7 @@ void PutClientInServer (edict_t *ent)
 	{
 		client->chase_target = NULL;
 
+		ent->health = 0;
 		ent->movetype = MOVETYPE_NOCLIP;
 		ent->solid = SOLID_NOT;
 		ent->svflags |= SVF_NOCLIENT;
@@ -1112,15 +989,24 @@ void PutClientInServer (edict_t *ent)
 		return;
 	}
 
-	if (!KillBox (ent))
-	{	// could't spawn in?
-	}
-
+	//we most link before killbox since it uses absmin/absmax
 	gi.linkentity (ent);
 
-	// force the current weapon up
-	client->newweapon = client->weapon;
-	ChangeWeapon (ent);
+	// force the current weapon up, or just set vwep info if we respawned a full client already,
+	// although we shouldn't need to since the info should be preserved. we don't killbox if the
+	// client rejoined since they should already be in a valid position, and the killbox extends
+	// by +- 1 unit, so it could theoretically kill the other player if they are touching :)
+	if (!rejoined)
+	{
+		KillBox (ent);
+		client->newweapon = client->weapon;
+		ChangeWeapon (ent);
+	}
+	else
+		SetVWepInfo (ent);
+
+	//just in case we spawned in the middle of a rocket or something, make sure it hits.
+	G_TouchSolids (ent);
 }
 
 /*
@@ -1147,12 +1033,13 @@ void ClientBeginDeathmatch (edict_t *ent)
 	memset (&client->pers, 0, sizeof(client->pers));
 	memset (&client->resp, 0, sizeof(client->resp));
 
-	ClientUserinfoChanged (ent, userinfo);
-
 	client->pers.connected = true;
+	ClientUserinfoChanged (ent, userinfo);
 
 	client->resp.enterframe = level.framenum;
 	client->resp.joinstate = JS_FIRST_JOIN;
+
+	gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
 
 	// locate ent at a spawn point
 	PutClientInServer (ent);
@@ -1162,9 +1049,7 @@ void ClientBeginDeathmatch (edict_t *ent)
 	gi.WriteShort (ent-g_edicts);
 	gi.WriteByte (MZ_LOGIN);
 	gi.unicast (ent, false);
-
-	gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
-
+	
 	// make sure all view stuff is valid
 	ClientEndServerFrame (ent);
 }
@@ -1225,14 +1110,24 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	
 	if (strcmp (old_name, s))
 	{
-		strncpy (ent->client->pers.netname, s, sizeof(ent->client->pers.netname)-1);
-		gi.configstring (CS_PLAYERSKINS + playernum, va ("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->resp.team].skin));
+		if (old_name[0] && tdm_match_status > MM_COUNTDOWN)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You cannot change your name in the middle of a match!\n");
+			Info_SetValueForKey (userinfo, "name", old_name);
+			G_StuffCmd (ent, "set name \"%s\"\n", old_name);
+		}
+		else
+		{
+			strncpy (ent->client->pers.netname, s, sizeof(ent->client->pers.netname)-1);
+			gi.configstring (CS_PLAYERSKINS + playernum, va ("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->resp.team].skin));
 
-		TDM_UpdateTeamNames ();
+			//this handles updating team names and configstrings
+			TDM_PlayerNameChanged (ent);
+		}
 	}
 
 	// fov
-	if (deathmatch->value && ((int)dmflags->value & DF_FIXED_FOV))
+	if ((int)dmflags->value & DF_FIXED_FOV)
 	{
 		ent->client->ps.fov = 90;
 	}
@@ -1293,43 +1188,15 @@ qboolean ClientConnect (edict_t *ent, char *userinfo)
 		return false;
 	}
 
-	// check for a spectator
-	/*value = Info_ValueForKey (userinfo, "spectator");
-	if (deathmatch->value && *value && strcmp(value, "0"))
+
+	// check for a password
+	value = Info_ValueForKey (userinfo, "password");
+	if (*password->string && strcmp(password->string, "none") && 
+		strcmp(password->string, value))
 	{
-		int i, numspec;
-
-		if (*spectator_password->string && 
-			strcmp(spectator_password->string, "none") && 
-			strcmp(spectator_password->string, value))
-		{
-			Info_SetValueForKey(userinfo, "rejmsg", "Spectator password required or incorrect.");
-			return false;
-		}
-
-		// count spectators
-		for (i = numspec = 0; i < game.maxclients; i++)
-		{
-			if (g_edicts[i+1].inuse && g_edicts[i+1].client->resp.team == TEAM_SPEC)
-				numspec++;
-		}
-
-		if (numspec >= maxspectators->value)
-		{
-			Info_SetValueForKey(userinfo, "rejmsg", "Server spectator limit is full.");
-			return false;
-		}
-	}
-	else*/
-	{
-		// check for a password
-		value = Info_ValueForKey (userinfo, "password");
-		if (*password->string && strcmp(password->string, "none") && 
-			strcmp(password->string, value))
-		{
-			Info_SetValueForKey(userinfo, "rejmsg", "Password required or incorrect.");
-			return false;
-		}
+		userinfo[0] = '\0';
+		Info_SetValueForKey (userinfo, "rejmsg", "Password required or incorrect.");
+		return false;
 	}
 
 	// they can connect
@@ -1376,22 +1243,27 @@ void ClientDisconnect (edict_t *ent)
 
 	gi.unlinkentity (ent);
 
+	ent->inuse = false;
+
+	//join code stuff is preserved in this function, don't ruin ent fields except inuse before then!
+	TDM_Disconnected (ent);
+
 	ent->s.solid = 0;
 	ent->s.effects = 0;
 	ent->s.modelindex = 0;
 	ent->s.sound = 0;
 
 	ent->solid = SOLID_NOT;
-	ent->inuse = false;
+	
 	ent->classname = "disconnected";
 	ent->client->pers.connected = false;
-
-	TDM_Disconnected (ent);
 
 	gi.bprintf (PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
 
 	playernum = ent-g_edicts-1;
-	gi.configstring (CS_PLAYERSKINS+playernum, "");
+
+	//is this really needed? it breaks all bodies left by the player.
+	//gi.configstring (CS_PLAYERSKINS+playernum, "");
 }
 
 
@@ -1445,8 +1317,11 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	client = ent->client;
 
 	//no movement during map or match intermission
-	if (level.intermissionframe || level.match_score_end_framenum || (tdm_match_status == MM_TIMEOUT && ent->client->resp.team))
+	if (tdm_match_status == MM_SCOREBOARD || (tdm_match_status == MM_TIMEOUT && ent->client->resp.team))
 	{
+		client->resp.cmd_angles[0] = SHORT2ANGLE(ucmd->angles[0]);
+		client->resp.cmd_angles[1] = SHORT2ANGLE(ucmd->angles[1]);
+		client->resp.cmd_angles[2] = SHORT2ANGLE(ucmd->angles[2]);
 		client->ps.pmove.pm_type = PM_FREEZE;
 		return;
 	}
@@ -1574,10 +1449,12 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 			if (client->menu.active)
 				return;
 
-			if (client->showscores)
+			if (client->showscores || client->showoldscores) 
 				return;
 
-			TDM_ShowTeamMenu (ent);
+			//don't show menu during timeout, since invuse/etc are disallowed
+			if (tdm_match_status != MM_TIMEOUT)
+				TDM_ShowTeamMenu (ent);
 		}
 		else if (!client->weapon_thunk)
 		{
@@ -1627,9 +1504,8 @@ any other entities in the world.
 void ClientBeginServerFrame (edict_t *ent)
 {
 	gclient_t	*client;
-	int			buttonMask;
 
-	if (level.intermissionframe)
+	if (tdm_match_status == MM_SCOREBOARD)
 		return;
 
 	client = ent->client;
@@ -1645,14 +1521,7 @@ void ClientBeginServerFrame (edict_t *ent)
 		// wait for any button just going down
 		if ( level.time > client->respawn_framenum)
 		{
-			// in deathmatch, only wait for attack button
-			if (deathmatch->value)
-				buttonMask = BUTTON_ATTACK;
-			else
-				buttonMask = -1;
-
-			if ( ( client->latched_buttons & buttonMask ) ||
-				(deathmatch->value && ((int)dmflags->value & DF_FORCE_RESPAWN) ) )
+			if ((client->latched_buttons & BUTTON_ATTACK ) || ((int)dmflags->value & DF_FORCE_RESPAWN))
 			{
 				respawn(ent);
 				client->latched_buttons = 0;

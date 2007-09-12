@@ -177,7 +177,7 @@ void Cmd_Give_f (edict_t *ent)
 	qboolean		give_all;
 	edict_t			*it_ent;
 
-	if (deathmatch->value && !sv_cheats->value)
+	if (!sv_cheats->value)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
 		return;
@@ -325,7 +325,7 @@ void Cmd_God_f (edict_t *ent)
 {
 	char	*msg;
 
-	if (deathmatch->value && !sv_cheats->value)
+	if (!sv_cheats->value)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
 		return;
@@ -354,7 +354,7 @@ void Cmd_Notarget_f (edict_t *ent)
 {
 	char	*msg;
 
-	if (deathmatch->value && !sv_cheats->value)
+	if (!sv_cheats->value)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
 		return;
@@ -381,7 +381,7 @@ void Cmd_Noclip_f (edict_t *ent)
 {
 	char	*msg;
 
-	if (deathmatch->value && !sv_cheats->value)
+	if (!sv_cheats->value)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
 		return;
@@ -548,6 +548,22 @@ void Cmd_InvUse_f (edict_t *ent)
 
 	if (tdm_match_status == MM_TIMEOUT)
 		return;
+
+	//spectators can swap chase mode only
+	if (!ent->client->resp.team)
+	{
+		if (ent->client->chase_target)
+		{
+			ent->client->chase_mode = (ent->client->chase_mode + 1) % CHASE_MAX;
+
+			if (ent->client->chase_mode == CHASE_EYES)
+				ChaseEyeHack (ent, ent->client->chase_target, NULL);
+			else
+				ChaseEyeHack (ent,  NULL, ent->client->chase_target);
+		}
+		return;
+	}
+			
 
 	if (ent->health <= 0)
 		return;
@@ -742,6 +758,8 @@ Cmd_PutAway_f
 void Cmd_PutAway_f (edict_t *ent)
 {
 	ent->client->showscores = false;
+	ent->client->showoldscores = false;
+
 	//ent->client->showhelp = false;
 	//ent->client->showinventory = false;
 
@@ -896,11 +914,12 @@ Cmd_Say_f
 */
 void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 {
-	int		i, j;
-	edict_t	*other;
-	char	*p;
-	char	text[2048];
-	gclient_t *cl;
+	int			i, j;
+	edict_t		*other;
+	char		*p;
+	char		text[2048];
+	gclient_t	*cl;
+	int			expandpoint;
 
 	if (gi.argc () < 2 && !arg0)
 		return;
@@ -912,9 +931,9 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	}
 
 	if (team)
-		Com_sprintf (text, sizeof(text), "(%s): ", ent->client->pers.netname);
+		expandpoint = Com_sprintf (text, sizeof(text), "(%s): ", ent->client->pers.netname);
 	else
-		Com_sprintf (text, sizeof(text), "%s: ", ent->client->pers.netname);
+		expandpoint = Com_sprintf (text, sizeof(text), "%s: ", ent->client->pers.netname);
 
 	if (arg0)
 	{
@@ -935,10 +954,12 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	}
 
 	// don't let text be too long for malicious reasons
-	if (strlen(text) > 150)
-		text[150] = 0;
+	text[256] = 0;
 
 	strcat(text, "\n");
+
+	if (ent->client->resp.team)
+		TDM_MacroExpand (ent, text + expandpoint, sizeof(text) - expandpoint - 1);
 
 	//wision: fixed.. but still dunno how it does work :x
 	//wision: we don't want to block say_team

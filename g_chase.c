@@ -56,6 +56,7 @@ void DisableChaseCam (edict_t *ent)
 {
 	ChaseEyeHack (ent, NULL, ent->client->chase_target);
 
+	ent->client->ps.viewangles[ROLL] = 0;
 	ent->client->chase_target = NULL;
 	ent->client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
 }
@@ -84,51 +85,55 @@ void UpdateChaseCam(edict_t *ent)
 
 	targ = ent->client->chase_target;
 
-	//VectorCopy(targ->s.origin, ownerv);
-	//VectorCopy(ent->s.origin, oldgoal);
-
-	VectorCopy (targ->s.origin, goal);
-
-	goal[2] += targ->viewheight;
-
-	/*
-	VectorCopy(targ->client->v_angle, angles);
-	if (angles[PITCH] > 56)
-		angles[PITCH] = 56;
-	AngleVectors (angles, forward, right, NULL);
-	VectorNormalize(forward);
-	VectorMA(ownerv, -30, forward, o);
-
-	if (o[2] < targ->s.origin[2] + 20)
-		o[2] = targ->s.origin[2] + 20;
-
-	// jump animation lifts
-	if (!targ->groundentity)
-		o[2] += 16;
-
-	trace = gi.trace(ownerv, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
-
-	VectorCopy(trace.endpos, goal);
-
-	VectorMA(goal, 2, forward, goal);
-
-	// pad for floors and ceilings
-	VectorCopy(goal, o);
-	o[2] += 6;
-	trace = gi.trace(goal, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
-	if (trace.fraction < 1) {
-		VectorCopy(trace.endpos, goal);
-		goal[2] -= 6;
+	if (ent->client->chase_mode == CHASE_EYES)
+	{
+		VectorCopy (targ->s.origin, goal);
+		goal[2] += targ->viewheight;
 	}
+	else if (ent->client->chase_mode == CHASE_THIRDPERSON)
+	{
+		VectorCopy(targ->s.origin, ownerv);
+		VectorCopy(ent->s.origin, oldgoal);
 
-	VectorCopy(goal, o);
-	o[2] -= 6;
-	trace = gi.trace(goal, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
-	if (trace.fraction < 1) {
+		ownerv[2] += targ->viewheight;
+
+		VectorCopy(targ->client->v_angle, angles);
+		if (angles[PITCH] > 56)
+			angles[PITCH] = 56;
+		AngleVectors (angles, forward, right, NULL);
+		VectorNormalize(forward);
+		VectorMA(ownerv, -50, forward, o);
+
+		if (o[2] < targ->s.origin[2] + 20)
+			o[2] = targ->s.origin[2] + 20;
+
+		// jump animation lifts
+		if (!targ->groundentity)
+			o[2] += 16;
+
+		trace = gi.trace(ownerv, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
+
 		VectorCopy(trace.endpos, goal);
-		goal[2] += 6;
 
-	}*/
+		VectorMA(goal, 2, forward, goal);
+
+		// pad for floors and ceilings
+		VectorCopy(goal, o);
+		o[2] += 6;
+		trace = gi.trace(goal, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
+		if (trace.fraction < 1) {
+			VectorCopy(trace.endpos, goal);
+			goal[2] -= 6;
+		}
+
+		VectorCopy(goal, o);
+		o[2] -= 6;
+		trace = gi.trace(goal, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
+		if (trace.fraction < 1) {
+			VectorCopy(trace.endpos, goal);
+			goal[2] += 6;
+		}
+	}
 
 	VectorCopy(goal, ent->s.origin);
 	
@@ -179,7 +184,7 @@ void ChaseNext(edict_t *ent)
 			break;
 	} while (e != ent->client->chase_target);
 
-	if (e != old)
+	if (e != old && ent->client->chase_mode == CHASE_EYES)
 		ChaseEyeHack (ent, e, old);
 
 	ent->client->chase_target = e;
@@ -211,7 +216,7 @@ void ChasePrev(edict_t *ent)
 			break;
 	} while (e != ent->client->chase_target);
 
-	if (e != old)
+	if (e != old && ent->client->chase_mode == CHASE_EYES)
 		ChaseEyeHack (ent, e, old);
 
 	ent->client->chase_target = e;
@@ -228,13 +233,15 @@ void GetChaseTarget(edict_t *ent)
 		other = g_edicts + i;
 		if (other->inuse && other->client->resp.team)
 		{
-			ChaseEyeHack (ent, other, ent->client->chase_target);
+			if (ent->client->chase_mode == CHASE_EYES)
+				ChaseEyeHack (ent, other, ent->client->chase_target);
 			ent->client->chase_target = other;
 			ent->client->update_chase = true;
 			UpdateChaseCam(ent);
 			return;
 		}
 	}
+
 	gi.centerprintf(ent, "No other players to chase.");
 }
 

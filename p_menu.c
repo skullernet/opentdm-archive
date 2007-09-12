@@ -58,7 +58,7 @@ void PMenu_Update(edict_t *ent)
 	pmenu_t		*p;
 	int			x;
 	pmenuhnd_t	*hnd;
-	char		*t;
+	const char	*t;
 	qboolean	alt = false;
 
 	if (!ent->client->menu.active)

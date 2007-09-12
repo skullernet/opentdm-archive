@@ -115,34 +115,12 @@ void SP_target_speaker (edict_t *ent)
 
 //==========================================================
 
-void Use_Target_Help (edict_t *ent, edict_t *other, edict_t *activator)
-{
-	if (ent->spawnflags & 1)
-		strncpy (game.helpmessage1, ent->message, sizeof(game.helpmessage2)-1);
-	else
-		strncpy (game.helpmessage2, ent->message, sizeof(game.helpmessage1)-1);
-
-	game.helpchanged++;
-}
-
 /*QUAKED target_help (1 0 1) (-16 -16 -24) (16 16 24) help1
 When fired, the "message" key becomes the current personal computer string, and the message light will be set on all clients status bars.
 */
 void SP_target_help(edict_t *ent)
 {
-	if (deathmatch->value)
-	{	// auto-remove for deathmatch
-		G_FreeEdict (ent);
-		return;
-	}
-
-	if (!ent->message)
-	{
-		gi.dprintf ("%s with no message at %s\n", ent->classname, vtos(ent->s.origin));
-		G_FreeEdict (ent);
-		return;
-	}
-	ent->use = Use_Target_Help;
+	G_FreeEdict (ent);
 }
 
 //==========================================================
@@ -151,33 +129,9 @@ void SP_target_help(edict_t *ent)
 Counts a secret found.
 These are single use targets.
 */
-void use_target_secret (edict_t *ent, edict_t *other, edict_t *activator)
-{
-	gi.sound (ent, CHAN_VOICE, ent->noise_index, 1, ATTN_NORM, 0);
-
-	level.found_secrets++;
-
-	G_UseTargets (ent, activator);
-	G_FreeEdict (ent);
-}
-
 void SP_target_secret (edict_t *ent)
 {
-	if (deathmatch->value)
-	{	// auto-remove for deathmatch
-		G_FreeEdict (ent);
-		return;
-	}
-
-	ent->use = use_target_secret;
-	if (!st.noise)
-		st.noise = "misc/secret.wav";
-	ent->noise_index = gi.soundindex (st.noise);
-	ent->svflags = SVF_NOCLIENT;
-	level.total_secrets++;
-	// map bug hack
-	if (!Q_stricmp(level.mapname, "mine3") && ent->s.origin[0] == 280 && ent->s.origin[1] == -2048 && ent->s.origin[2] == -624)
-		ent->message = "You have found a secret area.";
+	G_FreeEdict (ent);
 }
 
 //==========================================================
@@ -186,33 +140,9 @@ void SP_target_secret (edict_t *ent)
 Counts a goal completed.
 These are single use targets.
 */
-void use_target_goal (edict_t *ent, edict_t *other, edict_t *activator)
-{
-	gi.sound (ent, CHAN_VOICE, ent->noise_index, 1, ATTN_NORM, 0);
-
-	level.found_goals++;
-
-	if (level.found_goals == level.total_goals)
-		gi.configstring (CS_CDTRACK, "0");
-
-	G_UseTargets (ent, activator);
-	G_FreeEdict (ent);
-}
-
 void SP_target_goal (edict_t *ent)
 {
-	if (deathmatch->value)
-	{	// auto-remove for deathmatch
-		G_FreeEdict (ent);
-		return;
-	}
-
-	ent->use = use_target_goal;
-	if (!st.noise)
-		st.noise = "misc/secret.wav";
-	ent->noise_index = gi.soundindex (st.noise);
-	ent->svflags = SVF_NOCLIENT;
-	level.total_goals++;
+	G_FreeEdict (ent);
 }
 
 //==========================================================
@@ -272,28 +202,19 @@ void use_target_changelevel (edict_t *self, edict_t *other, edict_t *activator)
 	if (level.intermissionframe)
 		return;		// already activated
 
-	if (!deathmatch->value && !coop->value)
-	{
-		if (g_edicts[1].health <= 0)
-			return;
-	}
-
 	// if noexit, do a ton of damage to other
-	if (deathmatch->value && !( (int)dmflags->value & DF_ALLOW_EXIT) && other != world)
+	if (!( (int)dmflags->value & DF_ALLOW_EXIT) && other != world)
 	{
 		T_Damage (other, self, self, vec3_origin, other->s.origin, vec3_origin, 10 * other->max_health, 1000, 0, MOD_EXIT);
 		return;
 	}
 
 	// if multiplayer, let everyone know who hit the exit
-	if (deathmatch->value)
-	{
-		if (activator && activator->client)
-			gi.bprintf (PRINT_HIGH, "%s exited the level.\n", activator->client->pers.netname);
-	}
+	if (activator && activator->client)
+		gi.bprintf (PRINT_HIGH, "%s exited the level.\n", activator->client->pers.netname);
 
 	// if going to a new unit, clear cross triggers
-	if (strstr(self->map, "*"))	
+	if (strchr(self->map, '*'))	
 		game.serverflags &= ~(SFL_CROSS_TRIGGER_MASK);
 
 	BeginIntermission (self);
@@ -386,9 +307,9 @@ void use_target_spawner (edict_t *self, edict_t *other, edict_t *activator)
 	VectorCopy (self->s.origin, ent->s.origin);
 	VectorCopy (self->s.angles, ent->s.angles);
 	ED_CallSpawn (ent);
-	gi.unlinkentity (ent);
-	KillBox (ent);
 	gi.linkentity (ent);
+	KillBox (ent);
+	
 	if (self->speed)
 		VectorCopy (self->movedir, ent->velocity);
 }
@@ -721,26 +642,8 @@ void SP_target_lightramp (edict_t *self)
 		return;
 	}
 
-	if (deathmatch->value)
-	{
-		G_FreeEdict (self);
-		return;
-	}
-
-	if (!self->target)
-	{
-		gi.dprintf("%s with no target at %s\n", self->classname, vtos(self->s.origin));
-		G_FreeEdict (self);
-		return;
-	}
-
-	self->svflags |= SVF_NOCLIENT;
-	self->use = target_lightramp_use;
-	self->think = target_lightramp_think;
-
-	self->movedir[0] = self->message[0] - 'a';
-	self->movedir[1] = self->message[1] - 'a';
-	self->movedir[2] = (self->movedir[1] - self->movedir[0]) / (self->speed / FRAMETIME);
+	G_FreeEdict (self);
+	return;
 }
 
 //==========================================================

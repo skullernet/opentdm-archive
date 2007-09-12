@@ -86,7 +86,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #pragma intrinsic(memcmp)
 //#pragma intrinsic(memset)
 
-#if _MSC_VER > 14000
+#if _MSC_VER >= 1400
 #define NORETURN __declspec(noreturn)
 #define RESTRICT __declspec(restrict)
 #define NOALIAS __declspec(noalias)
@@ -94,6 +94,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define RESTRICT
 #define NORETURN
 #define NOALIAS
+#define sqrtf sqrt
 #endif
 
 #define alloca _alloca
@@ -178,14 +179,25 @@ typedef enum {false, true}	qboolean;
 //r1: set this to 1 if you have a stupid endian thingy
 #define Q_BIGENDIAN 0
 
-//#define random()	(randomMT() / ((float)0xFFFFFFFFU))
+#define random()		(genrand_float32_full())	// 0..1
+#define random2()		(genrand_float32_notone())	// 0..1
 
-//32 bit float precision caps this to 0.00000000023283064f which gives max result of .99999998407391880
-#define	random()	((randomMT() * 0.00000000023283064f))
+#define brandom(a,b)	((a)+random()*((b)-(a)))				// a..b
+#define crandom()		brandom(-1,1)							// -1..1 
 
+int		Q_rand (int *seed);
+#define Q_random(seed)		((Q_rand (seed) & 0x7fff) / ((float)0x7fff))	// 0..1
+#define Q_brandom(seed,a,b)	((a)+Q_random(seed)*((b)-(a)))						// a..b
+#define Q_crandom(seed)		Q_brandom(seed,-1,1)
 
-#define	frand()		(random())
-#define	crand()		(((int)randomMT() - 0x7FFFFFFF) * 0.000000000465661287307739257812f)
+unsigned long genrand_int32(void);
+long genrand_int31(void);
+double genrand_float32_full(void);
+double genrand_float32_notone(void);
+void init_genrand(unsigned long s);
+
+//#define	frand()		(random())
+//#define	crand()		(((int)randomMT() - 0x7FFFFFFF) * 0.000000000465661287307739257812f)
 
 #ifndef NULL
 #define NULL ((void *)0)
@@ -474,9 +486,6 @@ void Info_RemoveKey (char *s, const char *key);
 void Info_SetValueForKey (char *s, const char *key, const char *value);
 qboolean Info_Validate (const char *s);
 qboolean Info_CheckBytes (const char *s);
-
-void seedMT (uint32 seed);
-uint32 randomMT (void);
 
 /*
 ==============================================================

@@ -90,6 +90,8 @@ void ClipGibVelocity (edict_t *ent)
 gibs
 =================
 */
+
+/*
 void gib_think (edict_t *self)
 {
 	self->s.frame++;
@@ -132,7 +134,7 @@ void gib_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, 
 {
 	G_FreeEdict (self);
 }
-
+*/
 void ThrowGib (edict_t *self, char *gibname, int damage, int type)
 {
 	edict_t *gib;
@@ -153,13 +155,14 @@ void ThrowGib (edict_t *self, char *gibname, int damage, int type)
 	gib->solid = SOLID_NOT;
 	gib->s.effects |= EF_GIB;
 	gib->flags |= FL_NO_KNOCKBACK;
-	gib->takedamage = DAMAGE_YES;
-	gib->die = gib_die;
+	//gib->takedamage = DAMAGE_YES;
+	//gib->die = gib_die;
+	gib->enttype = ENT_GIB;
 
 	if (type == GIB_ORGANIC)
 	{
 		gib->movetype = MOVETYPE_TOSS;
-		gib->touch = gib_touch;
+		//gib->touch = gib_touch;
 		vscale = 0.5;
 	}
 	else
@@ -199,13 +202,14 @@ void ThrowHead (edict_t *self, char *gibname, int damage, int type)
 	self->s.sound = 0;
 	self->flags |= FL_NO_KNOCKBACK;
 	self->svflags &= ~SVF_MONSTER;
-	self->takedamage = DAMAGE_YES;
-	self->die = gib_die;
+	//self->takedamage = DAMAGE_YES;
+	//self->die = gib_die;
+	self->enttype = ENT_GIB;
 
 	if (type == GIB_ORGANIC)
 	{
 		self->movetype = MOVETYPE_TOSS;
-		self->touch = gib_touch;
+		//self->touch = gib_touch;
 		vscale = 0.5;
 	}
 	else
@@ -232,7 +236,7 @@ void ThrowClientHead (edict_t *self, int damage)
 	vec3_t	vd;
 	char	*gibname;
 
-	if (rand()&1)
+	if (genrand_int32()&1)
 	{
 		gibname = "models/objects/gibs/head2/tris.md2";
 		self->s.skinnum = 1;		// second skin is player
@@ -254,6 +258,10 @@ void ThrowClientHead (edict_t *self, int damage)
 	self->s.effects = EF_GIB;
 	self->s.sound = 0;
 	self->flags |= FL_NO_KNOCKBACK;
+
+	//this fixes heads floating in air, i hope!
+	self->clipmask = MASK_SOLID;
+	self->groundentity = NULL;
 
 	self->movetype = MOVETYPE_BOUNCE;
 	VelocityForDamage (damage, vd);
@@ -385,12 +393,13 @@ static void light_use (edict_t *self, edict_t *other, edict_t *activator)
 void SP_light (edict_t *self)
 {
 	// no targeted lights in deathmatch, because they cause global messages
-	if (!self->targetname || deathmatch->value)
-	{
+	//if (!self->targetname || deathmatch->value)
+	//{
 		G_FreeEdict (self);
 		return;
-	}
+	//}
 
+		/*
 	if (self->style >= 32)
 	{
 		self->use = light_use;
@@ -398,7 +407,7 @@ void SP_light (edict_t *self)
 			gi.configstring (CS_LIGHTS+self->style, "a");
 		else
 			gi.configstring (CS_LIGHTS+self->style, "m");
-	}
+	}*/
 }
 
 
@@ -422,14 +431,16 @@ void func_wall_use (edict_t *self, edict_t *other, edict_t *activator)
 	{
 		self->solid = SOLID_BSP;
 		self->svflags &= ~SVF_NOCLIENT;
+		gi.linkentity (self);
 		KillBox (self);
 	}
 	else
 	{
 		self->solid = SOLID_NOT;
 		self->svflags |= SVF_NOCLIENT;
+		gi.linkentity (self);
 	}
-	gi.linkentity (self);
+	
 
 	if (!(self->spawnflags & 2))
 		self->use = NULL;
@@ -642,18 +653,19 @@ void func_explosive_spawn (edict_t *self, edict_t *other, edict_t *activator)
 	self->solid = SOLID_BSP;
 	self->svflags &= ~SVF_NOCLIENT;
 	self->use = NULL;
-	KillBox (self);
 	gi.linkentity (self);
+	KillBox (self);
 }
 
 void SP_func_explosive (edict_t *self)
 {
-	if (deathmatch->value)
-	{	// auto-remove for deathmatch
+	//FIXME: do we really want to? :)
+	{
 		G_FreeEdict (self);
 		return;
 	}
 
+	/*
 	self->movetype = MOVETYPE_PUSH;
 
 	gi.modelindex ("models/objects/debris1/tris.md2");
@@ -687,7 +699,7 @@ void SP_func_explosive (edict_t *self)
 		self->takedamage = DAMAGE_YES;
 	}
 
-	gi.linkentity (self);
+	gi.linkentity (self);*/
 }
 
 //
@@ -883,7 +895,7 @@ void SP_misc_banner (edict_t *ent)
 	ent->movetype = MOVETYPE_NONE;
 	ent->solid = SOLID_NOT;
 	ent->s.modelindex = gi.modelindex ("models/objects/banner/tris.md2");
-	ent->s.frame = rand() % 16;
+	ent->s.frame = genrand_int32() % 16;
 	gi.linkentity (ent);
 
 	ent->think = misc_banner_think;
@@ -1124,8 +1136,8 @@ void SP_misc_gib_arm (edict_t *ent)
 	gi.setmodel (ent, "models/objects/gibs/arm/tris.md2");
 	ent->solid = SOLID_NOT;
 	ent->s.effects |= EF_GIB;
-	ent->takedamage = DAMAGE_YES;
-	ent->die = gib_die;
+	//ent->takedamage = DAMAGE_YES;
+	//ent->die = gib_die;
 	ent->movetype = MOVETYPE_TOSS;
 	ent->svflags |= SVF_MONSTER;
 	ent->deadflag = DEAD_DEAD;
@@ -1145,8 +1157,8 @@ void SP_misc_gib_leg (edict_t *ent)
 	gi.setmodel (ent, "models/objects/gibs/leg/tris.md2");
 	ent->solid = SOLID_NOT;
 	ent->s.effects |= EF_GIB;
-	ent->takedamage = DAMAGE_YES;
-	ent->die = gib_die;
+	//ent->takedamage = DAMAGE_YES;
+	//ent->die = gib_die;
 	ent->movetype = MOVETYPE_TOSS;
 	ent->svflags |= SVF_MONSTER;
 	ent->deadflag = DEAD_DEAD;
@@ -1166,8 +1178,8 @@ void SP_misc_gib_head (edict_t *ent)
 	gi.setmodel (ent, "models/objects/gibs/head/tris.md2");
 	ent->solid = SOLID_NOT;
 	ent->s.effects |= EF_GIB;
-	ent->takedamage = DAMAGE_YES;
-	ent->die = gib_die;
+	//ent->takedamage = DAMAGE_YES;
+	//ent->die = gib_die;
 	ent->movetype = MOVETYPE_TOSS;
 	ent->svflags |= SVF_MONSTER;
 	ent->deadflag = DEAD_DEAD;
@@ -1459,10 +1471,10 @@ void teleporter_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_
 	VectorClear (other->client->ps.viewangles);
 	VectorClear (other->client->v_angle);
 
+	gi.linkentity (other);
+
 	// kill anything at the destination
 	KillBox (other);
-
-	gi.linkentity (other);
 }
 
 /*QUAKED misc_teleporter (1 0 0) (-32 -32 -24) (32 32 -16)

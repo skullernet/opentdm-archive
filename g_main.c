@@ -33,10 +33,10 @@ int meansOfDeath;
 edict_t		*g_edicts;
 int			g_max_clients;
 
-cvar_t	*deathmatch;
-cvar_t	*coop;
+//cvar_t	*deathmatch;
+//cvar_t	*coop;
 cvar_t	*dmflags;
-cvar_t	*skill;
+//cvar_t	*skill;
 cvar_t	*fraglimit;
 cvar_t	*timelimit;
 cvar_t	*password;
@@ -104,6 +104,14 @@ cvar_t	*g_teleporter_nofreeze;
 cvar_t	*g_overtime;
 cvar_t	*g_tie_mode;
 cvar_t	*g_gamemode;
+cvar_t	*g_respawn_time;
+cvar_t	*g_max_timeout;
+cvar_t	*g_1v1_timeout;
+
+cvar_t	*g_http_enabled;
+cvar_t	*g_http_bind;
+cvar_t	*g_http_proxy;
+cvar_t	*g_http_baseurl;
 
 void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint);
 void ClientThink (edict_t *ent, usercmd_t *cmd);
@@ -113,10 +121,8 @@ void ClientDisconnect (edict_t *ent);
 void ClientBegin (edict_t *ent);
 void ClientCommand (edict_t *ent);
 void RunEntity (edict_t *ent);
-void WriteGame (const char *filename, qboolean autosave);
-void ReadGame (const char *filename);
-void WriteLevel (const char *filename);
-void ReadLevel (const char *filename);
+void DummyWrite (const char *filename, qboolean autosave);
+void DummyRead (const char *filename);
 void InitGame (void);
 void G_RunFrame (void);
 
@@ -150,10 +156,10 @@ game_export_t __attribute__ ((visibility("default"), externally_visible)) *GetGa
 	globals.Shutdown = ShutdownGame;
 	globals.SpawnEntities = SpawnEntities;
 
-	globals.WriteGame = WriteGame;
-	globals.ReadGame = ReadGame;
-	globals.WriteLevel = WriteLevel;
-	globals.ReadLevel = ReadLevel;
+	globals.WriteGame = DummyWrite;
+	globals.ReadGame = DummyRead;
+	globals.WriteLevel = DummyRead;
+	globals.ReadLevel = DummyRead;
 
 	globals.ClientThink = ClientThink;
 	globals.ClientConnect = ClientConnect;
@@ -336,10 +342,7 @@ void CheckDMRules (void)
 	int			i;
 	gclient_t	*cl;
 
-	if (level.intermissionframe)
-		return;
-
-	if (!deathmatch->value)
+	if (tdm_match_status == MM_SCOREBOARD)
 		return;
 
 	if (timelimit->value)
@@ -473,6 +476,7 @@ void G_RunFrame (void)
 		}
 	}
 
+	HTTP_RunDownloads ();
 
 	TDM_UpdateConfigStrings (false);
 

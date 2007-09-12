@@ -301,14 +301,6 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 	}
 	meansOfDeath = mod;
 
-	// easy mode takes half damage
-	if (skill->value == 0 && deathmatch->value == 0 && targ->client)
-	{
-		damage /= 2;
-		if (!damage)
-			damage = 1;
-	}
-
 	client = targ->client;
 
 	if (dflags & DAMAGE_BULLET)
@@ -349,6 +341,9 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 
 	take = damage;
 	save = 0;
+
+	if (attacker->client && targ->client)
+		TDM_Damage (attacker, targ, inflictor, damage);
 
 	// check for godmode
 	if ( (targ->flags & FL_GODMODE) && !(dflags & DAMAGE_NO_PROTECTION) )

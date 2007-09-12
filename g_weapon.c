@@ -74,7 +74,9 @@ qboolean fire_hit (edict_t *self, vec3_t aim, int damage, int kick)
 	VectorSubtract (point, self->enemy->s.origin, dir);
 
 	// do the damage
+	TDM_BeginDamage ();
 	T_Damage (tr.ent, self, self, dir, point, vec3_origin, damage, kick/2, DAMAGE_NO_KNOCKBACK, MOD_HIT);
+	TDM_EndDamage ();
 
 	if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client))
 		return false;
@@ -239,7 +241,9 @@ pistols, rifles, etc....
 */
 void fire_bullet (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int mod)
 {
+	TDM_BeginDamage ();
 	fire_lead (self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, mod);
+	TDM_EndDamage ();
 }
 
 
@@ -285,7 +289,9 @@ void blaster_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *
 			mod = MOD_HYPERBLASTER;
 		else
 			mod = MOD_BLASTER;
+		TDM_BeginDamage ();
 		T_Damage (other, self, self->owner, self->velocity, self->s.origin, plane->normal, self->dmg, 1, DAMAGE_ENERGY, mod);
+		TDM_EndDamage ();
 	}
 	else
 	{
@@ -310,7 +316,7 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 	VectorNormalize (dir);
 
 	bolt = G_Spawn();
-	bolt->svflags = SVF_DEADMONSTER;
+	bolt->svflags = SVF_NOPREDICTION;
 	// yes, I know it looks weird that projectiles are deadmonsters
 	// what this means is that when prediction is used against the object
 	// (blaster/hyperblaster shots), the player won't be solid clipped against
@@ -356,6 +362,8 @@ static void Grenade_Explode (edict_t *ent)
 {
 	vec3_t		origin;
 	int			mod;
+
+	TDM_BeginDamage ();
 
 	//FIXME: if we are onground then raise our Z just a bit since we are a point?
 	if (ent->enemy)
@@ -403,6 +411,7 @@ static void Grenade_Explode (edict_t *ent)
 	gi.WritePosition (origin);
 	gi.multicast (ent->s.origin, MULTICAST_PHS);
 
+	TDM_EndDamage ();
 	G_FreeEdict (ent);
 }
 
@@ -449,13 +458,14 @@ void fire_grenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
 	grenade = G_Spawn();
 	VectorCopy (start, grenade->s.origin);
 	VectorScale (aimdir, speed, grenade->velocity);
-	VectorMA (grenade->velocity, 200 + crandom() * 10.0, up, grenade->velocity);
-	VectorMA (grenade->velocity, crandom() * 10.0, right, grenade->velocity);
+	VectorMA (grenade->velocity, 200 + crandom() * 10.0f, up, grenade->velocity);
+	VectorMA (grenade->velocity, crandom() * 10.0f, right, grenade->velocity);
 	VectorSet (grenade->avelocity, 300, 300, 300);
 	grenade->movetype = MOVETYPE_BOUNCE;
 	grenade->clipmask = MASK_SHOT;
 	grenade->solid = SOLID_BBOX;
 	grenade->s.effects |= EF_GRENADE;
+	grenade->svflags = SVF_NOPREDICTION;
 	VectorClear (grenade->mins);
 	VectorClear (grenade->maxs);
 	grenade->s.modelindex = gi.modelindex ("models/objects/grenade/tris.md2");
@@ -483,12 +493,13 @@ void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int 
 	grenade = G_Spawn();
 	VectorCopy (start, grenade->s.origin);
 	VectorScale (aimdir, speed, grenade->velocity);
-	VectorMA (grenade->velocity, 200 + crandom() * 10.0, up, grenade->velocity);
-	VectorMA (grenade->velocity, crandom() * 10.0, right, grenade->velocity);
+	VectorMA (grenade->velocity, 200 + crandom() * 10.0f, up, grenade->velocity);
+	VectorMA (grenade->velocity, crandom() * 10.0f, right, grenade->velocity);
 	VectorSet (grenade->avelocity, 300, 300, 300);
 	grenade->movetype = MOVETYPE_BOUNCE;
 	grenade->clipmask = MASK_SHOT;
 	grenade->solid = SOLID_BBOX;
+	grenade->svflags = SVF_NOPREDICTION;
 	grenade->s.effects |= EF_GRENADE;
 	VectorClear (grenade->mins);
 	VectorClear (grenade->maxs);
@@ -524,7 +535,6 @@ fire_rocket
 void rocket_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
 	vec3_t		origin;
-	int			n;
 
 	if (other == ent->owner)
 		return;
@@ -538,23 +548,10 @@ void rocket_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *su
 	// calculate position for the explosion entity
 	VectorMA (ent->s.origin, -0.02, ent->velocity, origin);
 
+	TDM_BeginDamage ();
+
 	if (other->takedamage)
-	{
 		T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin, plane->normal, ent->dmg, 0, 0, MOD_ROCKET);
-	}
-	else
-	{
-		// don't throw any debris in net games
-		if (!deathmatch->value && !coop->value)
-		{
-			if ((surf) && !(surf->flags & (SURF_WARP|SURF_TRANS33|SURF_TRANS66|SURF_FLOWING)))
-			{
-				n = rand() % 5;
-				while(n--)
-					ThrowDebris (ent, "models/objects/debris2/tris.md2", 2, ent->s.origin);
-			}
-		}
-	}
 
 	T_RadiusDamage(ent, ent->owner, ent->radius_dmg, other, ent->dmg_radius, MOD_R_SPLASH);
 
@@ -566,6 +563,7 @@ void rocket_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *su
 	gi.WritePosition (origin);
 	gi.multicast (ent->s.origin, MULTICAST_PHS);
 
+	TDM_EndDamage ();
 	G_FreeEdict (ent);
 }
 
@@ -582,6 +580,7 @@ void fire_rocket (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 	rocket->clipmask = MASK_SHOT;
 	rocket->solid = SOLID_BBOX;
 	rocket->s.effects |= EF_ROCKET;
+	rocket->svflags = SVF_NOPREDICTION;
 	VectorClear (rocket->mins);
 	VectorClear (rocket->maxs);
 	rocket->s.modelindex = gi.modelindex ("models/objects/rocket/tris.md2");
@@ -612,6 +611,8 @@ void fire_rail (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick
 	edict_t		*ignore;
 	int			mask;
 	qboolean	water;
+
+	TDM_BeginDamage ();
 
 	VectorMA (start, 8192, aimdir, end);
 	VectorCopy (start, from);
@@ -656,6 +657,8 @@ void fire_rail (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick
 		gi.WritePosition (tr.endpos);
 		gi.multicast (tr.endpos, MULTICAST_PHS);
 	}
+
+	TDM_EndDamage ();
 }
 
 
@@ -719,6 +722,8 @@ void bfg_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf
 		return;
 	}
 
+	TDM_BeginDamage ();
+
 	// core explosion - prevents firing it into the wall/floor
 	if (other->takedamage)
 		T_Damage (other, self, self->owner, self->velocity, self->s.origin, plane->normal, 200, 0, 0, MOD_BFG_BLAST);
@@ -737,10 +742,14 @@ void bfg_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf
 	self->nextthink = level.time + 1;
 	self->enemy = other;
 
+	gi.linkentity (self);
+
 	gi.WriteByte (svc_temp_entity);
 	gi.WriteByte (TE_BFG_BIGEXPLOSION);
 	gi.WritePosition (self->s.origin);
 	gi.multicast (self->s.origin, MULTICAST_PVS);
+
+	TDM_EndDamage ();
 }
 
 
@@ -755,10 +764,7 @@ void bfg_think (edict_t *self)
 	int		dmg;
 	trace_t	tr;
 
-	if (deathmatch->value)
-		dmg = 5;
-	else
-		dmg = 10;
+	dmg = 5;
 
 	ent = NULL;
 	while ((ent = findradius(ent, self->s.origin, 256)) != NULL)
@@ -831,6 +837,7 @@ void fire_bfg (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, f
 	VectorCopy (dir, bfg->movedir);
 	vectoangles (dir, bfg->s.angles);
 	VectorScale (dir, speed, bfg->velocity);
+	bfg->svflags = SVF_NOPREDICTION;
 	bfg->movetype = MOVETYPE_FLYMISSILE;
 	bfg->clipmask = MASK_SHOT;
 	bfg->solid = SOLID_BBOX;

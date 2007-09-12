@@ -36,8 +36,7 @@ void MoveClientToIntermission (edict_t *ent)
 	if (ent->client->chase_target)
 		DisableChaseCam (ent);
 
-	if (deathmatch->value || coop->value)
-		ent->client->showscores = true;
+	ent->client->showscores = true;
 
 	VectorCopy (level.intermission_origin, ent->s.origin);
 	ent->client->ps.pmove.origin[0] = level.intermission_origin[0]*8;
@@ -64,22 +63,24 @@ void MoveClientToIntermission (edict_t *ent)
 	ent->s.modelindex = 0;
 	ent->s.effects = 0;
 	ent->s.sound = 0;
+	ent->s.event = 0;
 	ent->solid = SOLID_NOT;
+	ent->client->weapon = NULL;
+	ent->client->weapon_sound = 0;
 
 	// add the layout
-	TDM_ScoreBoardMessage (ent);
+	gi.WriteByte (svc_layout);
+	gi.WriteString (TDM_ScoreBoardString (ent));
 	gi.unicast (ent, true);
 }
 
 void BeginIntermission (edict_t *targ)
 {
-	int		i, n;
+	int		i;
 	edict_t	*ent, *client;
 
 	if (level.intermissionframe)
 		return;		// already activated
-
-	game.autosaved = false;
 
 	// respawn any dead clients
 	for (i=0 ; i<game.maxclients ; i++)
@@ -91,36 +92,10 @@ void BeginIntermission (edict_t *targ)
 			respawn(client);
 	}
 
+	tdm_match_status = MM_SCOREBOARD;
+
 	level.intermissionframe = level.framenum;
 	level.changemap = targ->map;
-
-	if (strstr(level.changemap, "*"))
-	{
-		if (coop->value)
-		{
-			for (i=0 ; i<game.maxclients ; i++)
-			{
-				client = g_edicts + 1 + i;
-				if (!client->inuse)
-					continue;
-				// strip players of all keys between units
-				for (n = 0; n < MAX_ITEMS; n++)
-				{
-					if (itemlist[n].flags & IT_KEY)
-						client->client->inventory[n] = 0;
-				}
-			}
-		}
-	}
-	else
-	{
-		if (!deathmatch->value)
-		{
-			level.exitintermission = 1;		// go immediately to the next level
-			return;
-		}
-	}
-
 	level.exitintermission = 0;
 
 	// find an intermission spot
@@ -133,7 +108,7 @@ void BeginIntermission (edict_t *targ)
 	}
 	else
 	{	// chose one of four spots
-		i = rand() & 3;
+		i = genrand_int32() & 3;
 		while (i--)
 		{
 			ent = G_Find (ent, FOFS(classname), "info_player_intermission");
@@ -263,7 +238,8 @@ Note that it isn't that hard to overflow the 1400 byte message limit!
 void DeathmatchScoreboard (edict_t *ent)
 {
 	//DeathmatchScoreboardMessage (ent, ent->enemy);
-	TDM_ScoreBoardMessage (ent);
+	gi.WriteByte (svc_layout);
+	gi.WriteString (TDM_ScoreBoardString (ent));
 	gi.unicast (ent, true);
 }
 
@@ -280,17 +256,15 @@ void Cmd_Score_f (edict_t *ent)
 	//ent->client->showinventory = false;
 	//ent->client->showhelp = false;
 
-	if (!deathmatch->value && !coop->value)
-		return;
-
 	if (ent->client->menu.active)
 	{
 		PMenu_Close (ent);
 		return;
 	}
 
-	if (ent->client->showscores)
+	if (ent->client->showscores || ent->client->showoldscores)
 	{
+		ent->client->showoldscores = false;
 		ent->client->showscores = false;
 		return;
 	}
@@ -309,11 +283,7 @@ Display the current help message
 void Cmd_Help_f (edict_t *ent)
 {
 	// this is for backwards compatability
-	if (deathmatch->value)
-	{
-		Cmd_Score_f (ent);
-		return;
-	}
+	Cmd_Score_f (ent);
 }
 
 
@@ -439,7 +409,7 @@ void G_SetStats (edict_t *ent)
 	//
 	ent->client->ps.stats[STAT_LAYOUTS] = 0;
 
-	if (ent->health <= 0 || level.intermissionframe || ent->client->showscores || ent->client->menu.active)
+	if (ent->health <= 0 || tdm_match_status == MM_SCOREBOARD || ent->client->showscores || ent->client->menu.active || ent->client->showoldscores)
 		ent->client->ps.stats[STAT_LAYOUTS] |= 1;
 
 	//if (ent->client->showinventory && ent->health > 0)
@@ -456,10 +426,24 @@ void G_SetStats (edict_t *ent)
 	ent->client->ps.stats[STAT_TEAM_A_STATUS_INDEX] = CS_TDM_TEAM_A_STATUS;
 	ent->client->ps.stats[STAT_TEAM_B_STATUS_INDEX] = CS_TDM_TEAM_B_STATUS;
 
-	ent->client->ps.stats[STAT_TEAM_A_SCORE] = teaminfo[TEAM_A].score;
-	ent->client->ps.stats[STAT_TEAM_B_SCORE] = teaminfo[TEAM_B].score;
+	if (ent->client->showoldscores)
+	{
+		ent->client->ps.stats[STAT_TEAM_A_SCORE] = teaminfo[TEAM_A].oldscore;
+		ent->client->ps.stats[STAT_TEAM_B_SCORE] = teaminfo[TEAM_B].oldscore;
+	}
+	else
+	{
+		ent->client->ps.stats[STAT_TEAM_A_SCORE] = teaminfo[TEAM_A].score;
+		ent->client->ps.stats[STAT_TEAM_B_SCORE] = teaminfo[TEAM_B].score;
+	}
 
 	ent->client->ps.stats[STAT_TIME_REMAINING] = CS_TDM_TIMELIMIT_STRING;
+
+	if (tdm_match_status == MM_TIMEOUT)
+		ent->client->ps.stats[STAT_TIMEOUT_STRING_INDEX] = CS_TDM_TIMEOUT_STIRNG;
+	else
+		ent->client->ps.stats[STAT_TIMEOUT_STRING_INDEX] = 0;
+
 	//
 	// help icon / current weapon if not shown
 	//
@@ -496,7 +480,7 @@ void G_SetSpectatorStats (edict_t *ent)
 	// layouts are independant in spectator
 	cl->ps.stats[STAT_LAYOUTS] = 0;
 
-	if (level.intermissionframe || cl->menu.active || ent->client->showscores)
+	if (tdm_match_status == MM_SCOREBOARD || cl->menu.active || ent->client->showscores || ent->client->showoldscores)
 		cl->ps.stats[STAT_LAYOUTS] |= 1;
 
 	//if (cl->showinventory && ent->health > 0)

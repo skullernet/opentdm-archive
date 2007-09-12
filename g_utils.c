@@ -143,7 +143,7 @@ edict_t *G_PickTarget (char *targetname)
 		return NULL;
 	}
 
-	return choice[rand() % num_choices];
+	return choice[genrand_int32() % num_choices];
 }
 
 
@@ -406,6 +406,37 @@ void G_InitEdict (edict_t *e)
 	e->s.number = e - g_edicts;
 }
 
+void G_StuffCmd (edict_t *e, const char *fmt, ...)
+{
+	va_list		argptr;
+	char		text[512];
+
+	if (e && !e->client->pers.connected)
+		TDM_Error ("G_StuffCmd: Bad client %d for '%s'", e - g_edicts, fmt);
+
+	va_start (argptr,fmt);
+	Q_vsnprintf (text, sizeof(text), fmt, argptr);
+	va_end (argptr);
+	text[sizeof(text)-1] = 0;
+
+	gi.WriteByte (svc_stufftext);
+	gi.WriteString (text);
+
+	if (e)
+		gi.unicast (e, true);
+	else
+		gi.multicast (NULL, MULTICAST_ALL_R);
+}
+
+void G_UnicastSound (edict_t *ent, int index, qboolean reliable)
+{
+	gi.WriteByte (svc_sound);
+	gi.WriteByte (SND_ATTENUATION);
+	gi.WriteByte (index);
+	gi.WriteByte (0);
+	gi.unicast (ent, reliable);
+}
+
 /*
 =================
 G_Spawn
@@ -543,12 +574,31 @@ Kill box
 KillBox
 
 Kills all entities that would touch the proposed new positioning
-of ent.  Ent should be unlinked before calling this!
+of ent.  Ent will not get hit.
 =================
 */
 qboolean KillBox (edict_t *ent)
 {
-	trace_t		tr;
+	edict_t	*touch[MAX_EDICTS];
+	int		count;
+	int		i;
+
+	//r1: much more vicious telefrag code, nukes anything that isn't ent
+	count = gi.BoxEdicts (ent->absmin, ent->absmax, touch, MAX_EDICTS, AREA_SOLID);
+	for (i = 0; i < count; i++)
+	{
+		if (touch[i] == ent)
+			continue;
+
+		//no point killing anything that won't clip (eg corpses)
+		if (touch[i]->solid == SOLID_NOT || touch[i]->enttype == ENT_BODYQUE)
+			continue;
+
+		if (touch[i]->inuse)
+			T_Damage (touch[i], ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+	}
+		
+	/*trace_t		tr;
 
 	while (1)
 	{
@@ -562,7 +612,9 @@ qboolean KillBox (edict_t *ent)
 		// if we didn't kill it, fail
 		if (tr.ent->solid)
 			return false;
-	}
+	}*/
+
+
 
 	return true;		// all clear
 }

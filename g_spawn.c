@@ -505,27 +505,15 @@ void ParseEntityString (qboolean respawn)
 		// remove things (except the world) from different skill levels or deathmatch
 		if (ent != g_edicts)
 		{
-			if (deathmatch->value)
+			if ( ent->spawnflags & SPAWNFLAG_NOT_DEATHMATCH )
 			{
-				if ( ent->spawnflags & SPAWNFLAG_NOT_DEATHMATCH )
-				{
-					G_FreeEdict (ent);	
-					inhibit++;
-					continue;
-				}
-			}
-			else
-			{
-				if ( /* ((coop->value) && (ent->spawnflags & SPAWNFLAG_NOT_COOP)) || */
-					((skill->value == 0) && (ent->spawnflags & SPAWNFLAG_NOT_EASY)) ||
-					((skill->value == 1) && (ent->spawnflags & SPAWNFLAG_NOT_MEDIUM)) ||
-					(((skill->value == 2) || (skill->value == 3)) && (ent->spawnflags & SPAWNFLAG_NOT_HARD))
-					)
-					{
-						G_FreeEdict (ent);	
-						inhibit++;
-						continue;
-					}
+				G_FreeEdict (ent);	
+				inhibit++;
+
+				//have to keep num_spawned in sync for respawn
+				if (!respawn)
+					spawned_entities[num_spawned_entities++] = ent;
+				continue;
 			}
 
 			ent->spawnflags &= ~(SPAWNFLAG_NOT_EASY|SPAWNFLAG_NOT_MEDIUM|SPAWNFLAG_NOT_HARD|SPAWNFLAG_NOT_COOP|SPAWNFLAG_NOT_DEATHMATCH);
@@ -534,6 +522,7 @@ void ParseEntityString (qboolean respawn)
 			continue;
 
 		ED_CallSpawn (ent);
+
 		if (!respawn)
 			spawned_entities[num_spawned_entities++] = ent;
 	}
@@ -564,17 +553,8 @@ parsing textual entity definitions out of an ent file.
 void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint)
 {
 	int			i;
-	float		skill_level;
 
 	num_spawned_entities = 0;
-
-	skill_level = floor (skill->value);
-	if (skill_level < 0)
-		skill_level = 0;
-	if (skill_level > 3)
-		skill_level = 3;
-	if (skill->value != skill_level)
-		gi.cvar_forceset("skill", va("%f", skill_level));
 
 	gi.FreeTags (TAG_LEVEL);
 
@@ -582,7 +562,6 @@ void SpawnEntities (const char *mapname, const char *entities, const char *spawn
 	memset (g_edicts, 0, game.maxentities * sizeof (g_edicts[0]));
 
 	strncpy (level.mapname, mapname, sizeof(level.mapname)-1);
-	strncpy (game.spawnpoint, spawnpoint, sizeof(game.spawnpoint)-1);
 
 	level.entity_string = entities;
 
@@ -680,38 +659,50 @@ const char *dm_statusbar =
 
 // Team A name
 "xr -250 "
-"yt 2 "
+"yt 36 "
 "stat_string 18 "
 
 // Team A score / status
 "xr -122 "
-"yt 10 "
+"yt 44 "
 "stat_string 20 "
 
 // Team B name
 "xr -250 "
-"yt 26 "
+"yt 60 "
 "stat_string 19 "
 
 // Team B score / status
 "xr -122 "
-"yt 34 "
+"yt 68 "
 "stat_string 21 "
 
 // Time
 "xr -34 "
-"yt 50 "
+"yt 84 "
 "string \"Time\" "
 
-// Time
+// Time value
 "xr -42 "
-"yt 58 "
+"yt 92 "
 "stat_string 22 "
 
+// Timeout message
+"if 25 "
+	"xr -138 "
+	"yt 108 "
+	"string \"Timeout Remaining\" "
+
+	// Timeout value
+	"xr -42 "
+	"yt 116 "
+	"stat_string 25 "
+"endif "
+
 //  frags
-/*"xr	-50 "
+"xr	-50 "
 "yt 2 "
-"num 3 14 "*/
+"num 3 14 "
 
 // spectator
 "if 17 "

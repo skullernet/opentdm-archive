@@ -132,7 +132,7 @@ void P_DamageFeedback (edict_t *player)
 	// play an apropriate pain sound
 	if ((level.time > player->pain_debounce_time) && !(player->flags & FL_GODMODE) && (client->invincible_framenum <= level.framenum))
 	{
-		r = rand() & 1;
+		r = genrand_int32() & 1;
 		player->pain_debounce_time = level.time + 0.7f * (1 / FRAMETIME);
 		if (player->health < 25)
 			l = SND_PAIN25_1;
@@ -559,7 +559,7 @@ void P_FallingDamage (edict_t *ent)
 			damage = 1;
 		VectorSet (dir, 0, 0, 1);
 
-		if (!deathmatch->value || !((int)dmflags->value & DF_NO_FALLING) )
+		if (!(int)dmflags->value & DF_NO_FALLING)
 			T_Damage (ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, 0, MOD_FALLING);
 	}
 	else
@@ -681,7 +681,7 @@ void P_WorldEffects (void)
 				// play a gurp sound instead of a normal pain sound
 				if (current_player->health <= current_player->dmg)
 					gi.sound (current_player, CHAN_VOICE, gi.soundindex("player/drown1.wav"), 1, ATTN_NORM, 0);
-				else if (rand()&1)
+				else if (genrand_int32()&1)
 					TDM_GlobalClientSound (current_player, CHAN_VOICE, soundcache[SND_GURP1], 1, ATTN_NORM, 0);
 				else
 					TDM_GlobalClientSound (current_player, CHAN_VOICE, soundcache[SND_GURP2], 1, ATTN_NORM, 0);
@@ -709,7 +709,7 @@ void P_WorldEffects (void)
 				&& current_player->pain_debounce_time <= level.time
 				&& current_client->invincible_framenum < level.framenum)
 			{
-				if (rand()&1)
+				if (genrand_int32()&1)
 					gi.sound (current_player, CHAN_VOICE, gi.soundindex("player/burn1.wav"), 1, ATTN_NORM, 0);
 				else
 					gi.sound (current_player, CHAN_VOICE, gi.soundindex("player/burn2.wav"), 1, ATTN_NORM, 0);
@@ -746,7 +746,7 @@ void G_SetClientEffects (edict_t *ent)
 	ent->s.effects = 0;
 	ent->s.renderfx = 0;
 
-	if (ent->health <= 0 || level.intermissionframe)
+	if (ent->health <= 0 || tdm_match_status == MM_SCOREBOARD)
 		return;
 
 	if (ent->powerarmor_time > level.time)
@@ -794,6 +794,10 @@ G_SetClientEvent
 void G_SetClientEvent (edict_t *ent)
 {
 	if (ent->s.event)
+		return;
+
+	//no footsteps during timeout or scoreboards
+	if (tdm_match_status == MM_TIMEOUT)
 		return;
 
 	if ( ent->groundentity && xyspeed > 225)
@@ -963,7 +967,7 @@ void ClientEndServerFrame (edict_t *ent)
 	// If the end of unit layout is displayed, don't give
 	// the player any normal movement attributes
 	//
-	if (level.intermissionframe)
+	if (tdm_match_status == MM_SCOREBOARD)
 	{
 		// FIXME: add view drifting here?
 		current_client->ps.blend[3] = 0;
@@ -1049,7 +1053,9 @@ void ClientEndServerFrame (edict_t *ent)
 
 	G_SetClientSound (ent);
 
-	G_SetClientFrame (ent);
+	//no frame advancement during timeout
+	if (tdm_match_status != MM_TIMEOUT)
+		G_SetClientFrame (ent);
 
 	VectorCopy (ent->velocity, ent->client->oldvelocity);
 	VectorCopy (ent->client->ps.viewangles, ent->client->oldviewangles);
@@ -1062,7 +1068,8 @@ void ClientEndServerFrame (edict_t *ent)
 	if (ent->client->showscores && !(level.framenum & 31) )
 	{
 		//DeathmatchScoreboardMessage (ent, ent->enemy);
-		TDM_ScoreBoardMessage (ent);
+		gi.WriteByte (svc_layout);
+		gi.WriteString (TDM_ScoreBoardString (ent));
 		gi.unicast (ent, false);
 	}
 }
