@@ -157,6 +157,8 @@ const char *TDM_Macro_Location (edict_t *ent, size_t *length)
 	modifier = NULL;
 	best = NULL;
 
+	//FIXME: serverside .loc support?
+
 	for (e = g_edicts + game.maxclients + 1; e < g_edicts + globals.num_edicts; e++)
 	{
 		if (e->item && (((e->item->flags & (IT_WEAPON|IT_POWERUP)) && !(e->item->flags & IT_AMMO)) || (ITEM_INDEX(e->item) == ITEM_ITEM_HEALTH && e->count == 100)))
@@ -178,33 +180,34 @@ const char *TDM_Macro_Location (edict_t *ent, size_t *length)
 	}
 
 	//check for other items, apply modifier if possible
-	for (e = g_edicts + game.maxclients + 1; e < g_edicts + globals.num_edicts; e++)
+	if (best)
 	{
-		if (e != best && e->item && (((e->item->flags & (IT_WEAPON|IT_POWERUP)) && !(e->item->flags & IT_AMMO)) || (ITEM_INDEX(e->item) == ITEM_ITEM_HEALTH && e->count == 100)))
+		for (e = g_edicts + game.maxclients + 1; e < g_edicts + globals.num_edicts; e++)
 		{
-			if (ITEM_INDEX (e->item) == bestindex && !modifier)
+			if (e != best && e->item && (((e->item->flags & (IT_WEAPON|IT_POWERUP)) && !(e->item->flags & IT_AMMO)) || (ITEM_INDEX(e->item) == ITEM_ITEM_HEALTH && e->count == 100)))
 			{
-				if (e->s.origin[2] < height)
-					modifier = "upper ";
-				else
-					modifier = "lower ";
+				if (ITEM_INDEX (e->item) == bestindex && !modifier)
+				{
+					if (e->s.origin[2] < height)
+						modifier = "upper ";
+					else
+						modifier = "lower ";
 
-				break;
+					break;
+				}
 			}
 		}
+
+		*length = sprintf (buff, "%s%s", modifier ? modifier : "", best->item->shortname);
 	}
-
-	//FIXME: serverside .loc support?
-
-	if (!best)
+	else
 	{
 		if (ent->waterlevel)
 			*length = sprintf (buff, "water");
 		else
 			*length = sprintf (buff, "%s", level.mapname);
 	}
-	else
-		*length = sprintf (buff, "%s%s", modifier ? modifier : "", best->item->shortname);
+
 	return buff;
 }
 
