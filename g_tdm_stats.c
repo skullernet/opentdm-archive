@@ -271,9 +271,9 @@ char *TDM_BuildAccuracyString (edict_t *ent, teamplayer_t *info)
 
 /*
 ==============
-TDM_BuildAccuracyString
+TDM_BuildTeamAccuracyString
 ==============
-Builds accuracy string - hits / misses per weapon.
+Builds team accuracy string - hits / misses per weapon.
 */
 char *TDM_BuildTeamAccuracyString (edict_t *ent, matchinfo_t *info, unsigned team)
 {
@@ -492,7 +492,7 @@ char *TDM_BuildItemsString (edict_t *ent, teamplayer_t *info)
 		float_indexes[i].index = i;
 	}
 
-	qsort (float_indexes+1, game.num_items+1, sizeof(float_indexes[0]), TDM_PercentageSort);
+	qsort (float_indexes+1, game.num_items-1, sizeof(float_indexes[0]), TDM_PercentageSort);
 
 	for (i = 1; i < game.num_items; i++)
 	{
@@ -510,11 +510,11 @@ char *TDM_BuildItemsString (edict_t *ent, teamplayer_t *info)
 
 				//if player is requesting his own stats, don't show total spawned yet as it could
 				//possibly be used to determine things - eg when mega has respawned
-				strcat (stats, va ("%-16.16s:%3d\n", GETITEM(index)->pickup_name, info->items_collected[index]));
+				strcat (stats, va ("%-16.16s:%3d\n", item->pickup_name, info->items_collected[index]));
 			}
 			else
 			{
-				strcat (stats, va ("%-16.16s:%3d / %-3d (%.f%%)\n", GETITEM(index)->pickup_name,
+				strcat (stats, va ("%-16.16s:%3d / %-3d (%.f%%)\n", item->pickup_name,
 					info->items_collected[index], info->matchinfo->item_spawn_count[index] - info->items_collected[index], float_indexes[i].percentage));
 			}
 		}
@@ -738,7 +738,7 @@ teamplayer_t *TDM_GetInfoForPlayer (edict_t *ent, matchinfo_t *matchinfo)
 		//viewing chasee stats
 		if (ent->client->chase_target && ent->client->chase_target->client->resp.teamplayerinfo)
 		{
-			victim = ent->client->resp.teamplayerinfo;
+			victim = ent->client->chase_target->client->resp.teamplayerinfo;
 			return victim;
 		}
 

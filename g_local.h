@@ -483,7 +483,7 @@ typedef struct
 	char		nextmap[MAX_QPATH];		// go here when fraglimit is hit
 
 	// intermission state
-	unsigned	intermissionframe;		// time the intermission was started
+	int			intermissionframe;		// time the intermission was started
 	char		*changemap;
 	int			exitintermission;
 	vec3_t		intermission_origin;

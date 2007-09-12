@@ -1182,7 +1182,7 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 	{
 		if (!Q_stricmp (cmd, "commands"))
 			TDM_Commands_f (ent);
-		else if (!Q_stricmp (cmd, "settings"))
+		else if (!Q_stricmp (cmd, "settings") || !Q_stricmp (cmd, "matchinfo"))
 			TDM_Settings_f (ent);
 		else if (!Q_stricmp (cmd, "calltime") | !Q_stricmp (cmd, "pause") || !Q_stricmp (cmd, "ctime") || !Q_stricmp (cmd, "time"))
 			TDM_Timeout_f (ent);
@@ -1244,7 +1244,7 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Commands_f (ent);
 		else if (!Q_stricmp (cmd, "join") || !Q_stricmp (cmd, "team"))
 			TDM_Team_f (ent);
-		else if (!Q_stricmp (cmd, "settings"))
+		else if (!Q_stricmp (cmd, "settings") || !Q_stricmp (cmd, "matchinfo"))
 			TDM_Settings_f (ent);
 		else if (!Q_stricmp (cmd, "observer") || !Q_stricmp (cmd, "spectate") || !Q_stricmp (cmd, "chase"))
 			ToggleChaseCam (ent);

@@ -711,6 +711,9 @@ void TDM_EndIntermission (void)
 		if (old_matchinfo.teamplayers)
 			gi.TagFree (old_matchinfo.teamplayers);
 
+		//have to do this before we destroy teamplayers or no scores are written
+		strcpy (current_matchinfo.scoreboard_string, TDM_ScoreBoardString(NULL));
+
 		old_matchinfo = current_matchinfo;
 
 		current_matchinfo.teamplayers = NULL;
@@ -718,8 +721,6 @@ void TDM_EndIntermission (void)
 
 		teaminfo[TEAM_A].oldscore = teaminfo[TEAM_A].score;
 		teaminfo[TEAM_B].oldscore = teaminfo[TEAM_B].score;
-
-		strcpy (old_matchinfo.scoreboard_string, TDM_ScoreBoardString(NULL));
 
 		for (i = 0; i < old_matchinfo.num_teamplayers; i++)
 		{

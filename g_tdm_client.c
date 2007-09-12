@@ -79,10 +79,7 @@ void TDM_LeftTeam (edict_t *ent)
 
 	//resume play if this guy called time?
 	if (tdm_match_status == MM_TIMEOUT && level.tdm_timeout_caller->client == ent)
-	{
 		TDM_ResumeGame ();
-	}
-	//	TDM_Timeout_f (ent);
 
 	oldteam = ent->client->resp.team;
 
@@ -511,6 +508,14 @@ A player disconnected, do things.
 */
 void TDM_Disconnected (edict_t *ent)
 {
+	qboolean	removeTimeout;
+
+	removeTimeout = false;
+
+	//have to check this right up here since we nuke the teamplayer just below!
+	if (tdm_match_status == MM_TIMEOUT && level.tdm_timeout_caller->client == ent)
+		removeTimeout = true;
+
 	//we remove this up here so TDM_LeftTeam doesn't try to resume if we become implicit timeout caller
 	TDM_RemoveStatsLink (ent);
 
@@ -568,8 +573,10 @@ void TDM_Disconnected (edict_t *ent)
 			}
 		}
 
+		if (removeTimeout)
+			TDM_ResumeGame ();
+
 		TDM_LeftTeam (ent);
-		TDM_TeamsChanged ();
 	}
 
 	TDM_TeamsChanged ();

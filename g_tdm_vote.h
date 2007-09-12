@@ -12,8 +12,8 @@ void TDM_SetupVote (edict_t *ent);
 void TDM_ConfigDownloaded (char *buff, int len, int code);
 
 //define for variable frametime support
-#define SECS_TO_FRAMES(seconds)	((seconds)/FRAMETIME)
-#define FRAMES_TO_SECS(frames)	((frames)*FRAMETIME)
+#define SECS_TO_FRAMES(seconds)	(int)((seconds)/FRAMETIME)
+#define FRAMES_TO_SECS(frames)	(int)((frames)*FRAMETIME)
 
 int LookupPlayer (const char *match, edict_t **out, edict_t *ent);
 
