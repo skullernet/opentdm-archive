@@ -12,6 +12,7 @@ void TDM_Accuracy_f (edict_t *ent, matchinfo_t *info);
 void TDM_Damage_f (edict_t *ent, matchinfo_t *info);
 void TDM_Items_f (edict_t *ent, matchinfo_t *info);
 
+void TDM_TeamStats_f (edict_t *ent, matchinfo_t *info);
 void TDM_TeamAccuracy_f (edict_t *ent, matchinfo_t *info);
 void TDM_TeamDamage_f (edict_t *ent, matchinfo_t *info);
 void TDM_TeamItems_f (edict_t *ent, matchinfo_t *info);

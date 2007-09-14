@@ -435,16 +435,20 @@ void TDM_Teamname_f (edict_t *ent)
 
 	value = gi.args ();
 
+	//chop off quotes if the user specified them
+	value = G_StripQuotes (value);
+
 	//max however many characters
 	value[sizeof(teaminfo[TEAM_SPEC].name)-1] = '\0';
 
-	//validate teamname in the most convuluted way possible
+	//validate teamname in the most convuluted way possible: disallow high ascii,
+	//quotes and escape char as they can mess up the scoreboard program.
 	i = 0;
 	do
 	{
-		if (value[i] < 32)
+		if (value[i] < 32 || value[i] == '"')
 		{
-			gi.cprintf (ent, PRINT_HIGH, "Invalid team name.\n");
+			gi.cprintf (ent, PRINT_HIGH, "Invalid team name, must not contain color text or quotes.\n");
 			return;
 		}
 		i++;
@@ -1194,6 +1198,8 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Damage_f (ent, &current_matchinfo);
 		else if (!Q_stricmp (cmd, "items"))
 			TDM_Items_f (ent, &current_matchinfo);
+		else if (!Q_stricmp (cmd, "teamstats"))
+			TDM_TeamStats_f (ent, &current_matchinfo);
 		else if (!Q_stricmp (cmd, "ghost") || !Q_stricmp (cmd, "restore") || !Q_stricmp (cmd, "recover") | !Q_stricmp (cmd, "rejoin"))
 			TDM_Ghost_f (ent);
 		else if (!Q_stricmp (cmd, "win"))
@@ -1264,6 +1270,8 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Items_f (ent, &current_matchinfo);
 		else if (!Q_stricmp (cmd, "teamitems"))
 			TDM_TeamItems_f (ent, &current_matchinfo);
+		else if (!Q_stricmp (cmd, "teamstats"))
+			TDM_TeamStats_f (ent, &current_matchinfo);
 		else if (!Q_stricmp (cmd, "oldstats") || !Q_stricmp (cmd, "oldkills") || (!Q_stricmp (cmd, "laststats") || !Q_stricmp (cmd, "lastkills") ))
 			TDM_Stats_f (ent, &old_matchinfo);
 		else if (!Q_stricmp (cmd, "oldaccuracy") || !Q_stricmp (cmd, "lastaccuracy"))
@@ -1278,6 +1286,8 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Items_f (ent, &old_matchinfo);
 		else if (!Q_stricmp (cmd, "oldteamitems"))
 			TDM_TeamItems_f (ent, &old_matchinfo);
+		else if (!Q_stricmp (cmd, "oldteamstats"))
+			TDM_TeamStats_f (ent, &old_matchinfo);
 		else if (!Q_stricmp (cmd, "oldscores") || !Q_stricmp (cmd, "oldscore") || !Q_stricmp (cmd, "lastscores") || !Q_stricmp (cmd, "lastscore"))
 			TDM_OldScores_f (ent);
 		else if (!Q_stricmp (cmd, "ghost") || !Q_stricmp (cmd, "restore") || !Q_stricmp (cmd, "recover") | !Q_stricmp (cmd, "rejoin"))

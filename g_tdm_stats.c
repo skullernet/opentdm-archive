@@ -467,7 +467,6 @@ char *TDM_BuildItemsString (edict_t *ent, teamplayer_t *info)
 	qboolean	basic;
 
 	stats[0] = 0;
-
 	basic = (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD) && ent->client->resp.team;
 
 	if (basic)
@@ -642,6 +641,22 @@ void TDM_WriteStatsString (edict_t *ent, teamplayer_t *info)
 	strcat (stats, "\n");
 	strcat (stats, extra);
 
+	//======= ITEMS ========
+	//no item stats in itdm
+	if (info->matchinfo->game_mode != GAMEMODE_ITDM)
+	{
+		extra = TDM_BuildItemsString (ent, info);
+
+		//need to flush?
+		if (strlen(stats) + strlen(extra) >= sizeof(stats)-1)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+			stats[0] = 0;
+		}
+
+		strcat (stats, "\n");
+		strcat (stats, extra);
+	}
 
 	//======= ACCURACY ========
 	extra = TDM_BuildAccuracyString (ent, info);
@@ -656,8 +671,59 @@ void TDM_WriteStatsString (edict_t *ent, teamplayer_t *info)
 	strcat (stats, "\n");
 	strcat (stats, extra);
 
+	if (strlen (stats) < 800)
+		strcat (stats, "\nThis is still a work in progress... if you have any interesting ideas for stats, post on www.opentdm.net!\n");
+
+	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+}
+
+void TDM_WriteTeamStatsString (edict_t *ent, matchinfo_t *info, unsigned team)
+{
+	char		*extra;
+	static char	stats[1024];
+
+	stats[0] = 0;
+
+	//======= GENERAL ========
+	//FIXME
+	/*strcat (stats, TDM_SetColorText (va ("GENERAL\n")));
+	strcat (stats, va ("Kills    : %d\n", info->enemy_kills));
+	strcat (stats, va ("Deaths   : %d\n", info->deaths));
+	strcat (stats, va ("Suicides : %d\n", info->suicides));
+	strcat (stats, va ("Teamkills: %d\n", info->team_kills));*/
+
+	//======= DAMAGE ========
+	extra = TDM_BuildTeamDamageString (ent, info, team);
+
+	//need to flush?
+	if (strlen(stats) + strlen(extra) >= sizeof(stats)-1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+		stats[0] = 0;
+	}
+
+	strcat (stats, "\n");
+	strcat (stats, extra);
+
 	//======= ITEMS ========
-	extra = TDM_BuildItemsString (ent, info);
+	//no item stats in itdm
+	if (info->game_mode != GAMEMODE_ITDM)
+	{
+		extra = TDM_BuildTeamItemsString (ent, info, team);
+
+		//need to flush?
+		if (strlen(stats) + strlen(extra) >= sizeof(stats)-1)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+			stats[0] = 0;
+		}
+
+		strcat (stats, "\n");
+		strcat (stats, extra);
+	}
+
+	//======= ACCURACY ========
+	extra = TDM_BuildTeamAccuracyString (ent, info, team);
 
 	//need to flush?
 	if (strlen(stats) + strlen(extra) >= sizeof(stats)-1)
@@ -980,6 +1046,33 @@ void TDM_Stats_f (edict_t *ent, matchinfo_t *info)
 
 /*
 ==============
+TDM_TeamStats_f
+==============
+Show shitloads of useless information.
+*/
+void TDM_TeamStats_f (edict_t *ent, matchinfo_t *info)
+{
+	int				team;
+
+	team = TDM_GetTeamFromMatchInfo (ent, info);
+	if (team == -1)
+		return;
+
+	if (TDM_StatCheatCheck (ent, team))
+		return;
+
+	if (team != (int)ent->client->resp.team)
+		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
+
+	if (TDM_Is1V1())
+		TDM_WriteStatsString (ent, teaminfo[team].captain->client->resp.teamplayerinfo);
+	else
+		TDM_WriteTeamStatsString (ent, info, team);
+		
+}
+
+/*
+==============
 TDM_Accuracy_f
 ==============
 Show accuracy info.
@@ -1006,9 +1099,9 @@ void TDM_Accuracy_f (edict_t *ent, matchinfo_t *info)
 
 /*
 ==============
-TDM_Accuracy_f
+TDM_TeamAccuracy_f
 ==============
-Show accuracy info.
+Show team accuracy info.
 */
 void TDM_TeamAccuracy_f (edict_t *ent, matchinfo_t *info)
 {
@@ -1021,6 +1114,9 @@ void TDM_TeamAccuracy_f (edict_t *ent, matchinfo_t *info)
 
 	if (TDM_StatCheatCheck (ent, team))
 		return;
+
+	if (team != (int)ent->client->resp.team)
+		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
 
 	if (TDM_Is1V1())
 		stats = TDM_BuildAccuracyString (ent, teaminfo[team].captain->client->resp.teamplayerinfo);
@@ -1074,6 +1170,9 @@ void TDM_TeamDamage_f (edict_t *ent, matchinfo_t *info)
 	if (TDM_StatCheatCheck (ent, team))
 		return;
 
+	if (team != (int)ent->client->resp.team)
+		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
+
 	if (TDM_Is1V1())
 		stats = TDM_BuildDamageString (ent, teaminfo[team].captain->client->resp.teamplayerinfo);
 	else
@@ -1096,6 +1195,12 @@ void TDM_Items_f (edict_t *ent, matchinfo_t *info)
 	victim = TDM_GetInfoForPlayer (ent, info);
 	if (!victim)
 		return;
+
+	if (info->game_mode == GAMEMODE_ITDM)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Items stats are not available for matches played under ITDM rules.\n");
+		return;
+	}
 
 	if (TDM_StatCheatCheck (ent, victim->team))
 		return;
@@ -1123,8 +1228,17 @@ void TDM_TeamItems_f (edict_t *ent, matchinfo_t *info)
 	if (team == -1)
 		return;
 
+	if (info->game_mode == GAMEMODE_ITDM)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Items stats are not available for matches played under ITDM rules.\n");
+		return;
+	}
+
 	if (TDM_StatCheatCheck (ent, team))
 		return;
+
+	if (team != (int)ent->client->resp.team)
+		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
 
 	if (TDM_Is1V1())
 		stats = TDM_BuildItemsString (ent, teaminfo[team].captain->client->resp.teamplayerinfo);

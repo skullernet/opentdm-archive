@@ -532,10 +532,12 @@ void TDM_Disconnected (edict_t *ent)
 
 			if (TDM_Is1V1() && g_1v1_timeout->value > 0)
 			{
+				edict_t		*ghost;
+
 				//may have already been set by a player or previous client disconnect
 				if (tdm_match_status != MM_TIMEOUT)
 				{
-					edict_t		*ghost;
+					
 					edict_t		*opponent;
 
 					//timeout is called implicitly in 1v1 games or the other player would auto win
@@ -555,21 +557,22 @@ void TDM_Disconnected (edict_t *ent)
 					if (opponent)
 						gi.cprintf (opponent, PRINT_HIGH, "Your opponent has disconnected. You can allow them %s to reconnect, or you can force a forfeit by typing 'win' in the console.\n", TDM_SecsToString (g_1v1_timeout->value));
 
-					//show a "ghost" player
-					ghost = G_Spawn ();
-					VectorCopy (ent->s.origin, ghost->s.origin);
-					VectorCopy (ent->s.angles, ghost->s.angles);
-					ghost->s.effects = EF_SPHERETRANS;
-					ghost->s.modelindex = 255;
-					ghost->s.modelindex2 = 255;
-					ghost->s.skinnum = ent - g_edicts - 1;
-					ghost->s.frame = ent->s.frame;
-					ghost->count = ent->s.number;
-					ghost->classname = "ghost";
-					ghost->target_ent = ent;
-					ghost->enttype = ENT_GHOST;
-					gi.linkentity (ghost);
 				}
+
+				//show a "ghost" player where the player was
+				ghost = G_Spawn ();
+				VectorCopy (ent->s.origin, ghost->s.origin);
+				VectorCopy (ent->s.angles, ghost->s.angles);
+				ghost->s.effects = EF_SPHERETRANS;
+				ghost->s.modelindex = 255;
+				ghost->s.modelindex2 = 255;
+				ghost->s.skinnum = ent - g_edicts - 1;
+				ghost->s.frame = ent->s.frame;
+				ghost->count = ent->s.number;
+				ghost->classname = "ghost";
+				ghost->target_ent = ent;
+				ghost->enttype = ENT_GHOST;
+				gi.linkentity (ghost);
 			}
 		}
 

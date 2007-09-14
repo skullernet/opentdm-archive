@@ -437,6 +437,24 @@ void G_UnicastSound (edict_t *ent, int index, qboolean reliable)
 	gi.unicast (ent, reliable);
 }
 
+char *G_StripQuotes (char *string)
+{
+	size_t	i;
+
+	if (!string[0])
+		return string;
+
+	i = strlen(string);
+
+	if (string[0] == '"' && string[i-1] == '"')
+	{
+		string[i-1] = 0;
+		return string + 1;
+	}
+
+	return string;
+}
+
 /*
 =================
 G_Spawn

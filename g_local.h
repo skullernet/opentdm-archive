@@ -869,6 +869,7 @@ void	G_StuffCmd (edict_t *e, const char *fmt, ...);
 void	G_UnicastSound (edict_t *ent, int index, qboolean reliable);
 void	G_TouchTriggers (edict_t *ent);
 void	G_TouchSolids (edict_t *ent);
+char	*G_StripQuotes (char *string);
 
 char	*G_CopyString (const char *in);
 

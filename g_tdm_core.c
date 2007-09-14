@@ -374,11 +374,10 @@ function.
 */
 char *TDM_ScoreBoardString (edict_t *ent)
 {
-	//TODO: implement proper scoreboard
 	char		entry[1024];
 	static char	string[1400];
 	int			len;
-	int			i, j, k, n;
+	int			i, j, k;
 	int			sorted[2][MAX_CLIENTS];
 	int			sortedscores[2][MAX_CLIENTS];
 	int			score, total[2], totalscore[2];
@@ -386,21 +385,26 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	int			width[2];
 	int			maxplayers;
 	int			offset;
+	const char	*winnerString[MAX_TEAMS];
+	qboolean	drawn_header;
 
 	gclient_t	*cl;
 	edict_t		*cl_ent;
-	int team;
-	int maxsize = 1300;
+	int			team;
+	const int	maxsize = 1300;
 	
 	// sort the clients by team and score
 	total[0] = total[1] = 0;
 	last[0] = last[1] = 0;
 	totalscore[0] = totalscore[1] = 0;
+
 	for (i=0 ; i < game.maxclients ; i++)
 	{
 		cl_ent = g_edicts + 1 + i;
+
 		if (!cl_ent->inuse)
 			continue;
+
 		if (game.clients[i].resp.team == TEAM_A)
 			team = 0;
 		else if (game.clients[i].resp.team == TEAM_B)
@@ -431,6 +435,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	else
 		maxplayers = total[1];
 
+	//determine how wide to draw team score
 	len = abs(teaminfo[TEAM_A].score);
 
 	if (len > 9)
@@ -457,32 +462,39 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	if (teaminfo[TEAM_B].score < 0)
 		width[1]++;
 
-	// print level name and exit rules
-	// add the clients in sorted order
+	//init string
 	*string = 0;
 	len = 0;
 
+	//figure out how far the other team needs to be drawn below
 	offset = maxplayers * 8 + 64;
 
-	// team one
+	//if end of the match, highlight the winning team
+	winnerString[TEAM_A] = winnerString[TEAM_B] = "";
+
+	if (current_matchinfo.winning_team != TEAM_SPEC)
+		winnerString[current_matchinfo.winning_team] = "2";
+
+	// team info bars
 	sprintf(string,
 		
 		//Team A
 		"xv 0 yv 0 picn /players/%s_i.pcx "
-		"xv 34 yv 0 string \"%s\" "
+		"xv 34 yv 0 string%s \"%s\" "
 		"xv 32 yv 8 num %d 23 "
 
 		//Team B
 		"xv 0 yv %d picn /players/%s_i.pcx "
-		"xv 34 yv %d string \"%s\" "
+		"xv 34 yv %d string%s \"%s\" "
 		"xv 32 yv %d num %d 24 ",
-		teaminfo[TEAM_A].skin, va ("%s (%d player%s)", teaminfo[TEAM_A].name, total[0], total[0] == 1 ? "" : "s"), width[0],
+		teaminfo[TEAM_A].skin, winnerString[TEAM_A], va ("%s (%d player%s)", teaminfo[TEAM_A].name, total[0], total[0] == 1 ? "" : "s"), width[0],
 		offset + 0, teaminfo[TEAM_B].skin,
-		offset + 0, va ("%s (%d player%s)", teaminfo[TEAM_B].name, total[1], total[1] == 1 ? "" : "s"),
+		offset + 0, winnerString[TEAM_B], va ("%s (%d player%s)", teaminfo[TEAM_B].name, total[1], total[1] == 1 ? "" : "s"),
 		offset + 8, width[1]);
 
 	len = strlen(string);
 
+	//now the lpayers
 	for (i=0 ; i<16 ; i++)
 	{
 		if (i >= total[0] && i >= total[1])
@@ -500,7 +512,8 @@ char *TDM_ScoreBoardString (edict_t *ent)
 #endif
 
 		// top
-		if (i < total[0]) {
+		if (i < total[0])
+		{
 			cl = &game.clients[sorted[0][i]];
 			cl_ent = g_edicts + 1 + sorted[0][i];
 
@@ -545,7 +558,8 @@ char *TDM_ScoreBoardString (edict_t *ent)
 		}
 
 		// bottom
-		if (i < total[1]) {
+		if (i < total[1])
+		{
 			cl = &game.clients[sorted[1][i]];
 			cl_ent = g_edicts + 1 + sorted[1][i];
 
@@ -582,7 +596,8 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				cl->ping > 999 ? 999 : cl->ping);
 
 #endif
-			if (maxsize - len > strlen(entry)) {
+			if (maxsize - len > strlen(entry))
+			{
 				strcat(string, entry);
 				len = strlen(string);
 				last[1] = i;
@@ -598,7 +613,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 
 	j = (j + 2) * 8 + 42 + offset;
 
-	k = n = 0;
+	drawn_header = false;
 	if (maxsize - len > 50)
 	{
 		for (i = 0; i < game.maxclients; i++)
@@ -610,16 +625,16 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				cl_ent->client->resp.team != TEAM_SPEC)
 				continue;
 
-			if (!k)
+			if (!drawn_header)
 			{
-				k = 1;
+				drawn_header = true;
 				sprintf(entry, "xv 0 yv %d string2 \"Spectators\" ", j);
 				strcat(string, entry);
 				len = strlen(string);
 				j += 8;
 			}
 
-			sprintf(entry+strlen(entry),
+			sprintf(entry,
 				"xv 0 yv %d string \"%s%s %3dp\" ",
 				//0, // x
 				j, // y
@@ -627,23 +642,26 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				cl->chase_target ? va(" -> %-12.12s", cl->chase_target->client->pers.netname) : "",
 				cl->ping > 999 ? 999 : cl->ping);
 
-			if (maxsize - len > strlen(entry)) {
+			if (maxsize - len > strlen(entry))
+			{
 				strcat(string, entry);
 				len = strlen(string);
 			}
 			
-			//if (n & 1)
 			j += 8;
-			n++;
 		}
 	}
 
-	if (total[0] - last[0] > 1) // couldn't fit everyone
-		sprintf(string + strlen(string), "xv 8 yv %d string \"..and %d more\" ",
-			offset + 42 + (last[0]+1)*8, total[0] - last[0] - 1);
-	if (total[1] - last[1] > 1) // couldn't fit everyone
-		sprintf(string + strlen(string), "xv 168 yv %d string \"..and %d more\" ",
-			offset + 42 + (last[1]+1)*8, total[1] - last[1] - 1);
+	if (maxsize - len > 80)
+	{
+		if (total[0] - last[0] > 1) // couldn't fit everyone
+			sprintf(string + strlen(string), "xv 8 yv %d string \"..and %d more\" ",
+				offset + 42 + (last[0]+1)*8, total[0] - last[0] - 1);
+
+		if (total[1] - last[1] > 1) // couldn't fit everyone
+			sprintf(string + strlen(string), "xv 8 yv %d string \"..and %d more\" ",
+				offset + 42 + (last[1]+1)*8, total[1] - last[1] - 1);
+	}
 
 	return string;
 }
@@ -835,7 +853,12 @@ void TDM_EndMatch (void)
 	loser = 0;
 	forfeit = false;
 
-	if (teaminfo[TEAM_A].players == 0)
+	if (teaminfo[TEAM_A].players == 0 && teaminfo[TEAM_B].players == 0)
+	{
+		winner = TEAM_SPEC;
+		loser = TEAM_SPEC;
+	}
+	else if (teaminfo[TEAM_A].players == 0)
 	{
 		winner = TEAM_B;
 		loser = TEAM_A;
@@ -869,6 +892,8 @@ void TDM_EndMatch (void)
 		else
 			gi.bprintf (PRINT_HIGH, "%s wins, %d to %d.\n", teaminfo[winner].name, teaminfo[winner].score, teaminfo[loser].score);
 	}
+
+	current_matchinfo.winning_team = winner;
 
 	level.match_resume_framenum = 0;
 	level.match_end_framenum = 0;
