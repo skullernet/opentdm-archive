@@ -56,6 +56,11 @@ void DisableChaseCam (edict_t *ent)
 {
 	ChaseEyeHack (ent, NULL, ent->client->chase_target);
 
+	//remove a gun model if we were using one for in-eyes
+	ent->client->ps.gunframe = ent->client->ps.gunindex = 0;
+	VectorClear (ent->client->ps.gunoffset);
+	VectorClear (ent->client->ps.kick_angles);
+
 	ent->client->ps.viewangles[ROLL] = 0;
 	ent->client->chase_target = NULL;
 	ent->client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;

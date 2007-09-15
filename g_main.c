@@ -42,7 +42,7 @@ cvar_t	*timelimit;
 cvar_t	*password;
 cvar_t	*spectator_password;
 cvar_t	*maxclients;
-cvar_t	*maxspectators;
+//cvar_t	*maxspectators;
 cvar_t	*maxentities;
 cvar_t	*g_select_empty;
 cvar_t	*dedicated;
@@ -407,7 +407,8 @@ void ExitLevel (void)
 			ent->health = ent->max_health;
 	}*/
 
-	TDM_ResetGameState ();
+	//this should be called implicitly on new map, check
+	//TDM_ResetGameState ();
 }
 
 /*
@@ -438,6 +439,7 @@ void G_RunFrame (void)
 				//if we got here, the map change from ExitLevel didn't work
 				gi.bprintf (PRINT_CHAT, "ERROR: Map '%s' was not found on the server.\n", level.changemap);
 				level.exitintermission = 0;
+				TDM_ResetGameState ();
 			}
 			else
 			{

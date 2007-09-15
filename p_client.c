@@ -1112,7 +1112,7 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	{
 		if (old_name[0] && tdm_match_status > MM_COUNTDOWN)
 		{
-			gi.cprintf (ent, PRINT_HIGH, "You cannot change your name in the middle of a match!\n");
+			gi.cprintf (ent, PRINT_HIGH, "You cannot change your name in the middle of the match!\n");
 			Info_SetValueForKey (userinfo, "name", old_name);
 			G_StuffCmd (ent, "set name \"%s\"\n", old_name);
 		}

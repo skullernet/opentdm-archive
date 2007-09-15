@@ -56,7 +56,9 @@ void MoveClientToIntermission (edict_t *ent)
 	ent->client->grenade_blew_up = false;
 	ent->client->grenade_time = 0;
 
-	ent->viewheight = 0;
+	//why?
+	//ent->viewheight = 0;
+
 	ent->s.modelindex = 0;
 	ent->s.modelindex2 = 0;
 	ent->s.modelindex3 = 0;
@@ -470,9 +472,17 @@ void G_SetSpectatorStats (edict_t *ent)
 	else
 	{
 		memcpy (cl->ps.stats, cl->chase_target->client->ps.stats, sizeof(cl->ps.stats));
-		cl->ps.gunindex = cl->chase_target->client->ps.gunindex;
-		cl->ps.gunframe = cl->chase_target->client->ps.gunframe;
-		VectorCopy (cl->chase_target->client->ps.gunangles, cl->ps.gunangles);
+
+		//copy gun if in-eyes mode
+		if (cl->chase_mode == CHASE_EYES)
+		{
+			cl->ps.gunindex = cl->chase_target->client->ps.gunindex;
+			cl->ps.gunframe = cl->chase_target->client->ps.gunframe;
+			VectorCopy (cl->chase_target->client->ps.gunangles, cl->ps.gunangles);
+
+			//copy kickangles so hits/etc look realistic
+			VectorCopy (cl->chase_target->client->ps.kick_angles, cl->ps.kick_angles);
+		}
 	}
 
 	cl->ps.stats[STAT_SPECTATOR] = 1;

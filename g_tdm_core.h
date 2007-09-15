@@ -19,6 +19,7 @@ void TDM_HandleDownload (char *buff, int len, int code);
 qboolean TDM_ProcessText (char *buff, int len, qboolean (*func)(char *, int, void *), void *param);
 void TDM_ResetVotableVariables (void);
 int TDM_GetTeamFromArg (edict_t *ent, const char *value);
+void TDM_FixDeltaAngles (void);
 
 typedef enum
 {

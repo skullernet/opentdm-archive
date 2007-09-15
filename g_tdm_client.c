@@ -65,7 +65,7 @@ void JoinedTeam (edict_t *ent)
 ==============
 TDM_LeftTeam
 ==============
-A player just left a team, so do things.
+A player just left a team, so do things. Remember to call TeamsChanged afterwards!
 */
 void TDM_LeftTeam (edict_t *ent)
 {
@@ -85,11 +85,6 @@ void TDM_LeftTeam (edict_t *ent)
 
 	//wision: remove player from the team!
 	ent->client->resp.team = TEAM_SPEC;
-	//TDM_TeamsChanged ();
-
-	//unlock here if team emptied
-	if (teaminfo[oldteam].players == 0)
-		teaminfo[oldteam].locked = false;
 }
 
 qboolean CanJoin (edict_t *ent, unsigned team)

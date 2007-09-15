@@ -130,7 +130,8 @@ void ChangeWeapon (edict_t *ent)
 		ent->client->ammo_index = 0;
 
 	if (!ent->client->weapon)
-	{	// dead
+	{	
+		// dead
 		ent->client->ps.gunindex = 0;
 		return;
 	}
@@ -353,7 +354,7 @@ void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST,
 
 	if (ent->client->weaponstate == WEAPON_ACTIVATING)
 	{
-		if (g_fast_weap_switch->value == 2)
+		if (g_fast_weap_switch->value >= 2)
 			ent->client->ps.gunframe = FRAME_ACTIVATE_LAST;
 
 		if (ent->client->ps.gunframe == FRAME_ACTIVATE_LAST)
@@ -472,7 +473,15 @@ void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST,
 		}
 
 		if (!fire_frames[n])
+		{
 			ent->client->ps.gunframe++;
+
+			if ((ent->client->newweapon) && g_fast_weap_switch->value >= 3)
+			{
+				ChangeWeapon (ent);
+				return;
+			}
+		}
 
 		if (ent->client->ps.gunframe == FRAME_IDLE_FIRST+1)
 			ent->client->weaponstate = WEAPON_READY;

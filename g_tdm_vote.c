@@ -311,6 +311,8 @@ static void TDM_AnnounceVote (void)
 			strcat (what, "faster weapon switch");
 		else if (vote.switchmode == 2)
 			strcat (what, "instant weapon switch");
+		else if (vote.switchmode == 3)
+			strcat (what, "insane weapon switch");
 	}
 
 	if (vote.flags & VOTE_TELEMODE)
@@ -451,6 +453,12 @@ qboolean TDM_VoteMap (edict_t *ent)
 			gi.cprintf (ent, PRINT_HIGH, "Invalid map name.\n");
 			return false;
 		}
+	}
+
+	if (!strcmp (level.mapname, value))
+	{
+		gi.cprintf (ent, PRINT_HIGH, "You're already playing on %s!\n", value);
+		return false;
 	}
 
 	if (vote.active)
@@ -950,7 +958,7 @@ qboolean TDM_VoteSwitchMode (edict_t *ent)
 
 	if (!value[0])
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: vote switchmode <normal/fast/instant>\nnormal: regular Q2 weapon switch speed\nfast: weapon dropping animation is skipped\ninstant: all animations are skipped\n");
+		gi.cprintf (ent, PRINT_HIGH, "Usage: vote switchmode <normal/fast/instant/insane>\nnormal: regular Q2 weapon switch speed\nfast: weapon dropping animation is skipped\ninstant: weapon dropping / ready animations are skipped\ninsane: all non-firing animations are skipped\n");
 		return false;
 	}
 
@@ -958,7 +966,9 @@ qboolean TDM_VoteSwitchMode (edict_t *ent)
 		switchmode = 1;
 	else if (!Q_stricmp (value, "instant"))
 		switchmode = 2;
-	else if (!Q_stricmp (value, "normal") || !Q_stricmp (value, "slow"))
+	else if (!Q_stricmp (value, "insane"))
+		switchmode = 3;
+	else if (!Q_stricmp (value, "normal") || !Q_stricmp (value, "slow") || !Q_stricmp (value, "default") || !Q_stricmp (value, "q2"))
 		switchmode = 0;
 	else
 	{

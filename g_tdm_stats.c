@@ -1279,11 +1279,6 @@ void TDM_SetupMatchInfoAndTeamPlayers (void)
 	int		i;
 	edict_t	*ent;
 
-	if (current_matchinfo.teamplayers)
-		TDM_Error ("TDM_SetupMatchInfoAndTeamPlayers: Still have teamplayers in current_matchinfo");
-
-	memset (&current_matchinfo, 0, sizeof(current_matchinfo));
-
 	current_matchinfo.game_mode = g_gamemode->value;
 	current_matchinfo.timelimit = g_match_time->value / 60;
 

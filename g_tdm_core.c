@@ -242,6 +242,9 @@ void TDM_ResetLevel (void)
 		//handle body que specially, just remove effects and unlink it
 		if (ent->enttype == ENT_BODYQUE)
 		{
+			//it could still be an ungibbed body, make sure nothing can happen to it
+			ent->takedamage = DAMAGE_NO;
+			ent->s.solid = SOLID_NOT;
 			ent->s.modelindex = ent->s.effects = ent->s.sound = ent->s.renderfx = 0;
 			gi.unlinkentity (ent);
 			continue;
@@ -753,12 +756,16 @@ void TDM_EndIntermission (void)
 
 			old_matchinfo.teamplayers[i].matchinfo = &old_matchinfo;
 		}
+
+		memset (&current_matchinfo, 0, sizeof(current_matchinfo));
 	}
 	else
 		TDM_Error ("TDM_EndIntermission: We should have current_teamplayers but we don't!");
 
 	level.match_score_end_framenum = 0;
 	TDM_ResetGameState ();
+
+	TDM_FixDeltaAngles ();
 }
 
 /*
@@ -857,6 +864,7 @@ void TDM_EndMatch (void)
 	{
 		winner = TEAM_SPEC;
 		loser = TEAM_SPEC;
+		gi.bprintf (PRINT_HIGH, "Match cancelled, no players remaining.\n");
 	}
 	else if (teaminfo[TEAM_A].players == 0)
 	{
@@ -895,6 +903,7 @@ void TDM_EndMatch (void)
 
 	current_matchinfo.winning_team = winner;
 
+	level.timeout_end_framenum = 0;
 	level.match_resume_framenum = 0;
 	level.match_end_framenum = 0;
 
@@ -992,7 +1001,19 @@ Update server info visible to browsers.
 */
 void TDM_UpdateServerInfo (void)
 {
+	char		buff[128];
 
+	if (tdm_match_status < MM_PLAYING)
+	{
+		Com_sprintf (buff, sizeof(buff), "set Score_A \"WARMUP\" s\nset Score_B \"WARMUP\" s\nset time_remaining \"WARMUP\" s\n");
+	}
+	else
+	{
+		Com_sprintf (buff, sizeof(buff), "set Score_A \"%d\" s\nset Score_B \"%d\"\nset time_remaining \"%s\"\n", 
+			teaminfo[TEAM_A].score, teaminfo[TEAM_B].score, TDM_SecsToString (FRAMES_TO_SECS(level.match_end_framenum - level.framenum)));
+	}
+
+	gi.AddCommandString (buff);
 }
 
 /*
@@ -1187,7 +1208,7 @@ void TDM_CheckMatchStart (void)
 	}
 	else
 	{
-		if (total_players >= 2 && total_ready >= total_players / 2)
+		if (total_players >= 2 && total_ready >= total_players / 2.0f)
 		{
 			if (!level.next_ready_nag_framenum)
 				level.next_ready_nag_framenum = level.framenum + SECS_TO_FRAMES(20);
@@ -1454,6 +1475,12 @@ void TDM_ResumeGame (void)
 	if (tdm_match_status != MM_TIMEOUT)
 		TDM_Error ("TDM_ResumeGame caled with match state %d", tdm_match_status);
 
+	if (teaminfo[TEAM_A].players == 0 && teaminfo[TEAM_B].players == 0)
+	{
+		TDM_EndMatch();
+		return;
+	}
+
 	gi.sound (world, 0, gi.soundindex ("world/10_0.wav"), 1, ATTN_NONE, 0);
 	gi.bprintf (PRINT_CHAT, "Game resuming in 10 seconds. Match time remaining: %s\n", TDM_SecsToString(FRAMES_TO_SECS(level.match_end_framenum - level.framenum)));
 
@@ -1503,7 +1530,7 @@ void TDM_SetupSounds (void)
 ==============
 CountPlayers
 ==============
-Count how many players each team has
+Count how many players each team has.
 */
 void CountPlayers (void)
 {
@@ -1535,6 +1562,11 @@ Update match status (end match when whole team leaves i.e.)
 void UpdateMatchStatus (void)
 {
 	int team;
+
+	//unlock if a team emptied out
+	for (team = 1; team < MAX_TEAMS; team++)
+		if (teaminfo[team].players == 0)
+			teaminfo[team].locked = false;
 
 	if (tdm_match_status < MM_PLAYING || tdm_match_status == MM_SCOREBOARD || tdm_match_status == MM_TIMEOUT)
 		return;
@@ -1609,8 +1641,6 @@ void TDM_TeamsChanged (void)
 	UpdateMatchStatus ();
 	TDM_CheckMatchStart ();
 }
-
-
 
 /*
 ==============
@@ -1864,6 +1894,9 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 	static matchmode_t	last_mode = MM_INVALID;
 	int					time_remaining;
 	int					timeout_remaining;
+	qboolean			need_serverinfo_update;
+
+	need_serverinfo_update = false;
 
 	if (g_team_a_name->modified || forceUpdate)
 	{
@@ -1947,6 +1980,7 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 				last_scores[i] = teaminfo[i].score;
 				sprintf (teaminfo[i].statstatus, "%15d", teaminfo[i].score);
 				gi.configstring (CS_TDM_TEAM_A_STATUS + (i - TEAM_A), teaminfo[i].statstatus);
+				need_serverinfo_update = true;
 			}
 		}
 	}
@@ -2006,6 +2040,8 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 				gi.bprintf (PRINT_HIGH, "1 minute remaining.\n");
 
 			gi.configstring (CS_TDM_TIMELIMIT_STRING, time_buffer);
+
+			need_serverinfo_update = true;
 		}
 	}
 
@@ -2037,6 +2073,9 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 			gi.configstring (CS_TDM_TIMEOUT_STIRNG, time_buffer);
 		}
 	}
+
+	if (need_serverinfo_update)
+		TDM_UpdateServerInfo ();
 }
 
 /*

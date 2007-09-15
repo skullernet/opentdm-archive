@@ -525,10 +525,12 @@ void P_FallingDamage (edict_t *ent)
 	// never take falling damage if completely underwater
 	if (ent->waterlevel == 3)
 		return;
+
 	if (ent->waterlevel == 2)
-		delta *= 0.25;
+		delta *= 0.25f;
+
 	if (ent->waterlevel == 1)
-		delta *= 0.5;
+		delta *= 0.5f;
 
 	if (delta < 1)
 		return;
@@ -539,9 +541,10 @@ void P_FallingDamage (edict_t *ent)
 		return;
 	}
 
-	ent->client->fall_value = delta*0.5;
+	ent->client->fall_value = delta*0.5f;
 	if (ent->client->fall_value > 40)
 		ent->client->fall_value = 40;
+
 	ent->client->fall_time = level.time + FALL_TIME;
 
 	if (delta > 30)
@@ -559,7 +562,7 @@ void P_FallingDamage (edict_t *ent)
 			damage = 1;
 		VectorSet (dir, 0, 0, 1);
 
-		if (!(int)dmflags->value & DF_NO_FALLING)
+		if (!((int)dmflags->value & DF_NO_FALLING))
 			T_Damage (ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, 0, MOD_FALLING);
 	}
 	else

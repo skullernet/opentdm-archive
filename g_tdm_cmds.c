@@ -271,7 +271,7 @@ char *TDM_SettingsString (void)
 	int			i;
 
 	static const char *gamemode_text[] = {"Team Deathmatch", "Instagib Team Deathmatch", "1 vs 1 duel"};
-	static const char *switchmode_text[] = {"normal", "faster", "instant"};
+	static const char *switchmode_text[] = {"normal", "faster", "instant", "insane"};
 	static const char *telemode_text[] = {"normal", "no freeze"};
 
 	settings[0] = 0;
