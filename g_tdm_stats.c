@@ -794,21 +794,22 @@ teamplayer_t *TDM_GetInfoForPlayer (edict_t *ent, matchinfo_t *matchinfo)
 	{
 		int		i;
 
-		//viewing own stats mid-game
-		if (ent->client->resp.teamplayerinfo)
+		//viewing chasee stats, note we can't just use chase_target->teamplayerinfo since
+		//we could be looking up oldstats, so search the matchinfo teamplayers to see if
+		//this player still has a link.
+		if (ent->client->chase_target)
 		{
-			victim = ent->client->resp.teamplayerinfo;
-			return victim;
+			for (i = 0; i < count; i++)
+			{
+				if (info[i].client == ent->client->chase_target)
+				{
+					victim = info + i;
+					return victim;
+				}
+			}
 		}
 
-		//viewing chasee stats
-		if (ent->client->chase_target && ent->client->chase_target->client->resp.teamplayerinfo)
-		{
-			victim = ent->client->chase_target->client->resp.teamplayerinfo;
-			return victim;
-		}
-
-		//finished game, checking stats
+		//checking their own stats
 		for (i = 0; i < count; i++)
 		{
 			if (info[i].client == ent)
@@ -818,6 +819,7 @@ teamplayer_t *TDM_GetInfoForPlayer (edict_t *ent, matchinfo_t *matchinfo)
 			}
 		}
 
+		//couldn't guess, ask them to specify
 		if (!victim)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "Usage: %s <name/id>\n", gi.argv(0));
@@ -829,7 +831,7 @@ teamplayer_t *TDM_GetInfoForPlayer (edict_t *ent, matchinfo_t *matchinfo)
 		edict_t	*client;
 		int		i;
 
-		//match on existing player who still has a link to the stats
+		//match on existing player who still has a link to their stats
 		if (LookupPlayer (gi.args(), &client, NULL))
 		{
 			for (i = 0; i < count; i++)
