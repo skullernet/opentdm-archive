@@ -1346,6 +1346,10 @@ qboolean TDM_IsTrackableItem (edict_t *ent)
 	if (!ent->item)
 		TDM_Error ("TDM_IsTrackableItem: Got entity %d with no item", ent - g_edicts);
 
+	//we don't track stuff during warmup
+	if (tdm_match_status < MM_PLAYING || tdm_match_status == MM_SCOREBOARD)
+		return false;
+
 	//its health, but not megahealth
 	if (ent->item == GETITEM(ITEM_ITEM_HEALTH) && !(ent->style & HEALTH_TIMED))
 		return false;
@@ -1392,10 +1396,6 @@ Someone grabbed an item, do stuff for stats if needed.
 */
 void TDM_ItemGrabbed (edict_t *ent, edict_t *player)
 {
-	//we don't track stuff during warmup
-	if (tdm_match_status < MM_PLAYING || tdm_match_status == MM_SCOREBOARD)
-		return;
-
 	//do we want to track it?
 	if (!TDM_IsTrackableItem (ent))
 		return;
