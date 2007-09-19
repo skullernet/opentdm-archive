@@ -469,6 +469,14 @@ void ParseEntityString (qboolean respawn)
 	ent = NULL;
 	inhibit = 0;
 	i = 0;
+
+	//mark all the spawned_entities as inuse so G_Spawn doesn't try to pick them during
+	//trigger spawning etc
+	for (i = 0; i < num_spawned_entities; i++)
+		spawned_entities[i]->inuse = true;
+
+	i = 0;
+
 // parse ents
 	while (1)
 	{
@@ -484,6 +492,9 @@ void ParseEntityString (qboolean respawn)
 			ent = spawned_entities[i];
 			if (ent != world)
 			{
+				//double check we aren't overwriting stuff that we shouldn't be
+				if (ent->enttype == ENT_DOOR_TRIGGER || ent->enttype == ENT_PLAT_TRIGGER)
+					TDM_Error ("ParseEntityString: Trying to reuse an already spawned ent!");
 				G_FreeEdict (ent);
 				G_InitEdict (ent);
 			}
@@ -525,6 +536,13 @@ void ParseEntityString (qboolean respawn)
 
 		if (!respawn)
 			spawned_entities[num_spawned_entities++] = ent;
+		else
+		{
+			//an elevator or something respawned on top of a player? don't do it for match start, since
+			//players will be respawning anyway.
+			if (tdm_match_status < MM_PLAYING && (ent->solid == SOLID_BBOX || ent->solid == SOLID_BSP))
+				KillBox (ent);
+		}
 	}
 
 	//gi.dprintf ("%i entities inhibited\n", inhibit);

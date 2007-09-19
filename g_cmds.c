@@ -841,6 +841,17 @@ void Cmd_Wave_f (edict_t *ent)
 	if (tdm_match_status == MM_TIMEOUT)
 		return;
 
+	// can't wave when ducked
+	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+		return;
+
+	if (ent->client->anim_priority > ANIM_WAVE)
+		return;
+
+	// can't wave when dead !
+	if (ent->health <= 0)
+		return;
+
 	//wision: wave flood protection (yeah.. 'some' players are so annoying)
 	if (flood_waves->value)
 	{
@@ -866,13 +877,6 @@ void Cmd_Wave_f (edict_t *ent)
 	}
 
 	i = atoi (gi.argv(1));
-
-	// can't wave when ducked
-	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-		return;
-
-	if (ent->client->anim_priority > ANIM_WAVE)
-		return;
 
 	ent->client->anim_priority = ANIM_WAVE;
 
@@ -967,23 +971,23 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	{
 		cl = ent->client;
 
-		if (level.framenum < cl->resp.flood_locktill)
+		if (level.realframenum < cl->resp.flood_locktill)
 		{
 			gi.cprintf(ent, PRINT_HIGH, "You can't talk for %d more seconds\n",
-				(int)((cl->resp.flood_locktill - level.framenum) * FRAMETIME));
+				(int)((cl->resp.flood_locktill - level.realframenum) * FRAMETIME));
 			return;
 		}
 		i = cl->resp.flood_whenhead - flood_msgs->value + 1;
 		if (i < 0)
 			i = (sizeof(cl->resp.flood_when)/sizeof(cl->resp.flood_when[0])) + i;
-		if (cl->resp.flood_when[i] && (level.framenum - cl->resp.flood_when[i]) < flood_waitdelay->value / FRAMETIME)
+		if (cl->resp.flood_when[i] && (level.realframenum - cl->resp.flood_when[i]) < flood_waitdelay->value / FRAMETIME)
 		{
-			cl->resp.flood_locktill = level.framenum + (flood_waitdelay->value / FRAMETIME);
+			cl->resp.flood_locktill = level.realframenum + (flood_waitdelay->value / FRAMETIME);
 			gi.cprintf(ent, PRINT_CHAT, "Flood protection:  You can't talk for %d seconds.\n", (int)(flood_waitdelay->value));
 			return;
 		}
 		cl->resp.flood_whenhead = (cl->resp.flood_whenhead + 1) %	(sizeof(cl->resp.flood_when)/sizeof(cl->resp.flood_when[0]));
-		cl->resp.flood_when[cl->resp.flood_whenhead] = level.framenum;
+		cl->resp.flood_when[cl->resp.flood_whenhead] = level.realframenum;
 	}
 
 	if (dedicated->value)

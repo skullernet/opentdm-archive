@@ -1089,6 +1089,7 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	//new connection, server is calling us. just save userinfo for later.
 	if (!ent->inuse)
 	{
+		strncpy (ent->client->pers.ip, Info_ValueForKey(userinfo, "ip"), sizeof(ent->client->pers.ip)-1);
 		strncpy (ent->client->pers.userinfo, userinfo, sizeof(ent->client->pers.userinfo)-1);
 		return;
 	}
@@ -1187,7 +1188,6 @@ qboolean ClientConnect (edict_t *ent, char *userinfo)
 		Info_SetValueForKey(userinfo, "rejmsg", "You are banned from this server.");
 		return false;
 	}
-
 
 	// check for a password
 	value = Info_ValueForKey (userinfo, "password");

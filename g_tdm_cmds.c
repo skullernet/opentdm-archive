@@ -762,10 +762,18 @@ void TDM_Admin_f (edict_t *ent)
 		return;
 	}
 
+	if (TDM_RateLimited (ent, SECS_TO_FRAMES(1)))
+		return;
+
 	if (!strcmp (gi.argv(1), g_admin_password->string))
 	{
 		gi.bprintf (PRINT_CHAT, "%s became an admin.\n", ent->client->pers.netname);
 		ent->client->pers.admin = true;
+	}
+	else
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Invalid password.\n");
+		gi.dprintf ("%s[%s] failed to login as admin.\n", ent->client->pers.netname, ent->client->pers.ip);
 	}
 }
 
@@ -1204,6 +1212,8 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Ghost_f (ent);
 		else if (!Q_stricmp (cmd, "win"))
 			TDM_Win_f (ent);
+		else if (!Q_stricmp (cmd, "admin") || !Q_stricmp (cmd, "referee"))
+			TDM_Admin_f (ent);
 		else if (!Q_stricmp (cmd, "stopsound"))
 			return true;	//prevent chat from our stuffcmds on people who have no sound
 
@@ -1218,7 +1228,7 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_NotReady_f (ent);
 		else if (!Q_stricmp (cmd, "kickplayer") || !Q_stricmp (cmd, "removeplayer") || !Q_stricmp (cmd, "remove"))
 			TDM_KickPlayer_f (ent);
-		else if (!Q_stricmp (cmd, "admin"))
+		else if (!Q_stricmp (cmd, "admin") || !Q_stricmp (cmd, "referee"))
 			TDM_Admin_f (ent);
 		else if (!Q_stricmp (cmd, "captain"))
 			TDM_Captain_f (ent);

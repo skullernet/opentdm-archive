@@ -1208,7 +1208,8 @@ void TDM_CheckMatchStart (void)
 	}
 	else
 	{
-		if (total_players >= 2 && total_ready >= total_players / 2.0f)
+		if (teaminfo[TEAM_A].players && teaminfo[TEAM_A].players &&
+			total_players >= 2 && total_ready >= total_players / 2.0f)
 		{
 			if (!level.next_ready_nag_framenum)
 				level.next_ready_nag_framenum = level.framenum + SECS_TO_FRAMES(20);

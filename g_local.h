@@ -34,6 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	OPENTDM_VERSION	"1.0"
 #else
 #define	OPENTDM_VERSION "$Revision$"
+//dummy string to force g_local.h commit: sjnfsdf
 #endif
 
 // protocol bytes that can be directly added to messages
@@ -1243,6 +1244,7 @@ typedef struct
 {
 	char		userinfo[MAX_INFO_STRING];
 	char		netname[16];
+	char		ip[24];
 	int			hand;
 
 	qboolean	connected;			// a loadgame will leave valid entities that
