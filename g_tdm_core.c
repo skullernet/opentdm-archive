@@ -732,16 +732,13 @@ void TDM_EndIntermission (void)
 		if (old_matchinfo.teamplayers)
 			gi.TagFree (old_matchinfo.teamplayers);
 
-		//have to do this before we destroy teamplayers or no scores are written
-		strcpy (current_matchinfo.scoreboard_string, TDM_ScoreBoardString(NULL));
+		current_matchinfo.scores[TEAM_A] = teaminfo[TEAM_A].score;
+		current_matchinfo.scores[TEAM_B] = teaminfo[TEAM_B].score;
 
 		old_matchinfo = current_matchinfo;
 
 		current_matchinfo.teamplayers = NULL;
 		current_matchinfo.num_teamplayers = 0;
-
-		teaminfo[TEAM_A].oldscore = teaminfo[TEAM_A].score;
-		teaminfo[TEAM_B].oldscore = teaminfo[TEAM_B].score;
 
 		for (i = 0; i < old_matchinfo.num_teamplayers; i++)
 		{
@@ -754,6 +751,7 @@ void TDM_EndIntermission (void)
 				old_matchinfo.teamplayers[i].saved_client = NULL;
 			}
 
+			//update matchinfo pointer
 			old_matchinfo.teamplayers[i].matchinfo = &old_matchinfo;
 		}
 
@@ -813,18 +811,31 @@ void TDM_BeginIntermission (void)
 	VectorCopy (ent->s.origin, level.intermission_origin);
 	VectorCopy (ent->s.angles, level.intermission_angle);
 
-	// move all clients to the intermission point
-	for (i=0 ; i < game.maxclients; i++)
-	{
-		client = g_edicts + 1 + i;
+	//take a copy of the scoreboard, have to do this before we destroy
+	//teamplayers or no scores are written!
+	strcpy (current_matchinfo.scoreboard_string, TDM_ScoreBoardString(NULL));
 
+	// move all clients to the intermission point
+	for (client = g_edicts + 1; client <= g_edicts + game.maxclients; client++)
+	{
+		if (!client->inuse)
+			continue;
+
+		MoveClientToIntermission (client);
+	}
+
+	//disable chasecams after moving clients to intermission, that way the scoreboard
+	//will remember who was chasing who.
+	for (client = g_edicts + 1; client <= g_edicts + game.maxclients; client++)
+	{
 		if (!client->inuse)
 			continue;
 
 		//reset any invites
 		client->client->resp.last_invited_by = NULL;
 
-		MoveClientToIntermission (client);
+		if (client->client->chase_target)
+			DisableChaseCam (client);
 	}
 }
 
@@ -1729,6 +1740,8 @@ void TDM_ResetGameState (void)
 				ent->client->resp.team = TEAM_SPEC;
 				PutClientInServer (ent);
 			}
+
+			ent->viewheight = 0;
 		}
 	}
 

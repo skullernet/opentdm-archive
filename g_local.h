@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	OPENTDM_VERSION	"1.0"
 #else
 #define	OPENTDM_VERSION "$Revision$"
-//dummy string to force g_local.h commit: sjnfsdf
+//dummy string to force g_local.h commit: sjngfsdf
 #endif
 
 // protocol bytes that can be directly added to messages
@@ -1127,6 +1127,7 @@ struct matchinfo_s
 	int				game_mode;
 	int				timelimit;
 	int				winning_team;
+	int				scores[MAX_TEAMS];
 	char			mapname[MAX_QPATH];
 	char			scoreboard_string[1400];
 	unsigned		item_spawn_count[MAX_ITEMS];
@@ -1195,7 +1196,6 @@ typedef struct
 {
 	int			players;
 	int			score;
-	int			oldscore;
 	char		name[MAX_TEAMNAME_LENGTH];
 	char		skin[MAX_TEAMSKIN_LENGTH];
 	char		statname[32];

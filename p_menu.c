@@ -9,6 +9,10 @@ void PMenu_Open(edict_t *ent, pmenu_t *entries, int cur, int num, qboolean dynam
 	if (!ent->client)
 		return;
 
+	//opening menu forces scoreboards down
+	ent->client->showoldscores = false;
+	ent->client->showscores = false;
+
 	if (ent->client->menu.active)
 	{
 		gi.dprintf("warning, ent already has a menu\n");

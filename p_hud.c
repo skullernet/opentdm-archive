@@ -33,16 +33,19 @@ void MoveClientToIntermission (edict_t *ent)
 {
 	PMenu_Close (ent);
 
-	if (ent->client->chase_target)
-		DisableChaseCam (ent);
-
-	ent->client->showscores = true;
+	//MM_SCOREBOARD will set the layout
+	ent->client->showoldscores = false;
+	ent->client->showscores = false;
 
 	VectorCopy (level.intermission_origin, ent->s.origin);
+
 	ent->client->ps.pmove.origin[0] = level.intermission_origin[0]*8;
 	ent->client->ps.pmove.origin[1] = level.intermission_origin[1]*8;
 	ent->client->ps.pmove.origin[2] = level.intermission_origin[2]*8;
+	
 	VectorCopy (level.intermission_angle, ent->client->ps.viewangles);
+	VectorCopy (level.intermission_angle, ent->client->v_angle);
+
 	ent->client->ps.pmove.pm_type = PM_FREEZE;
 	ent->client->ps.gunindex = 0;
 	ent->client->ps.blend[3] = 0;
@@ -56,8 +59,8 @@ void MoveClientToIntermission (edict_t *ent)
 	ent->client->grenade_blew_up = false;
 	ent->client->grenade_time = 0;
 
-	//why?
-	//ent->viewheight = 0;
+	//simulate player height
+	ent->viewheight = 22;
 
 	ent->s.modelindex = 0;
 	ent->s.modelindex2 = 0;
@@ -430,8 +433,8 @@ void G_SetStats (edict_t *ent)
 
 	if (ent->client->showoldscores)
 	{
-		ent->client->ps.stats[STAT_TEAM_A_SCORE] = teaminfo[TEAM_A].oldscore;
-		ent->client->ps.stats[STAT_TEAM_B_SCORE] = teaminfo[TEAM_B].oldscore;
+		ent->client->ps.stats[STAT_TEAM_A_SCORE] = old_matchinfo.scores[TEAM_A];
+		ent->client->ps.stats[STAT_TEAM_B_SCORE] = old_matchinfo.scores[TEAM_B];
 	}
 	else
 	{

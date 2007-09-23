@@ -327,6 +327,16 @@ void BecomeExplosion1 (edict_t *self)
 	gi.WritePosition (self->s.origin);
 	gi.multicast (self->s.origin, MULTICAST_PVS);
 
+	//handle clientheads specially
+	if (self->enttype == ENT_BODYQUE)
+	{
+		self->solid = SOLID_NOT;
+		self->s.modelindex = 0;
+		self->takedamage = 0;
+		gi.unlinkentity (self);
+		return;
+	}
+
 	G_FreeEdict (self);
 }
 
@@ -337,6 +347,16 @@ void BecomeExplosion2 (edict_t *self)
 	gi.WriteByte (TE_EXPLOSION2);
 	gi.WritePosition (self->s.origin);
 	gi.multicast (self->s.origin, MULTICAST_PVS);
+
+	//handle clientheads specially
+	if (self->enttype == ENT_BODYQUE)
+	{
+		self->solid = SOLID_NOT;
+		self->s.modelindex = 0;
+		self->takedamage = 0;
+		gi.unlinkentity (self);
+		return;
+	}
 
 	G_FreeEdict (self);
 }
