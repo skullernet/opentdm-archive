@@ -763,6 +763,7 @@ extern	cvar_t	*g_gamemode;
 extern	cvar_t	*g_respawn_time;
 extern	cvar_t	*g_max_timeout;
 extern	cvar_t	*g_1v1_timeout;
+extern	cvar_t	*g_chat_mode;
 
 extern	cvar_t	*g_http_enabled;
 extern	cvar_t	*g_http_bind;
@@ -1166,6 +1167,7 @@ typedef struct vote_s
 	int				switchmode;
 	int				tiemode;
 	int				gamemode;
+	int				newchatmode;
 	unsigned		overtimemins;
 	char			configname[32];
 } vote_t;

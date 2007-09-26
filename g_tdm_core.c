@@ -638,12 +638,12 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			}
 
 			sprintf(entry,
-				"xv 0 yv %d string \"%s%s %3dp\" ",
+				"xv 0 yv %d string \"%3dp %s%s\" ",
 				//0, // x
 				j, // y
+				cl->ping > 999 ? 999 : cl->ping,
 				cl->pers.netname,
-				cl->chase_target ? va(" -> %-12.12s", cl->chase_target->client->pers.netname) : "",
-				cl->ping > 999 ? 999 : cl->ping);
+				cl->chase_target ? va(" -> %-12.12s", cl->chase_target->client->pers.netname) : "");
 
 			if (maxsize - len > strlen(entry))
 			{
@@ -665,6 +665,10 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			sprintf(string + strlen(string), "xv 8 yv %d string \"..and %d more\" ",
 				offset + 42 + (last[1]+1)*8, total[1] - last[1] - 1);
 	}
+
+	//debug infos :V
+	if (!Q_stricmp (ent->client->pers.netname, "r1ch"))
+		gi.cprintf (ent, PRINT_HIGH, "Scoreboard len: %d\n", strlen(string));
 
 	return string;
 }
@@ -1765,6 +1769,8 @@ Single time initialization stuff.
 void TDM_Init (void)
 {
 	cvar_t	*var;
+	char	*p;
+	int		revision;
 
 	HTTP_Init ();
 
@@ -1810,6 +1816,11 @@ void TDM_Init (void)
 		dmflags = gi.cvar_set ("dmflags", g_tdmflags->string);
 	else if (g_gamemode->value == GAMEMODE_1V1)
 		dmflags = gi.cvar_set ("dmflags", g_1v1flags->string);
+
+	//show opentdm version to browsers
+	p = strchr (OPENTDM_VERSION, ':') + 2;
+	revision = atoi (p);
+	gi.cvar ("revision", va("%d", revision), CVAR_SERVERINFO|CVAR_NOSET);
 
 	TDM_ResetGameState ();
 }

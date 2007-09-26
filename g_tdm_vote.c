@@ -40,6 +40,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	VOTE_CONFIG		0x800
 #define	VOTE_WEBCONFIG	0x1000
 
+#define	VOTE_CHAT		0x2000
+
 #define WEAPON_SHOTGUN			(1<<1)
 #define	WEAPON_SSHOTGUN			(1<<2)
 #define	WEAPON_MACHINEGUN		(1<<3)
@@ -179,6 +181,12 @@ static void TDM_ApplyVote (void)
 		g_teleporter_nofreeze = gi.cvar_set ("g_teleporter_nofreeze", value);
 	}
 
+	if (vote.flags & VOTE_CHAT)
+	{
+		sprintf (value, "%d", vote.newchatmode);
+		g_chat_mode = gi.cvar_set ("g_chat_mode", value);
+	}
+
 	if (vote.flags & VOTE_OVERTIME)
 	{
 		sprintf (value, "%d", vote.overtimemins * 60);
@@ -198,8 +206,8 @@ should be on screen vote
 */
 static void TDM_AnnounceVote (void)
 {
-	char	message[1400];
-	char	what[1400];
+	char	message[1024];
+	char	what[1024];
 
 	message[0] = 0;
 	what[0] = 0;
@@ -332,6 +340,17 @@ static void TDM_AnnounceVote (void)
 			strcat (what, ", ");
 
 		strcat (what, va("overtime %d", vote.overtimemins));
+	}
+
+	if (vote.flags & VOTE_CHAT)
+	{
+		if (what[0])
+			strcat (what, ", ");
+
+		if (vote.newchatmode == 1)
+			strcat (what, "no spectator chat");
+		else
+			strcat (what, "allow all chat");
 	}
 
 	if (vote.flags & (VOTE_CONFIG|VOTE_WEBCONFIG))
@@ -1294,6 +1313,62 @@ void TDM_VoteWebConfigResult (edict_t *ent, int code, void *param)
 
 /*
 ==============
+TDM_VoteChatMode
+==============
+Vote how chat is allowed.
+*/
+qboolean TDM_VoteChat (edict_t *ent)
+{
+	int			chatmode;
+	const char	*value;
+
+	value = gi.argv(2);
+
+	if (!value[0])
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: vote chat <all/players>\n");
+		return false;
+	}
+
+	if (!Q_stricmp (value, "players") || !Q_stricmp (value, "team") || !Q_stricmp (value, "nospec") || !Q_stricmp (value, "1"))
+		chatmode = 1;
+	else if (!Q_stricmp (value, "all") || !Q_stricmp (value, "everyone") || !Q_stricmp (value, "0"))
+		chatmode = 0;
+	else
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Unknown chat mode: %s\n", value);
+		return false;
+	}
+
+	if (g_chat_mode->value == chatmode)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "That chat mode is already set!\n");
+		return false;
+	}
+
+	if (vote.active)
+	{
+		if (chatmode == vote.newchatmode)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You've already started a vote for that chat mode.\n");
+			return false;
+		}
+
+		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
+			return false;
+
+		gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+		TDM_RemoveVote ();
+	}
+
+	vote.newchatmode = chatmode;
+	vote.flags |= VOTE_CHAT;
+
+	return true;
+}
+
+/*
+==============
 TDM_Vote_X
 ==============
 Vote yes or no.
@@ -1303,6 +1378,7 @@ void TDM_Vote_X (edict_t *ent, player_vote_t x, const char *whatisit)
 	if (!vote.active)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "No vote in progress.\n");
+		return;
 	}
 
 	if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
@@ -1411,6 +1487,8 @@ void TDM_Vote_f (edict_t *ent)
 		started_new_vote = TDM_VoteConfig (ent);
 	else if (!Q_stricmp (cmd, "webconfig"))
 		started_new_vote = TDM_VoteWebConfig (ent);
+	else if (!Q_stricmp (cmd, "chat"))
+		started_new_vote = TDM_VoteChat (ent);
 	else if (!Q_stricmp (cmd, "yes"))
 		TDM_Vote_X (ent, VOTE_YES, "YES");
 	else if (!Q_stricmp (cmd, "no"))
@@ -1563,6 +1641,11 @@ qboolean TDM_ParseVoteConfigLine (char *line, int line_number, void *param)
 	{
 		c->settings.newpowerupflags = atoi(p);
 		c->settings.flags |= VOTE_POWERUPS;
+	}
+	else if (!strcmp (variable, "chat"))
+	{
+		c->settings.newchatmode = atoi(p);
+		c->settings.flags |= VOTE_CHAT;
 	}
 	else if (!strcmp (variable, "description"))
 	{

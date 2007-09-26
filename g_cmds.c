@@ -796,7 +796,7 @@ int PlayerSort (void const *a, void const *b)
 Cmd_Players_f
 =================
 */
-void Cmd_Players_f (edict_t *ent)
+/*void Cmd_Players_f (edict_t *ent)
 {
 	int		i;
 	int		count;
@@ -832,7 +832,7 @@ void Cmd_Players_f (edict_t *ent)
 	}
 
 	gi.cprintf (ent, PRINT_HIGH, "%s\n%i players\n", large, count);
-}
+}*/
 
 /*
 =================
@@ -934,7 +934,7 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	if (gi.argc () < 2 && !arg0)
 		return;
 
-	if (tdm_match_status > MM_COUNTDOWN && !ent->client->resp.team)
+	if (tdm_match_status > MM_COUNTDOWN && !ent->client->resp.team && g_chat_mode->value == 1)
 	{
 		//Observers can talk only to each other during the match.
 		team = true;
@@ -1018,16 +1018,15 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 void Cmd_PlayerList_f(edict_t *ent)
 {
 	int		i;
-	char	st[80];
-	char	text[1400];
+	char	st[128];
+	char	text[1024];
 	edict_t	*e2;
 
 	// connect time, ping, score, name
 	*text = 0;
 
-
 	//wision: better output with id
-	strcat(text, "id  time    ping   score   name - team\n");
+	strcat(text, "id  time    ping   score  name          team\n");
 	strcat(text, "----------------------------------------------\n");
 
 	for (i = 0, e2 = g_edicts + 1; i < game.maxclients; i++, e2++)
@@ -1035,7 +1034,7 @@ void Cmd_PlayerList_f(edict_t *ent)
 		if (!e2->inuse)
 			continue;
 
-		sprintf(st, "%2d  %02d:%02d   %4d     %3d   %s \t%s\n",
+		Com_sprintf (st, sizeof(st), "%2d  %02d:%02d   %4d     %3d  %-12s  %s\n",
 			i,
 			(level.framenum - e2->client->resp.enterframe) / 600,
 			((level.framenum - e2->client->resp.enterframe) % 600)/10,
@@ -1044,17 +1043,17 @@ void Cmd_PlayerList_f(edict_t *ent)
 			e2->client->pers.netname,
 			teaminfo[e2->client->resp.team].name);
 
-		if (strlen(text) + strlen(st) > sizeof(text) - 50)
+		if (strlen(text) > 800)
 		{
-			sprintf(text+strlen(text), "And more...\n");
 			gi.cprintf(ent, PRINT_HIGH, "%s", text);
-			return;
+			text[0] = 0;
 		}
+
 		strcat(text, st);
 	}
+
 	gi.cprintf(ent, PRINT_HIGH, "%s", text);
 }
-
 
 /*
 =================
@@ -1070,11 +1069,11 @@ void ClientCommand (edict_t *ent)
 
 	cmd = gi.argv(0);
 
-	if (Q_stricmp (cmd, "players") == 0)
+	/*if (Q_stricmp (cmd, "players") == 0)
 	{
 		Cmd_Players_f (ent);
 		return;
-	}
+	}*/
 	if (Q_stricmp (cmd, "say") == 0)
 	{
 		Cmd_Say_f (ent, false, false);
@@ -1144,7 +1143,7 @@ void ClientCommand (edict_t *ent)
 		Cmd_PutAway_f (ent);
 	else if (Q_stricmp (cmd, "wave") == 0)
 		Cmd_Wave_f (ent);
-	else if (Q_stricmp(cmd, "playerlist") == 0)
+	else if (Q_stricmp(cmd, "playerlist") == 0 || Q_stricmp (cmd, "players") == 0)
 		Cmd_PlayerList_f(ent);
 	else	// anything that doesn't match a command will be a chat
 		Cmd_Say_f (ent, false, true);

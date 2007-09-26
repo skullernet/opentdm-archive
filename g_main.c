@@ -107,6 +107,7 @@ cvar_t	*g_gamemode;
 cvar_t	*g_respawn_time;
 cvar_t	*g_max_timeout;
 cvar_t	*g_1v1_timeout;
+cvar_t	*g_chat_mode;
 
 cvar_t	*g_http_enabled;
 cvar_t	*g_http_bind;
