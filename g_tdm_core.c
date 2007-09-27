@@ -667,7 +667,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	}
 
 	//debug infos :V
-	if (!Q_stricmp (ent->client->pers.netname, "r1ch"))
+	if (ent && !Q_stricmp (ent->client->pers.netname, "r1ch"))
 		gi.cprintf (ent, PRINT_HIGH, "Scoreboard len: %d\n", strlen(string));
 
 	return string;
