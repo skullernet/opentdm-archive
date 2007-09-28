@@ -553,20 +553,7 @@ void Cmd_InvUse_f (edict_t *ent)
 	if (!ent->client->resp.team)
 	{
 		if (ent->client->chase_target)
-		{
-			ent->client->chase_mode = (ent->client->chase_mode + 1) % CHASE_MAX;
-
-			if (ent->client->chase_mode == CHASE_EYES)
-			{
-				ChaseEyeHack (ent, ent->client->chase_target, NULL);
-			}
-			else
-			{
-				//going 3rd person, remove gun and invisible player hack
-				ChaseEyeHack (ent,  NULL, ent->client->chase_target);
-				ent->client->ps.gunindex = ent->client->ps.gunframe = 0;
-			}
-		}
+			NextChaseMode (ent);
 		return;
 	}
 			

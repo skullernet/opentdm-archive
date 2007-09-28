@@ -43,6 +43,7 @@ typedef struct
 static const tdm_macro_t tdm_macros[] = 
 {
 	{"%h", 2, TDM_Macro_Health},
+	{"%H", 2, TDM_Macro_Health},
 	{"%A", 2, TDM_Macro_LongArmor},
 	{"%a", 2, TDM_Macro_ShortArmor},
 	{"%W", 2, TDM_Macro_LongWeapon},

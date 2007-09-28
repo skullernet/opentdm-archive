@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	OPENTDM_VERSION	"1.0"
 #else
 #define	OPENTDM_VERSION "$Revision$"
-//dummy string to force g_local.h commit: sjngfsdf
+//dummy string to force g_local.h commit: sfgjngfsdf
 #endif
 
 // protocol bytes that can be directly added to messages
@@ -995,6 +995,7 @@ void ChaseNext(edict_t *ent);
 void ChasePrev(edict_t *ent);
 void GetChaseTarget(edict_t *ent);
 void DisableChaseCam (edict_t *ent);
+void NextChaseMode (edict_t *ent);
 void ChaseEyeHack (edict_t *ent, edict_t *newplayer, edict_t *oldplayer);
 
 //opentdm
@@ -1137,7 +1138,9 @@ struct matchinfo_s
 
 	//base of teamplayers array
 	teamplayer_t	*teamplayers;
+	teamplayer_t	*captains[MAX_TEAMS];
 	int				num_teamplayers;
+	qboolean		is1v1;
 };
 
 extern matchinfo_t	current_matchinfo;
@@ -1238,6 +1241,7 @@ enum
 {
 	CHASE_EYES,
 	CHASE_THIRDPERSON,
+	CHASE_FREE,
 	CHASE_MAX,
 };
 

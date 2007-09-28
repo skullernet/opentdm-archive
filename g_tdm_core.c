@@ -666,10 +666,6 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				offset + 42 + (last[1]+1)*8, total[1] - last[1] - 1);
 	}
 
-	//debug infos :V
-	if (ent && !Q_stricmp (ent->client->pers.netname, "r1ch"))
-		gi.cprintf (ent, PRINT_HIGH, "Scoreboard len: %d\n", strlen(string));
-
 	return string;
 }
 
@@ -1818,9 +1814,13 @@ void TDM_Init (void)
 		dmflags = gi.cvar_set ("dmflags", g_1v1flags->string);
 
 	//show opentdm version to browsers
-	p = strchr (OPENTDM_VERSION, ':') + 2;
-	revision = atoi (p);
-	gi.cvar ("revision", va("%d", revision), CVAR_SERVERINFO|CVAR_NOSET);
+	p = strchr (OPENTDM_VERSION, ':');
+	if (p)
+	{
+		p += 2;
+		revision = atoi (p);
+		gi.cvar ("revision", va("%d", revision), CVAR_SERVERINFO|CVAR_NOSET);
+	}
 
 	TDM_ResetGameState ();
 }
@@ -2062,7 +2062,10 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 			if (last_secs < 60)
 				TDM_SetColorText (time_buffer);
 			else if (last_secs == 60 && tdm_match_status >= MM_PLAYING)
+			{
+				gi.sound (world, 0, gi.soundindex ("misc/talk1.wav"), 1, ATTN_NONE, 0);
 				gi.bprintf (PRINT_HIGH, "1 minute remaining.\n");
+			}
 
 			gi.configstring (CS_TDM_TIMELIMIT_STRING, time_buffer);
 

@@ -574,7 +574,7 @@ char *TDM_BuildTeamItemsString (edict_t *ent, matchinfo_t *info, unsigned team)
 		float_indexes[i].index = i;
 	}
 
-	qsort (float_indexes+1, game.num_items+1, sizeof(float_indexes[0]), TDM_PercentageSort);
+	qsort (float_indexes+1, game.num_items-1, sizeof(float_indexes[0]), TDM_PercentageSort);
 
 	for (i = 1; i < game.num_items; i++)
 	{
@@ -1011,9 +1011,9 @@ TDM_StatCheatCheck
 Returns true if someone in a match is trying to view stats of the other team. Prints
 a message to ent if they are doing such.
 */
-qboolean TDM_StatCheatCheck (edict_t *ent, unsigned team)
+qboolean TDM_StatCheatCheck (edict_t *ent, matchinfo_t *info, unsigned team)
 {
-	if (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD &&
+	if (info != &old_matchinfo && tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD &&
 		ent->client->resp.team && ent->client->resp.team != team)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You can only see stats for the other team after the match has finished.\n");
@@ -1037,7 +1037,7 @@ void TDM_Stats_f (edict_t *ent, matchinfo_t *info)
 	if (!victim)
 		return;
 
-	if (TDM_StatCheatCheck (ent, victim->team))
+	if (TDM_StatCheatCheck (ent, info, victim->team))
 		return;
 
 	if (ent != victim->client)
@@ -1060,14 +1060,14 @@ void TDM_TeamStats_f (edict_t *ent, matchinfo_t *info)
 	if (team == -1)
 		return;
 
-	if (TDM_StatCheatCheck (ent, team))
+	if (TDM_StatCheatCheck (ent, info, team))
 		return;
 
 	if (team != (int)ent->client->resp.team)
 		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
 
-	if (TDM_Is1V1())
-		TDM_WriteStatsString (ent, teaminfo[team].captain->client->resp.teamplayerinfo);
+	if (info->is1v1)
+		TDM_WriteStatsString (ent, info->captains[team]);
 	else
 		TDM_WriteTeamStatsString (ent, info, team);
 		
@@ -1088,7 +1088,7 @@ void TDM_Accuracy_f (edict_t *ent, matchinfo_t *info)
 	if (!victim)
 		return;
 
-	if (TDM_StatCheatCheck (ent, victim->team))
+	if (TDM_StatCheatCheck (ent, info, victim->team))
 		return;
 
 	if (ent != victim->client)
@@ -1114,14 +1114,14 @@ void TDM_TeamAccuracy_f (edict_t *ent, matchinfo_t *info)
 	if (team == -1)
 		return;
 
-	if (TDM_StatCheatCheck (ent, team))
+	if (TDM_StatCheatCheck (ent, info, team))
 		return;
 
 	if (team != (int)ent->client->resp.team)
 		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
 
-	if (TDM_Is1V1())
-		stats = TDM_BuildAccuracyString (ent, teaminfo[team].captain->client->resp.teamplayerinfo);
+	if (info->is1v1)
+		stats = TDM_BuildAccuracyString (ent, info->captains[team]);
 	else
 		stats = TDM_BuildTeamAccuracyString (ent, info, team);
 
@@ -1143,7 +1143,7 @@ void TDM_Damage_f (edict_t *ent, matchinfo_t *info)
 	if (!victim)
 		return;
 
-	if (TDM_StatCheatCheck (ent, victim->team))
+	if (TDM_StatCheatCheck (ent, info, victim->team))
 		return;
 
 	if (ent != victim->client)
@@ -1169,14 +1169,14 @@ void TDM_TeamDamage_f (edict_t *ent, matchinfo_t *info)
 	if (team == -1)
 		return;
 
-	if (TDM_StatCheatCheck (ent, team))
+	if (TDM_StatCheatCheck (ent, info, team))
 		return;
 
 	if (team != (int)ent->client->resp.team)
 		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
 
-	if (TDM_Is1V1())
-		stats = TDM_BuildDamageString (ent, teaminfo[team].captain->client->resp.teamplayerinfo);
+	if (info->is1v1)
+		stats = TDM_BuildDamageString (ent, info->captains[team]);
 	else
 		stats = TDM_BuildTeamDamageString (ent, info, team);
 
@@ -1204,7 +1204,7 @@ void TDM_Items_f (edict_t *ent, matchinfo_t *info)
 		return;
 	}
 
-	if (TDM_StatCheatCheck (ent, victim->team))
+	if (TDM_StatCheatCheck (ent, info, victim->team))
 		return;
 
 	if (ent != victim->client)
@@ -1236,14 +1236,14 @@ void TDM_TeamItems_f (edict_t *ent, matchinfo_t *info)
 		return;
 	}
 
-	if (TDM_StatCheatCheck (ent, team))
+	if (TDM_StatCheatCheck (ent, info, team))
 		return;
 
 	if (team != (int)ent->client->resp.team)
 		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
 
-	if (TDM_Is1V1())
-		stats = TDM_BuildItemsString (ent, teaminfo[team].captain->client->resp.teamplayerinfo);
+	if (info->is1v1)
+		stats = TDM_BuildItemsString (ent, info->captains[team]);
 	else
 		stats = TDM_BuildTeamItemsString (ent, info, team);
 
@@ -1292,6 +1292,8 @@ void TDM_SetupMatchInfoAndTeamPlayers (void)
 	current_matchinfo.num_teamplayers = teaminfo[TEAM_A].players + teaminfo[TEAM_B].players;
 	current_matchinfo.teamplayers = gi.TagMalloc (current_matchinfo.num_teamplayers * sizeof(teamplayer_t), TAG_GAME);
 
+	current_matchinfo.is1v1 = TDM_Is1V1 ();
+
 	for (i = 0, ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
 		if (ent->client->resp.team)
@@ -1335,6 +1337,12 @@ void TDM_SetupMatchInfoAndTeamPlayers (void)
 			i++;
 		}
 	}
+
+	if (teaminfo[TEAM_A].captain)
+		current_matchinfo.captains[TEAM_A] = teaminfo[TEAM_A].captain->client->resp.teamplayerinfo;
+
+	if (teaminfo[TEAM_B].captain)
+		current_matchinfo.captains[TEAM_B] = teaminfo[TEAM_B].captain->client->resp.teamplayerinfo;
 }
 
 /*
@@ -1384,10 +1392,14 @@ An item (re)spawned, track count for stats.
 */
 void TDM_ItemSpawned (edict_t *ent)
 {
+	//as per players requests, only items that are grabbed count towards the total
+	return;
+
+	/*
 	if (!TDM_IsTrackableItem (ent))
 		return;
 	
-	current_matchinfo.item_spawn_count[ITEM_INDEX(ent->item)]++;
+	current_matchinfo.item_spawn_count[ITEM_INDEX(ent->item)]++;*/
 }
 
 /*
@@ -1401,6 +1413,9 @@ void TDM_ItemGrabbed (edict_t *ent, edict_t *player)
 	//do we want to track it?
 	if (!TDM_IsTrackableItem (ent))
 		return;
+
+	//as per players requests, only items that are grabbed count towards the total
+	current_matchinfo.item_spawn_count[ITEM_INDEX(ent->item)]++;
 
 	//something bad happened if this is hit!
 	if (!player->client->resp.teamplayerinfo)

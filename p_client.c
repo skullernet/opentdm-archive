@@ -1472,9 +1472,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 				client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
 
 				if (client->chase_target)
-				{
-					DisableChaseCam (ent);
-				}
+					NextChaseMode (ent);
 				else
 					GetChaseTarget(ent);
 			}

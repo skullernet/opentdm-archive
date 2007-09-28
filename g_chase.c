@@ -66,6 +66,26 @@ void DisableChaseCam (edict_t *ent)
 	ent->client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
 }
 
+void NextChaseMode (edict_t *ent)
+{
+	ent->client->chase_mode = (ent->client->chase_mode + 1) % CHASE_MAX;
+
+	if (ent->client->chase_mode == CHASE_EYES)
+	{
+		ChaseEyeHack (ent, ent->client->chase_target, NULL);
+	}
+	else if (ent->client->chase_mode == CHASE_THIRDPERSON)
+	{
+		//going 3rd person, remove gun and invisible player hack
+		ChaseEyeHack (ent,  NULL, ent->client->chase_target);
+		ent->client->ps.gunindex = ent->client->ps.gunframe = 0;
+	}
+	else if (ent->client->chase_mode == CHASE_FREE)
+	{
+		DisableChaseCam (ent);
+	}
+}
+
 void UpdateChaseCam(edict_t *ent)
 {
 	vec3_t o, ownerv, goal;
@@ -233,13 +253,15 @@ void GetChaseTarget(edict_t *ent)
 	int i;
 	edict_t *other;
 
+	
+
 	for (i = 1; i <= game.maxclients; i++)
 	{
 		other = g_edicts + i;
 		if (other->inuse && other->client->resp.team)
 		{
-			if (ent->client->chase_mode == CHASE_EYES)
-				ChaseEyeHack (ent, other, ent->client->chase_target);
+			ent->client->chase_mode = CHASE_EYES;
+			ChaseEyeHack (ent, other, ent->client->chase_target);
 			ent->client->chase_target = other;
 			ent->client->update_chase = true;
 			UpdateChaseCam(ent);
