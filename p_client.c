@@ -969,6 +969,8 @@ void PutClientInServer (edict_t *ent)
 
 	rejoined = false;
 
+	ent->client->last_activity_frame = level.framenum;
+
 	if (ent->client->resp.joinstate == JS_FIRST_JOIN)
 	{
 		ent->client->resp.joinstate = JS_JOINED;
@@ -1397,6 +1399,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		ent->waterlevel = pm.waterlevel;
 		ent->watertype = pm.watertype;
 		ent->groundentity = pm.groundentity;
+
 		if (pm.groundentity)
 			ent->groundentity_linkcount = pm.groundentity->linkcount;
 
@@ -1430,8 +1433,10 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 				continue;
 			other->touch (other, ent, NULL, NULL);
 		}
-
 	}
+
+	if (client->oldbuttons != client->buttons)
+		client->last_activity_frame = level.framenum;
 
 	client->oldbuttons = client->buttons;
 	client->buttons = ucmd->buttons;
@@ -1509,10 +1514,13 @@ void ClientBeginServerFrame (edict_t *ent)
 	client = ent->client;
 
 	// run weapon animations if it hasn't been done by a ucmd_t
+	if (level.framenum & 1)
+	{
 	if (!client->weapon_thunk && client->resp.team)
 		Think_Weapon (ent);
 	else
 		client->weapon_thunk = false;
+	}
 
 	if (ent->deadflag)
 	{
@@ -1526,6 +1534,12 @@ void ClientBeginServerFrame (edict_t *ent)
 			}
 		}
 		return;
+	}
+
+	if (ent->client->resp.team && FRAMES_TO_SECS(level.framenum - ent->client->last_activity_frame) > g_idle_time->value)
+	{
+		gi.bprintf (PRINT_HIGH, "Removing %s from team '%s' due to inactivity.\n", ent->client->pers.netname, teaminfo[ent->client->resp.team].name);
+		ToggleChaseCam (ent);
 	}
 
 	client->latched_buttons = 0;

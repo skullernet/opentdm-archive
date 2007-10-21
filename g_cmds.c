@@ -947,11 +947,14 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 			p++;
 			p[strlen(p)-1] = 0;
 		}
-		strcat(text, p);
+		strcat (text, p);
 	}
 
 	// don't let text be too long for malicious reasons
 	text[256] = 0;
+
+	if (!text[0])
+		return;
 
 	strcat(text, "\n");
 
@@ -989,10 +992,13 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	for (j = 1; j <= game.maxclients; j++)
 	{
 		other = &g_edicts[j];
+
 		if (!other->inuse)
 			continue;
+
 		if (!other->client)
 			continue;
+
 		if (team)
 		{
 			if (!OnSameTeam(ent, other))
@@ -1055,6 +1061,8 @@ void ClientCommand (edict_t *ent)
 		return;		// not fully in game yet
 
 	cmd = gi.argv(0);
+
+	ent->client->last_activity_frame = level.framenum;
 
 	/*if (Q_stricmp (cmd, "players") == 0)
 	{

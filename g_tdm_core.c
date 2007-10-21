@@ -24,6 +24,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "g_local.h"
 #include "g_tdm.h"
 
+//dynamic FRAMETIME, oh my.
+float	FRAMETIME;
+
 teaminfo_t	teaminfo[MAX_TEAMS];
 matchmode_t	tdm_match_status;
 
@@ -188,6 +191,17 @@ char *TDM_SetColorText (char *buffer)
 	}
 
 	return buffer;
+}
+
+void TDM_SetFrameTime (void)
+{
+	cvar_t	*sv_fps;
+
+	sv_fps = gi.cvar ("sv_fps", NULL, 0);
+	if (!sv_fps)
+		FRAMETIME = 0.1f;
+	else
+		FRAMETIME = 1.0f / sv_fps->value;
 }
 
 /*
@@ -1161,6 +1175,33 @@ void TDM_CheckTimes (void)
 		gi.bprintf (PRINT_HIGH, "Vote failed.\n");
 		TDM_RemoveVote ();
 	}
+
+	if (tdm_match_status == MM_WARMUP && tdm_settings_not_default && teaminfo[TEAM_A].players == 0 && teaminfo[TEAM_B].players == 0)
+	{
+		qboolean	reset = true;
+		edict_t		*ent;
+
+		for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+		{
+			if (!ent->inuse)
+				continue;
+
+			if (FRAMES_TO_SECS (level.framenum - ent->client->last_activity_frame) < 300)
+			{
+				reset = false;
+				break;
+			}
+		}
+
+		if (reset)
+		{
+			gi.bprintf (PRINT_HIGH, "No players for five minutes, restoring default match settings.\n");
+			TDM_ResetVotableVariables ();
+		}
+	}
+#ifdef _DEBUG
+	TDM_SetFrameTime ();
+#endif
 }
 
 /*
@@ -1479,6 +1520,8 @@ void TDM_ResetVotableVariables (void)
 		var++;
 	}
 
+	tdm_settings_not_default = false;
+
 	TDM_UpdateConfigStrings (true);
 }	
 
@@ -1713,6 +1756,7 @@ void TDM_ResetGameState (void)
 	level.match_start_framenum = 0;
 	tdm_match_status = MM_WARMUP;
 	TDM_ResetLevel ();
+	TDM_SetFrameTime ();
 
 	//don't memset, since we have info we do actually want to preserve
 	teaminfo[TEAM_A].score = teaminfo[TEAM_B].score = 0;
@@ -1785,8 +1829,8 @@ void TDM_Init (void)
 		gi.dprintf ("               W A R N I N G !\n");
 		gi.dprintf ("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
 		gi.dprintf ("\n");
-		gi.dprintf ("  OpenTDM is designed to use some of R1Q2s\n");
-		gi.dprintf ("  new entity flags. Your server does not\n");
+		gi.dprintf ("  OpenTDM is designed to use some of the new\n");
+		gi.dprintf ("  features in R1Q2. Your server does not\n");
 		gi.dprintf ("  appear to be running R1Q2, or is out of\n");
 		gi.dprintf ("  date. Some features may not work correctly.\n");
 		gi.dprintf ("\n");
@@ -1796,6 +1840,8 @@ void TDM_Init (void)
 	{
 		gi.cvar_set ("sv_new_entflags", "1");
 	}
+
+	TDM_SetFrameTime ();
 
 	strcpy (teaminfo[0].name, "Spectators");
 	strcpy (teaminfo[0].skin, "male/grunt");

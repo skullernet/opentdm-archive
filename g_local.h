@@ -176,6 +176,8 @@ void PMenu_Select(edict_t *ent);
 #define DAMAGE_TIME		(0.5f * (1 / FRAMETIME))
 #define	FALL_TIME		(0.3f * (1 / FRAMETIME))
 
+//#define DAMAGE_TIME		0.5f
+//#define	FALL_TIME		0.3f
 
 // edict->spawnflags
 // these are set with checkboxes on each entity in the map editor
@@ -201,8 +203,12 @@ void PMenu_Select(edict_t *ent);
 #define FL_POWER_ARMOR			0x00001000	// power armor (if any) is active
 #define FL_RESPAWN				0x80000000	// used for item respawning
 
+//#define	FRAMETIME		0.05f
+extern float FRAMETIME;
 
-#define	FRAMETIME		0.1f
+//define for variable frametime support
+#define SECS_TO_FRAMES(seconds)	(int)((seconds)/FRAMETIME)
+#define FRAMES_TO_SECS(frames)	(int)((frames)*FRAMETIME)
 
 // memory tags to allow dynamic memory to be cleaned up
 #define	TAG_GAME	765		// clear when unloading the dll
@@ -764,6 +770,7 @@ extern	cvar_t	*g_respawn_time;
 extern	cvar_t	*g_max_timeout;
 extern	cvar_t	*g_1v1_timeout;
 extern	cvar_t	*g_chat_mode;
+extern	cvar_t	*g_idle_time;
 
 extern	cvar_t	*g_http_enabled;
 extern	cvar_t	*g_http_bind;
@@ -1046,6 +1053,7 @@ void TDM_ItemSpawned (edict_t *ent);
 void TDM_ItemGrabbed (edict_t *ent, edict_t *player);
 
 void TDM_MacroExpand (edict_t *ent, char *text, int maxlength);
+void ToggleChaseCam (edict_t *ent);
 
 extern matchmode_t	tdm_match_status;
 extern pmenu_t joinmenu[];
@@ -1320,7 +1328,11 @@ struct gclient_s
 
 	weaponstate_t	weaponstate;
 	vec3_t		kick_angles;	// weapon kicks
+	vec3_t		kick_angles_final;	// weapon kicks
 	vec3_t		kick_origin;
+	vec3_t		kick_origin_final;
+	unsigned	kick_origin_start;
+	unsigned	kick_origin_end;
 	float		v_dmg_roll, v_dmg_pitch, v_dmg_time;	// damage kicks
 	float		fall_time, fall_value;		// for view drop on fall
 	float		damage_alpha;
@@ -1382,6 +1394,7 @@ struct gclient_s
 	pmenuhnd_t	menu;
 
 	unsigned	last_command_frame;
+	unsigned	last_activity_frame;
 };
 
 typedef enum

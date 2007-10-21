@@ -309,8 +309,9 @@ void ToggleChaseCam (edict_t *ent)
 	if (ent->client->resp.team)
 	{
 		TDM_LeftTeam (ent);
-		ent->client->resp.team = TEAM_SPEC;
 		TDM_TeamsChanged ();
+		if (tdm_match_status == MM_TIMEOUT && teaminfo[TEAM_A].players == 0 && teaminfo[TEAM_B].players == 0)
+			TDM_ResumeGame ();
 		respawn (ent);
 	}
 

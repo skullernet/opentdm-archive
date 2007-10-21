@@ -93,6 +93,9 @@ vote_t			vote;
 //cached configs
 tdm_config_t	tdm_configs;
 
+//settings non-default?
+qboolean		tdm_settings_not_default;
+
 /*
 ==============
 TDM_ApplyVote
@@ -103,6 +106,8 @@ void EndDMLevel (void);
 static void TDM_ApplyVote (void)
 {
 	char value[16];
+
+	tdm_settings_not_default = true;
 
 	if (vote.flags & VOTE_CONFIG)
 		gi.bprintf (PRINT_CHAT, "New config: %s\n", vote.configname);
@@ -321,6 +326,8 @@ static void TDM_AnnounceVote (void)
 			strcat (what, "instant weapon switch");
 		else if (vote.switchmode == 3)
 			strcat (what, "insane weapon switch");
+		else if (vote.switchmode == 3)
+			strcat (what, "extreme weapon switch");
 	}
 
 	if (vote.flags & VOTE_TELEMODE)
@@ -977,7 +984,7 @@ qboolean TDM_VoteSwitchMode (edict_t *ent)
 
 	if (!value[0])
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: vote switchmode <normal/fast/instant/insane>\nnormal: regular Q2 weapon switch speed\nfast: weapon dropping animation is skipped\ninstant: weapon dropping / ready animations are skipped\ninsane: all non-firing animations are skipped\n");
+		gi.cprintf (ent, PRINT_HIGH, "Usage: vote switchmode <normal/fast/instant/insane/extreme>\nnormal: regular Q2 weapon switch speed\nfast: weapon dropping animation is skipped\ninstant: weapon dropping / ready animations are skipped\ninsane: all non-firing animations are skipped\nextreme: same as insane, but allow switch during firing\n");
 		return false;
 	}
 
@@ -987,6 +994,8 @@ qboolean TDM_VoteSwitchMode (edict_t *ent)
 		switchmode = 2;
 	else if (!Q_stricmp (value, "insane"))
 		switchmode = 3;
+	else if (!Q_stricmp (value, "extreme"))
+		switchmode = 4;
 	else if (!Q_stricmp (value, "normal") || !Q_stricmp (value, "slow") || !Q_stricmp (value, "default") || !Q_stricmp (value, "q2"))
 		switchmode = 0;
 	else
@@ -1434,8 +1443,21 @@ void TDM_Vote_f (edict_t *ent)
 	{
 		if (gi.argc() < 2)
 		{
-			gi.cprintf (ent, PRINT_HIGH, "Usage: vote <timelimit/map/kick/powerups/weapons/gamemode/tiemode/telemode/switchmode> <value>\n"
-				"For weapon/powerup votes, specify multiple combinations of + or -, eg -bfg, +quad -invuln, etc\n");
+			gi.cprintf (ent, PRINT_HIGH,
+				"Usage: vote <setting> <value>\n"
+				" Options:\n"
+				"  timelimit <minutes>\n"
+				"  map <mapname>\n"
+				"  kick <player/id>\n"
+				"  powerups <powerupmods> (eg: +invul, -quad)\n"
+				"  weapons <weaponmods> (eg: +all -bfg)\n"
+				"  gamemode <tdm/1v1/itdm>\n"
+				"  tiemode <none/ot/sd>\n"
+				"  telemode <normal/nofreeze>\n"
+				"  switchmode <normal/fast/faster/insane/extreme>\n"
+				"  overtime <minutes>\n"
+				"  config <configname>\n"
+				"  webconfig <configname>\n");
 			return;
 		}
 

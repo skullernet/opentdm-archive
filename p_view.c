@@ -304,7 +304,7 @@ void SV_CalcViewOffset (edict_t *ent)
 	ratio = (ent->client->fall_time - level.time) / FALL_TIME;
 	if (ratio < 0)
 		ratio = 0;
-	v[2] -= ratio * ent->client->fall_value * 0.4;
+	v[2] -= ratio * ent->client->fall_value * 0.4f;
 
 	// add bob height
 
@@ -1016,6 +1016,8 @@ void ClientEndServerFrame (edict_t *ent)
 		else
 			bobmove = 0.0625;
 	}
+
+	bobmove *= (10 / (1/FRAMETIME));
 	
 	bobtime = (current_client->bobtime += bobmove);
 
@@ -1030,6 +1032,31 @@ void ClientEndServerFrame (edict_t *ent)
 
 	// apply all the damage taken this frame
 	P_DamageFeedback (ent);
+
+	// lerp kick origin since the original game code assumed 1 frame = 100 ms.
+	if (ent->client->kick_origin_end)
+	{
+		float	scale;
+
+		scale = 1.0f - (float)(ent->client->kick_origin_start) / (float)(ent->client->kick_origin_end);
+
+		ent->client->kick_origin_start++;
+
+		if (ent->client->kick_origin_start == ent->client->kick_origin_end)
+			ent->client->kick_origin_end = 0;
+
+		for (i = 0; i < 3; i++)
+		{
+			ent->client->kick_origin[i] = (ent->client->kick_origin_final[i] * scale);
+			ent->client->kick_angles[i] = (ent->client->kick_angles_final[i] * scale);
+		}
+	}
+	else
+	{
+		ent->client->kick_origin_end = ent->client->kick_origin_start = 0;
+		VectorClear (ent->client->kick_angles_final);
+		VectorClear (ent->client->kick_origin_final);
+	}
 
 	// determine the view offsets
 	SV_CalcViewOffset (ent);

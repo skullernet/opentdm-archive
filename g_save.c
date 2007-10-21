@@ -228,7 +228,10 @@ void InitGame (void)
 	//max timeout via implicit timeout in 1v1 disconnect
 	g_1v1_timeout = gi.cvar ("g_1v1_timeout", "90", 0);
 
+	//allow all chat or only players?
 	g_chat_mode = gi.cvar ("g_chat_mode", "0", 0);
+
+	g_idle_time = gi.cvar ("g_idle_time", "150", 0);
 
 	g_http_enabled = gi.cvar ("g_http_enabled", "1", 0);
 	g_http_bind = gi.cvar ("g_http_bind", "", 0);

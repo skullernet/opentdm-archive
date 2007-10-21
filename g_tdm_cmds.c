@@ -271,7 +271,7 @@ char *TDM_SettingsString (void)
 	int			i;
 
 	static const char *gamemode_text[] = {"Team Deathmatch", "Instagib Team Deathmatch", "1 vs 1 duel"};
-	static const char *switchmode_text[] = {"normal", "faster", "instant", "insane"};
+	static const char *switchmode_text[] = {"normal", "faster", "instant", "insane", "extreme"};
 	static const char *telemode_text[] = {"normal", "no freeze"};
 
 	settings[0] = 0;
@@ -930,13 +930,20 @@ void TDM_Teamskin_f (edict_t *ent)
 		return;
 	}
 
+	if (!Q_stricmp (model, "opentdm"))
+	{
+		gi.TagFree (model);
+		gi.cprintf (ent, PRINT_HIGH, "You cannot use the OpenTDM invisible player model!\n");
+		return;
+	}
+
 	len = strlen (model);
 	for (i = 0; i < len; i++)
 	{
 		if (!isalnum (model[i]) && model[i] != '_' && model[i] != '-')
 		{
 			gi.TagFree (model);
-			gi.cprintf (ent, PRINT_HIGH, "Invalid model/skin name.\n");
+			gi.cprintf (ent, PRINT_HIGH, "Invalid model name.\n");
 			return;
 		}
 	}
@@ -947,7 +954,7 @@ void TDM_Teamskin_f (edict_t *ent)
 		if (!isalnum (skin[i]) && skin[i] != '_' && skin[i] != '-')
 		{
 			gi.TagFree (model);
-			gi.cprintf (ent, PRINT_HIGH, "Invalid model/skin name.\n");
+			gi.cprintf (ent, PRINT_HIGH, "Invalid skin name.\n");
 			return;
 		}
 	}
@@ -1212,6 +1219,8 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Ghost_f (ent);
 		else if (!Q_stricmp (cmd, "win"))
 			TDM_Win_f (ent);
+		else if (!Q_stricmp (cmd, "observer") || !Q_stricmp (cmd, "spectate") || !Q_stricmp (cmd, "chase"))
+			ToggleChaseCam (ent);
 		else if (!Q_stricmp (cmd, "admin") || !Q_stricmp (cmd, "referee"))
 			TDM_Admin_f (ent);
 		else if (!Q_stricmp (cmd, "stopsound"))
