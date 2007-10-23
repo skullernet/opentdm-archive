@@ -36,3 +36,4 @@ extern const powerupinfo_t	powerupvotes[POWERUP_MAX];
 extern vote_t	vote;
 
 extern qboolean	tdm_settings_not_default;
+
