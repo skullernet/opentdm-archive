@@ -443,33 +443,33 @@ void SV_CalcBlend (edict_t *ent)
 	if (ent->client->quad_framenum > level.framenum)
 	{
 		remaining = ent->client->quad_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == SECS_TO_FRAMES(3))	// beginning to fade
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage2.wav"), 1, ATTN_NORM, 0);
-		if (remaining > 30 || (remaining & 4) )
+		if (remaining > SECS_TO_FRAMES(3) || (remaining & 4) )
 			SV_AddBlend (0, 0, 1, 0.08f, ent->client->ps.blend);
 	}
 	else if (ent->client->invincible_framenum > level.framenum)
 	{
 		remaining = ent->client->invincible_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == SECS_TO_FRAMES(3))	// beginning to fade
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/protect2.wav"), 1, ATTN_NORM, 0);
-		if (remaining > 30 || (remaining & 4) )
+		if (remaining > SECS_TO_FRAMES(3) || (remaining & 4) )
 			SV_AddBlend (1, 1, 0, 0.08f, ent->client->ps.blend);
 	}
 	else if (ent->client->enviro_framenum > level.framenum)
 	{
 		remaining = ent->client->enviro_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == SECS_TO_FRAMES(3))	// beginning to fade
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/airout.wav"), 1, ATTN_NORM, 0);
-		if (remaining > 30 || (remaining & 4) )
+		if (remaining > SECS_TO_FRAMES(3) || (remaining & 4) )
 			SV_AddBlend (0, 1, 0, 0.08f, ent->client->ps.blend);
 	}
 	else if (ent->client->breather_framenum > level.framenum)
 	{
 		remaining = ent->client->breather_framenum - level.framenum;
-		if (remaining == 30)	// beginning to fade
+		if (remaining == SECS_TO_FRAMES(3))	// beginning to fade
 			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/airout.wav"), 1, ATTN_NORM, 0);
-		if (remaining > 30 || (remaining & 4) )
+		if (remaining > SECS_TO_FRAMES(3) || (remaining & 4) )
 			SV_AddBlend (0.4f, 1, 0.4f, 0.04f, ent->client->ps.blend);
 	}
 
@@ -719,17 +719,28 @@ void P_WorldEffects (void)
 				current_player->pain_debounce_time = level.time + 1 * (1 / FRAMETIME);
 			}
 
-			if (envirosuit)	// take 1/3 damage with envirosuit
-				T_Damage (current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1*waterlevel, 0, 0, MOD_LAVA);
-			else
-				T_Damage (current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3*waterlevel, 0, 0, MOD_LAVA);
+			//FIXME: ugly hack to a void sizzle damage being multiplied based on server framenum, can be biased depending on what
+			//frame the client entered the volume
+			if ((level.framenum % (int)(0.1f / FRAMETIME)) == 0)
+			{
+				if (envirosuit)	// take 1/3 damage with envirosuit
+					T_Damage (current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1*waterlevel, 0, 0, MOD_LAVA);
+				else
+					T_Damage (current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3*waterlevel, 0, 0, MOD_LAVA);
+			}
 		}
 
 		if (current_player->watertype & CONTENTS_SLIME)
 		{
+			// no damage from slime with envirosuit
 			if (!envirosuit)
-			{	// no damage from slime with envirosuit
-				T_Damage (current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1*waterlevel, 0, 0, MOD_SLIME);
+			{	
+				//FIXME: ugly hack to a void sizzle damage being multiplied based on server framenum, can be biased depending on what
+				//frame the client entered the volume
+				if ((level.framenum % (int)(0.1f / FRAMETIME)) == 0)
+				{
+					T_Damage (current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1*waterlevel, 0, 0, MOD_SLIME);
+				}
 			}
 		}
 	}
@@ -848,6 +859,9 @@ void G_SetClientFrame (edict_t *ent)
 
 	if (ent->s.modelindex != 255)
 		return;		// not in the player model
+
+	if ((level.framenum % (int)(0.1f / FRAMETIME)) != 0)
+		return;		// not time to advance a frame (anims only run at 10 hz)
 
 	client = ent->client;
 

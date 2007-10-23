@@ -781,7 +781,7 @@ void bfg_think (edict_t *self)
 		if (!(ent->svflags & SVF_MONSTER) && (!ent->client) && (strcmp(ent->classname, "misc_explobox") != 0))
 			continue;
 
-		VectorMA (ent->absmin, 0.5, ent->size, point);
+		VectorMA (ent->absmin, 0.5f, ent->size, point);
 
 		VectorSubtract (point, self->s.origin, dir);
 		VectorNormalize (dir);
@@ -824,7 +824,7 @@ void bfg_think (edict_t *self)
 		gi.multicast (self->s.origin, MULTICAST_PHS);
 	}
 
-	self->nextthink = level.time + 1;
+	self->nextthink = level.time + 0.1f / FRAMETIME;
 }
 
 

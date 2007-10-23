@@ -202,6 +202,9 @@ void TDM_SetFrameTime (void)
 		FRAMETIME = 0.1f;
 	else
 		FRAMETIME = 1.0f / sv_fps->value;
+
+	if ((int)(0.1f / FRAMETIME) == 0)
+		gi.error ("Invalid server FPS");
 }
 
 /*
@@ -2071,7 +2074,7 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 			break;
 		case MM_WARMUP:
 			timeout_remaining = 0;
-			time_remaining = g_match_time->value * 10 - 1;
+			time_remaining = g_match_time->value * (1/FRAMETIME) - 1;
 			break;
 		case MM_SUDDEN_DEATH:
 			timeout_remaining = 0;

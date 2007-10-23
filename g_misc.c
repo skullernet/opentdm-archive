@@ -743,11 +743,11 @@ void misc_blackhole_use (edict_t *ent, edict_t *other, edict_t *activator)
 void misc_blackhole_think (edict_t *self)
 {
 	if (++self->s.frame < 19)
-		self->nextthink = level.time + 1;
+		self->nextthink = level.time + 0.1f / FRAMETIME;
 	else
 	{		
 		self->s.frame = 0;
-		self->nextthink = level.time + 1;
+		self->nextthink = level.time + 0.1f / FRAMETIME;
 	}
 }
 
@@ -761,7 +761,7 @@ void SP_misc_blackhole (edict_t *ent)
 	ent->s.renderfx = RF_TRANSLUCENT;
 	ent->use = misc_blackhole_use;
 	ent->think = misc_blackhole_think;
-	ent->nextthink = level.time + 2 * 1;
+	ent->nextthink = level.time + 2 * (0.1f / FRAMETIME);
 	gi.linkentity (ent);
 }
 
@@ -771,11 +771,11 @@ void SP_misc_blackhole (edict_t *ent)
 void misc_eastertank_think (edict_t *self)
 {
 	if (++self->s.frame < 293)
-		self->nextthink = level.time + 1;
+		self->nextthink = level.time + 0.1f / FRAMETIME;
 	else
 	{		
 		self->s.frame = 254;
-		self->nextthink = level.time + 1;
+		self->nextthink = level.time + 0.1f / FRAMETIME;
 	}
 }
 
@@ -788,7 +788,7 @@ void SP_misc_eastertank (edict_t *ent)
 	ent->s.modelindex = gi.modelindex ("models/monsters/tank/tris.md2");
 	ent->s.frame = 254;
 	ent->think = misc_eastertank_think;
-	ent->nextthink = level.time + 2 * 1;
+	ent->nextthink = level.time + 2 * (0.1f / FRAMETIME);
 	gi.linkentity (ent);
 }
 
@@ -1104,14 +1104,14 @@ void misc_satellite_dish_think (edict_t *self)
 {
 	self->s.frame++;
 	if (self->s.frame < 38)
-		self->nextthink = level.time + 1;
+		self->nextthink = level.time + 0.1f / FRAMETIME;
 }
 
 void misc_satellite_dish_use (edict_t *self, edict_t *other, edict_t *activator)
 {
 	self->s.frame = 0;
 	self->think = misc_satellite_dish_think;
-	self->nextthink = level.time + 1;
+	self->nextthink = level.time + 0.1f / FRAMETIME;
 }
 
 void SP_misc_satellite_dish (edict_t *ent)

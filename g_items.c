@@ -316,7 +316,7 @@ void Use_Quad (edict_t *ent, const gitem_t *item)
 	}
 	else
 	{
-		timeout = 300;
+		timeout = SECS_TO_FRAMES(30);
 	}
 
 	if (ent->client->quad_framenum > level.framenum)
@@ -335,9 +335,9 @@ void Use_Breather (edict_t *ent, const gitem_t *item)
 	ValidateSelectedItem (ent);
 
 	if (ent->client->breather_framenum > level.framenum)
-		ent->client->breather_framenum += 300;
+		ent->client->breather_framenum += SECS_TO_FRAMES(30);
 	else
-		ent->client->breather_framenum = level.framenum + 300;
+		ent->client->breather_framenum = level.framenum + SECS_TO_FRAMES(30);
 
 //	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage.wav"), 1, ATTN_NORM, 0);
 }
@@ -350,9 +350,9 @@ void Use_Envirosuit (edict_t *ent, const gitem_t *item)
 	ValidateSelectedItem (ent);
 
 	if (ent->client->enviro_framenum > level.framenum)
-		ent->client->enviro_framenum += 300;
+		ent->client->enviro_framenum += SECS_TO_FRAMES(30);
 	else
-		ent->client->enviro_framenum = level.framenum + 300;
+		ent->client->enviro_framenum = level.framenum + SECS_TO_FRAMES(30);
 
 //	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage.wav"), 1, ATTN_NORM, 0);
 }
@@ -365,9 +365,9 @@ void	Use_Invulnerability (edict_t *ent, const gitem_t *item)
 	ValidateSelectedItem (ent);
 
 	if (ent->client->invincible_framenum > level.framenum)
-		ent->client->invincible_framenum += 300;
+		ent->client->invincible_framenum += SECS_TO_FRAMES(30);
 	else
-		ent->client->invincible_framenum = level.framenum + 300;
+		ent->client->invincible_framenum = level.framenum + SECS_TO_FRAMES(30);
 
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/protect.wav"), 1, ATTN_NORM, 0);
 }

@@ -873,34 +873,36 @@ void Cmd_Wave_f (edict_t *ent)
 
 	ent->client->anim_priority = ANIM_WAVE;
 
+	//FIXME: adjusting s.frame outside of allowed 10hz interval here, will skip frames at non-default server FPS
+
 	switch (i)
 	{
-	case 0:
-		gi.cprintf (ent, PRINT_HIGH, "flipoff\n");
-		ent->s.frame = FRAME_flip01-1;
-		ent->client->anim_end = FRAME_flip12;
-		break;
-	case 1:
-		gi.cprintf (ent, PRINT_HIGH, "salute\n");
-		ent->s.frame = FRAME_salute01-1;
-		ent->client->anim_end = FRAME_salute11;
-		break;
-	case 2:
-		gi.cprintf (ent, PRINT_HIGH, "taunt\n");
-		ent->s.frame = FRAME_taunt01-1;
-		ent->client->anim_end = FRAME_taunt17;
-		break;
-	case 3:
-		gi.cprintf (ent, PRINT_HIGH, "wave\n");
-		ent->s.frame = FRAME_wave01-1;
-		ent->client->anim_end = FRAME_wave11;
-		break;
-	case 4:
-	default:
-		gi.cprintf (ent, PRINT_HIGH, "point\n");
-		ent->s.frame = FRAME_point01-1;
-		ent->client->anim_end = FRAME_point12;
-		break;
+		case 0:
+			gi.cprintf (ent, PRINT_HIGH, "flipoff\n");
+			ent->s.frame = FRAME_flip01-1;
+			ent->client->anim_end = FRAME_flip12;
+			break;
+		case 1:
+			gi.cprintf (ent, PRINT_HIGH, "salute\n");
+			ent->s.frame = FRAME_salute01-1;
+			ent->client->anim_end = FRAME_salute11;
+			break;
+		case 2:
+			gi.cprintf (ent, PRINT_HIGH, "taunt\n");
+			ent->s.frame = FRAME_taunt01-1;
+			ent->client->anim_end = FRAME_taunt17;
+			break;
+		case 3:
+			gi.cprintf (ent, PRINT_HIGH, "wave\n");
+			ent->s.frame = FRAME_wave01-1;
+			ent->client->anim_end = FRAME_wave11;
+			break;
+		case 4:
+		default:
+			gi.cprintf (ent, PRINT_HIGH, "point\n");
+			ent->s.frame = FRAME_point01-1;
+			ent->client->anim_end = FRAME_point12;
+			break;
 	}
 }
 
