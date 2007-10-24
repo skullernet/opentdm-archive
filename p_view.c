@@ -1057,7 +1057,7 @@ void ClientEndServerFrame (edict_t *ent)
 	// (eg weapon kicks), we have to send the same kickangles for x frames so the client will interpolate between old and cur
 	// or you get unsightly view shifting. this also unfortunately negates the effect of view kicks added during the time the
 	// kickangles are being duplicated (eg falling / pain kicks)
-	if ((level.framenum % (int)(0.1f / FRAMETIME)) != 0)
+	if (ent->client->kick_origin_end)
 	{
 		/*float	scale;
 
