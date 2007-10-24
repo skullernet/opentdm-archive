@@ -245,48 +245,54 @@ void SV_CalcViewOffset (edict_t *ent)
 	else
 	{
 		// add angles based on weapon kick
-
-		VectorCopy (ent->client->kick_angles, angles);
-
-		// add angles based on damage kick
-
-		ratio = (ent->client->v_dmg_time - level.time) / DAMAGE_TIME;
-		if (ratio < 0)
+		if ((level.framenum % (int)(0.1f / FRAMETIME)) == 0)
 		{
-			ratio = 0;
-			ent->client->v_dmg_pitch = 0;
-			ent->client->v_dmg_roll = 0;
+			VectorCopy (ent->client->kick_angles, angles);
+
+			// add angles based on damage kick
+			ratio = (ent->client->v_dmg_time - level.time) / DAMAGE_TIME;
+			if (ratio < 0)
+			{
+				ratio = 0;
+				ent->client->v_dmg_pitch = 0;
+				ent->client->v_dmg_roll = 0;
+			}
+			angles[PITCH] += ratio * ent->client->v_dmg_pitch;
+			angles[ROLL] += ratio * ent->client->v_dmg_roll;
+
+			// add pitch based on fall kick
+
+			ratio = (ent->client->fall_time - level.time) / FALL_TIME;
+			if (ratio < 0)
+				ratio = 0;
+			angles[PITCH] += ratio * ent->client->fall_value;
+
+			// add angles based on velocity
+
+			delta = DotProduct (ent->velocity, forward);
+			angles[PITCH] += delta*run_pitch->value;
+			
+			delta = DotProduct (ent->velocity, right);
+			angles[ROLL] += delta*run_roll->value;
+
+			// add angles based on bob
+
+			delta = bobfracsin * bob_pitch->value * xyspeed;
+			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+				delta *= 6;		// crouching
+			angles[PITCH] += delta;
+			delta = bobfracsin * bob_roll->value * xyspeed;
+			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+				delta *= 6;		// crouching
+			if (bobcycle & 1)
+				delta = -delta;
+			angles[ROLL] += delta;
+
+			VectorCopy (ent->client->ps.kick_angles, ent->client->saved_angles);
 		}
-		angles[PITCH] += ratio * ent->client->v_dmg_pitch;
-		angles[ROLL] += ratio * ent->client->v_dmg_roll;
+		else
+			VectorCopy (ent->client->saved_angles, ent->client->ps.kick_angles);
 
-		// add pitch based on fall kick
-
-		ratio = (ent->client->fall_time - level.time) / FALL_TIME;
-		if (ratio < 0)
-			ratio = 0;
-		angles[PITCH] += ratio * ent->client->fall_value;
-
-		// add angles based on velocity
-
-		delta = DotProduct (ent->velocity, forward);
-		angles[PITCH] += delta*run_pitch->value;
-		
-		delta = DotProduct (ent->velocity, right);
-		angles[ROLL] += delta*run_roll->value;
-
-		// add angles based on bob
-
-		delta = bobfracsin * bob_pitch->value * xyspeed;
-		if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-			delta *= 6;		// crouching
-		angles[PITCH] += delta;
-		delta = bobfracsin * bob_roll->value * xyspeed;
-		if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-			delta *= 6;		// crouching
-		if (bobcycle & 1)
-			delta = -delta;
-		angles[ROLL] += delta;
 	}
 
 //===================================
@@ -1047,23 +1053,23 @@ void ClientEndServerFrame (edict_t *ent)
 	// apply all the damage taken this frame
 	P_DamageFeedback (ent);
 
-	// lerp kick origin since the original game code assumed 1 frame = 100 ms.
-	if (ent->client->kick_origin_end)
+	// unfortunately ugly technique for handling kickangles, since we don't know if another kick will occur in the next frame
+	// (eg weapon kicks), we have to send the same kickangles for x frames so the client will interpolate between old and cur
+	// or you get unsightly view shifting. this also unfortunately negates the effect of view kicks added during the time the
+	// kickangles are being duplicated (eg falling / pain kicks)
+	if ((level.framenum % (int)(0.1f / FRAMETIME)) != 0)
 	{
-		float	scale;
+		/*float	scale;
 
-		scale = 1.0f - (float)(ent->client->kick_origin_start) / (float)(ent->client->kick_origin_end);
+		scale = 1.0f;// - (float)(ent->client->kick_origin_start) / (float)(ent->client->kick_origin_end);*/
 
 		ent->client->kick_origin_start++;
 
 		if (ent->client->kick_origin_start == ent->client->kick_origin_end)
 			ent->client->kick_origin_end = 0;
 
-		for (i = 0; i < 3; i++)
-		{
-			ent->client->kick_origin[i] = (ent->client->kick_origin_final[i] * scale);
-			ent->client->kick_angles[i] = (ent->client->kick_angles_final[i] * scale);
-		}
+		VectorCopy (ent->client->kick_origin_final, ent->client->kick_origin);
+		VectorCopy (ent->client->kick_angles_final, ent->client->kick_angles);
 	}
 	else
 	{
@@ -1072,7 +1078,10 @@ void ClientEndServerFrame (edict_t *ent)
 		VectorClear (ent->client->kick_origin_final);
 	}
 
-	// determine the view offsets
+	/*VectorCopy (ent->client->kick_origin_final, ent->client->kick_origin);
+	VectorCopy (ent->client->kick_angles_final, ent->client->kick_angles);*/
+
+	// determine the view offsets, only updated at 10hz
 	SV_CalcViewOffset (ent);
 
 	// determine the gun offsets
@@ -1105,8 +1114,8 @@ void ClientEndServerFrame (edict_t *ent)
 	VectorCopy (ent->client->ps.viewangles, ent->client->oldviewangles);
 
 	// clear weapon kicks
-	VectorClear (ent->client->kick_origin);
 	VectorClear (ent->client->kick_angles);
+	VectorClear (ent->client->kick_origin);
 
 	// if the scoreboard is up, update it
 	if (ent->client->showscores && !(level.framenum & 31) )

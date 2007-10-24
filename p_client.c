@@ -1461,10 +1461,13 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 			if (tdm_match_status != MM_TIMEOUT)
 				TDM_ShowTeamMenu (ent);
 		}
-		else if (!client->weapon_thunk)
+		else 
 		{
-			client->weapon_thunk = true;
-			Think_Weapon (ent);
+			if (!client->weapon_thunk)
+			{
+				client->weapon_thunk = true;
+				Think_Weapon (ent);
+			}
 		}
 	}
 

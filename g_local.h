@@ -1395,6 +1395,8 @@ struct gclient_s
 
 	unsigned	last_command_frame;
 	unsigned	last_activity_frame;
+
+	vec3_t		saved_angles;
 };
 
 typedef enum
