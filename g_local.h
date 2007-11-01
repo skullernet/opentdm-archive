@@ -1396,6 +1396,7 @@ struct gclient_s
 	unsigned	last_command_frame;
 	unsigned	last_activity_frame;
 
+	unsigned	next_weapon_think;
 	vec3_t		saved_angles;
 };
 

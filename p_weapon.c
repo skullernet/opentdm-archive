@@ -227,6 +227,12 @@ void Think_Weapon (edict_t *ent)
 		ent->client->latched_buttons &= ~BUTTON_ATTACK;
 	}
 
+	// variable FPS support
+	if (ent->client->next_weapon_think > level.framenum)
+		return;
+
+	ent->client->next_weapon_think = level.framenum + (SECS_TO_FRAMES(0.1f));
+
 	// call active weapon think routine
 	if (ent->client->weapon && ent->client->weapon->weaponthink)
 	{

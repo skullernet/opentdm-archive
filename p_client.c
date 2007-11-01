@@ -1519,13 +1519,12 @@ void ClientBeginServerFrame (edict_t *ent)
 	// run weapon animations if it hasn't been done by a ucmd_t, only run at 10hz since gun
 	// animations aren't designed for anything higher and it screws up reload times. the client
 	// does the work of interpolating the frame across multiple server frames.
-	if ((level.framenum % (int)(0.1f / FRAMETIME)) == 0)
-	{
-		if (!client->weapon_thunk && client->resp.team)
-			Think_Weapon (ent);
-		else
-			client->weapon_thunk = false;
-	}
+	if (!client->weapon_thunk && client->resp.team)
+		Think_Weapon (ent);
+	else
+		client->weapon_thunk = false;
+
+	//gi.dprintf ("think_weapon: server frame %d, weapon frame %d\n", level.time, ent->client->ps.gunframe);
 
 	if (ent->deadflag)
 	{

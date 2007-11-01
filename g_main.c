@@ -425,12 +425,14 @@ void G_RunFrame (void)
 	int		i;
 	edict_t	*ent;
 
-	level.realframenum++;
+	//FIXME: shouldn't we increment framenum after the game has ryn, in preparation for the next frame?
+	//otherwise usercmds that arrive after we return will still use the old framenum, which seems wrong.
+	//level.realframenum++;
 
 	if (tdm_match_status != MM_TIMEOUT)
 	{
-		level.framenum++;
-		level.time = level.framenum;// * FRAMETIME;
+		//level.framenum++;
+		//level.time = level.framenum;// * FRAMETIME;
 
 		// exit intermissions
 
@@ -491,6 +493,14 @@ void G_RunFrame (void)
 
 	// build the playerstate_t structures for all players
 	ClientEndServerFrames ();
+
+	level.realframenum++;
+
+	if (tdm_match_status != MM_TIMEOUT)
+	{
+		level.framenum++;
+		level.time = level.framenum;// * FRAMETIME;
+	}
 }
 
 #ifdef _WIN32
