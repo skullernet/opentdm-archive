@@ -402,7 +402,7 @@ qboolean TDM_ProcessJoinCode (edict_t *ent, unsigned value)
 
 	//must be a disconnected client for this to work
 	t = TDM_FindTeamplayerForJoinCode (value);
-	if (!t || t->client)
+	if (!t || t->client || !t->saved_client || !t->saved_entity)
 		return false;
 
 	//could be using a joincode while chasing, need to fix it here before we possibly overwrite entity
