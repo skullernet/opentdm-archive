@@ -458,10 +458,12 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	//determine how wide to draw team score
 	len = abs(teaminfo[TEAM_A].score);
 
-	if (len > 9)
-		width[0] = 2;
+	if (len > 999)
+		width[0] = 4;
 	else if (len > 99)
 		width[0] = 3;
+	else if (len > 9)
+		width[0] = 2;
 	else
 		width[0] = 1;
 
@@ -471,10 +473,12 @@ char *TDM_ScoreBoardString (edict_t *ent)
 
 	len = abs(teaminfo[TEAM_B].score);
 
-	if (len > 9)
-		width[1] = 2;
+	if (len > 999)
+		width[1] = 4;
 	else if (len > 99)
 		width[1] = 3;
+	else if (len > 9)
+		width[1] = 2;
 	else
 		width[1] = 1;
 
