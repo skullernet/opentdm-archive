@@ -73,18 +73,18 @@ void TDM_LeftTeam (edict_t *ent)
 
 	gi.bprintf (PRINT_HIGH, "%s left team '%s'\n", ent->client->pers.netname, teaminfo[ent->client->resp.team].name);
 
-	//FIXME: do we want to pick a new captain or let players contend for it with 'captain' cmd?
-	if (teaminfo[ent->client->resp.team].captain == ent)
-		TDM_SetCaptain (ent->client->resp.team, NULL);
-
-	//resume play if this guy called time?
-	if (tdm_match_status == MM_TIMEOUT && level.tdm_timeout_caller->client == ent)
-		TDM_ResumeGame ();
-
 	oldteam = ent->client->resp.team;
 
 	//wision: remove player from the team!
 	ent->client->resp.team = TEAM_SPEC;
+
+	//assign a new captain
+	if (teaminfo[ent->client->resp.team].captain == ent)
+		TDM_SetCaptain (ent->client->resp.team, TDM_FindPlayerForTeam (oldteam));
+
+	//resume play if this guy called time?
+	if (tdm_match_status == MM_TIMEOUT && level.tdm_timeout_caller->client == ent)
+		TDM_ResumeGame ();
 }
 
 qboolean CanJoin (edict_t *ent, unsigned team)
@@ -117,8 +117,13 @@ qboolean CanJoin (edict_t *ent, unsigned team)
 	//wision: forbid joining locked team
 	if (teaminfo[team].locked)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Team '%s' is locked.\n", teaminfo[team].name);
-		return false;
+		//being invited to a team bypasses a lock
+		if (!(ent->client->resp.last_invited_by && ent->client->resp.last_invited_by->inuse &&
+			teaminfo[ent->client->resp.last_invited_by->client->resp.team].captain == ent->client->resp.last_invited_by))
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Team '%s' is locked.\n", teaminfo[team].name);
+			return false;
+		}
 	}
 
 	return true;

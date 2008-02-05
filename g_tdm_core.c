@@ -1630,8 +1630,15 @@ void UpdateMatchStatus (void)
 		if (teaminfo[team].players == 0)
 			teaminfo[team].locked = false;
 
-	if (tdm_match_status < MM_PLAYING || tdm_match_status == MM_SCOREBOARD || tdm_match_status == MM_TIMEOUT)
+	if (tdm_match_status < MM_PLAYING || tdm_match_status == MM_SCOREBOARD)
 		return;
+
+	if (tdm_match_status == MM_TIMEOUT)
+	{
+		if (teaminfo[TEAM_A].players + teaminfo[TEAM_B].players == 0)
+			TDM_EndMatch ();
+		return;
+	}
 
 	for (team = 1; team < MAX_TEAMS; team++)
 	{

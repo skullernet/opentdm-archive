@@ -520,75 +520,6 @@ void TDM_Forceteam_f (edict_t *ent)
 
 /*
 ==============
-TDM_PickPlayer_f
-==============
-Pick a player
-//TODO: invite instead of direct picking
-*/
-void TDM_PickPlayer_f (edict_t *ent)
-{
-	edict_t	*victim;
-
-	//this could be abused by some captain to make server unplayable by constantly picking
-	if (!g_tdm_allow_pick->value)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "Player picking is disabled by the server administrator. Try using invite instead.\n");
-		return;
-	}
-
-	if (gi.argc() < 2)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: %s <name/id>\n", gi.argv(0));
-		return;
-	}
-
-	if (g_gamemode->value == GAMEMODE_1V1)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "This command is unavailable in 1v1 mode.\n");
-		return;
-	}
-
-	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can pick players.\n");
-		return;
-	}
-
-	if (tdm_match_status != MM_WARMUP)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "You can only pick players during warmup.\n");
-		return;
-	}
-
-	if (TDM_RateLimited (ent, SECS_TO_FRAMES(1)))
-		return;
-
-	if (LookupPlayer (gi.args(), &victim, ent))
-	{
-		if (ent == victim)
-		{
-			gi.cprintf (ent, PRINT_HIGH, "You can't pick yourself!\n");
-			return;
-		}
-
-		if (victim->client->resp.team == ent->client->resp.team)
-		{
-			gi.cprintf (ent, PRINT_HIGH, "%s is already in your team.\n", victim->client->pers.netname);
-			return;
-		}
-
-		gi.bprintf (PRINT_CHAT, "%s picked %s for team '%s'.\n", ent->client->pers.netname, victim->client->pers.netname, teaminfo[ent->client->resp.team].name);
-
-		if (victim->client->resp.team)
-			TDM_LeftTeam (victim);
-
-		victim->client->resp.team = ent->client->resp.team;
-		JoinedTeam (victim);
-	}
-}
-
-/*
-==============
 TDM_Invite_f
 ==============
 Invite a player to your team.
@@ -641,6 +572,76 @@ void TDM_Invite_f (edict_t *ent)
 		victim->client->resp.last_invited_by = ent;
 		gi.centerprintf (victim, "You are invited to '%s'\nby %s. Type ACCEPT in\nthe console to accept.\n", teaminfo[ent->client->resp.team].name, ent->client->pers.netname);
 		gi.cprintf (ent, PRINT_HIGH, "%s was invited to join your team.\n", victim->client->pers.netname);
+	}
+}
+
+/*
+==============
+TDM_PickPlayer_f
+==============
+Pick a player
+//TODO: invite instead of direct picking
+*/
+void TDM_PickPlayer_f (edict_t *ent)
+{
+	edict_t	*victim;
+
+	//this could be abused by some captain to make server unplayable by constantly picking
+	if (!g_tdm_allow_pick->value)
+	{
+		TDM_Invite_f (ent);
+		//gi.cprintf (ent, PRINT_HIGH, "Player picking is disabled by the server administrator. Try using invite instead.\n");
+		return;
+	}
+
+	if (gi.argc() < 2)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: %s <name/id>\n", gi.argv(0));
+		return;
+	}
+
+	if (g_gamemode->value == GAMEMODE_1V1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "This command is unavailable in 1v1 mode.\n");
+		return;
+	}
+
+	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can pick players.\n");
+		return;
+	}
+
+	if (tdm_match_status != MM_WARMUP)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "You can only pick players during warmup.\n");
+		return;
+	}
+
+	if (TDM_RateLimited (ent, SECS_TO_FRAMES(1)))
+		return;
+
+	if (LookupPlayer (gi.args(), &victim, ent))
+	{
+		if (ent == victim)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You can't pick yourself!\n");
+			return;
+		}
+
+		if (victim->client->resp.team == ent->client->resp.team)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "%s is already in your team.\n", victim->client->pers.netname);
+			return;
+		}
+
+		gi.bprintf (PRINT_CHAT, "%s picked %s for team '%s'.\n", ent->client->pers.netname, victim->client->pers.netname, teaminfo[ent->client->resp.team].name);
+
+		if (victim->client->resp.team)
+			TDM_LeftTeam (victim);
+
+		victim->client->resp.team = ent->client->resp.team;
+		JoinedTeam (victim);
 	}
 }
 
