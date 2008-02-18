@@ -52,6 +52,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	SVF_DEADMONSTER			0x00000002	// treat as CONTENTS_DEADMONSTER for collision
 #define	SVF_MONSTER				0x00000004	// treat as CONTENTS_MONSTER for collision
 #define	SVF_NOPREDICTION		0x00000008	// send this as solid=0 to the client to ignore prediction
+#define	SVF_NOVELOCITY			0x00000010	// don't clip against this when tracing (it is assumed the entity will be freed after touch)
 
 // edict->solid values
 

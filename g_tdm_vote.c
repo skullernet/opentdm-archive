@@ -326,7 +326,7 @@ static void TDM_AnnounceVote (void)
 			strcat (what, "instant weapon switch");
 		else if (vote.switchmode == 3)
 			strcat (what, "insane weapon switch");
-		else if (vote.switchmode == 3)
+		else if (vote.switchmode == 4)
 			strcat (what, "extreme weapon switch");
 	}
 

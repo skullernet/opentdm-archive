@@ -79,7 +79,7 @@ void TDM_LeftTeam (edict_t *ent)
 	ent->client->resp.team = TEAM_SPEC;
 
 	//assign a new captain
-	if (teaminfo[ent->client->resp.team].captain == ent)
+	if (teaminfo[oldteam].captain == ent)
 		TDM_SetCaptain (ent->client->resp.team, TDM_FindPlayerForTeam (oldteam));
 
 	//resume play if this guy called time?
@@ -734,8 +734,16 @@ void TDM_SetInitialItems (edict_t *ent)
 				}
 
 				//spawn with RL up
-				client->selected_item = ITEM_WEAPON_ROCKETLAUNCHER;
-				client->weapon = GETITEM (ITEM_WEAPON_ROCKETLAUNCHER);
+				if (!client->resp.last_weapon || client->inventory[ITEM_INDEX (client->resp.last_weapon)] == 0)
+				{
+					client->selected_item = ITEM_WEAPON_ROCKETLAUNCHER;
+					client->weapon = GETITEM (ITEM_WEAPON_ROCKETLAUNCHER);
+				}
+				else
+				{
+					client->weapon = client->resp.last_weapon;
+					client->selected_item = ITEM_INDEX (client->resp.last_weapon);
+				}
 			}
 			client->inventory[ITEM_ITEM_ARMOR_BODY] = 200;
 			break;

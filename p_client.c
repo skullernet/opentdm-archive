@@ -77,6 +77,11 @@ qboolean IsFemale (edict_t *ent)
 	info = Info_ValueForKey (ent->client->pers.userinfo, "gender");
 	if (info[0] == 'f' || info[0] == 'F')
 		return true;
+
+	//ugly skin checks :(
+	if (!Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "female/", 7) || !Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "crakhor/", 8))
+		return true;
+
 	return false;
 }
 
@@ -90,6 +95,12 @@ qboolean IsNeutral (edict_t *ent)
 	info = Info_ValueForKey (ent->client->pers.userinfo, "gender");
 	if (info[0] != 'f' && info[0] != 'F' && info[0] != 'm' && info[0] != 'M')
 		return true;
+
+	//ugly skin checks :(
+	if (!Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "male/", 5) || !Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "cyborg/", 7) ||
+		!Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "female/", 7) || !Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "crakhor/", 8))
+		return false;
+
 	return false;
 }
 
@@ -447,6 +458,8 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 		LookAtKiller (self, inflictor, attacker);
 		self->client->ps.pmove.pm_type = PM_DEAD;
 		ClientObituary (self, inflictor, attacker);
+
+		self->client->resp.last_weapon = self->client->weapon;
 
 		TossClientWeapon (self);
 

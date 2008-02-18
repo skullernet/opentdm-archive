@@ -1287,6 +1287,7 @@ typedef struct
 	edict_t			*last_invited_by;
 	player_vote_t	vote;
 	teamplayer_t	*teamplayerinfo;
+	const gitem_t	*last_weapon;
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),

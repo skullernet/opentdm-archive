@@ -1302,7 +1302,7 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Damage_f (ent, &old_matchinfo);
 		else if (!Q_stricmp (cmd, "oldteamdamage"))
 			TDM_TeamDamage_f (ent, &old_matchinfo);
-		else if (!Q_stricmp (cmd, "olditems") || !Q_stricmp (cmd, "lasitems"))
+		else if (!Q_stricmp (cmd, "olditems") || !Q_stricmp (cmd, "lastitems"))
 			TDM_Items_f (ent, &old_matchinfo);
 		else if (!Q_stricmp (cmd, "oldteamitems"))
 			TDM_TeamItems_f (ent, &old_matchinfo);
