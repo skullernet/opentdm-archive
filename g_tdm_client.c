@@ -80,7 +80,7 @@ void TDM_LeftTeam (edict_t *ent)
 
 	//assign a new captain
 	if (teaminfo[oldteam].captain == ent)
-		TDM_SetCaptain (ent->client->resp.team, TDM_FindPlayerForTeam (oldteam));
+		TDM_SetCaptain (oldteam, TDM_FindPlayerForTeam (oldteam));
 
 	//resume play if this guy called time?
 	if (tdm_match_status == MM_TIMEOUT && level.tdm_timeout_caller->client == ent)
