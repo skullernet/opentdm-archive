@@ -340,8 +340,8 @@ void TDM_ResetLevel (void)
 
 		if (ent->think == droptofloor)
 		{
-			droptofloor (ent);
 			ent->nextthink = 0;
+			droptofloor (ent);
 		}
 	}
 }
