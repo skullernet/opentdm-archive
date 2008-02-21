@@ -745,7 +745,7 @@ void TDM_SetInitialItems (edict_t *ent)
 					client->selected_item = ITEM_INDEX (client->resp.last_weapon);
 				}
 			}
-			client->inventory[ITEM_ITEM_ARMOR_BODY] = 200;
+			client->inventory[ITEM_ITEM_ARMOR_BODY] = 100;
 			break;
 
 		default:
