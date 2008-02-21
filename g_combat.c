@@ -153,7 +153,6 @@ static int CheckPowerArmor (edict_t *ent, vec3_t point, vec3_t normal, int damag
 	gclient_t	*client;
 	int			save;
 	int			power_armor_type;
-	int			index;
 	int			damagePerCell;
 	int			pa_te_type;
 	int			power;
@@ -161,8 +160,6 @@ static int CheckPowerArmor (edict_t *ent, vec3_t point, vec3_t normal, int damag
 
 	if (!damage)
 		return 0;
-
-	index = 0;
 
 	client = ent->client;
 
@@ -223,7 +220,7 @@ static int CheckPowerArmor (edict_t *ent, vec3_t point, vec3_t normal, int damag
 	power_used = save / damagePerCell;
 
 	if (client)
-		client->inventory[index] -= power_used;
+		client->inventory[ITEM_AMMO_CELLS] -= power_used;
 	return save;
 }
 

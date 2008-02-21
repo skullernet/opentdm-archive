@@ -912,6 +912,11 @@ void TDM_Teamskin_f (edict_t *ent)
 		return;
 	}
 
+	/*if (g_allowed_skins->string[0])
+	{
+		char	*p = g_allowed_skins->string;
+		while (*/
+
 	model = G_CopyString (value);
 	skin = strchr (model, '/');
 	if (!skin)

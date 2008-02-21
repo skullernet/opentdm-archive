@@ -42,25 +42,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	VOTE_CHAT		0x2000
 
-#define WEAPON_SHOTGUN			(1<<1)
-#define	WEAPON_SSHOTGUN			(1<<2)
-#define	WEAPON_MACHINEGUN		(1<<3)
-#define	WEAPON_CHAINGUN			(1<<4)
-#define WEAPON_GRENADES			(1<<5)
-#define WEAPON_GRENADELAUNCHER	(1<<6)
-#define	WEAPON_ROCKETLAUNCHER	(1<<7)
-#define WEAPON_RAILGUN			(1<<8)
-#define WEAPON_BFG10K			(1<<9)
-#define	WEAPON_HYPERBLASTER		(1<<10)
-
-#define POWERUP_QUAD			(1<<1)
-#define POWERUP_INVULN			(1<<2)
-#define POWERUP_POWERSHIELD		(1<<3)
-#define POWERUP_POWERSCREEN		(1<<4)
-#define POWERUP_SILENCER		(1<<5)
-#define POWERUP_REBREATHER		(1<<6)
-#define	POWERUP_ENVIROSUIT		(1<<7)
-
 //the ordering of weapons must match ITEM_ defines too!
 const weaponinfo_t	weaponvotes[WEAPON_MAX] = 
 {
@@ -1470,7 +1451,7 @@ void TDM_Vote_f (edict_t *ent)
 		return;
 	}
 
-	if (!ent->client->resp.team)
+	if (!ent->client->resp.team && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You must be on a team to vote or propose new settings.\n");
 		return;
@@ -1559,9 +1540,23 @@ void TDM_CheckVote (void)
 			continue;
 
 		if (ent->client->resp.vote == VOTE_YES)
+		{
 			vote_yes++;
+			if (ent->client->pers.admin)
+			{
+				vote_no = vote_hold = 0;
+				break;
+			}
+		}
 		else if (ent->client->resp.vote == VOTE_NO)
+		{
  			vote_no++;
+			if (ent->client->pers.admin)
+			{
+				vote_yes = vote_hold = 0;
+				break;
+			}
+		}
 		else if (ent->client->resp.vote == VOTE_HOLD)
  			vote_hold++;
 	}

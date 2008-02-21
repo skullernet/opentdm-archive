@@ -69,16 +69,15 @@ void player_pain (edict_t *self, edict_t *other, float kick, int damage)
 
 qboolean IsFemale (edict_t *ent)
 {
-	char		*info;
-
 	if (!ent->client)
 		return false;
 
-	info = Info_ValueForKey (ent->client->pers.userinfo, "gender");
+	//ignore userinfo
+	/*info = Info_ValueForKey (ent->client->pers.userinfo, "gender");
 	if (info[0] == 'f' || info[0] == 'F')
-		return true;
+		return true;*/
 
-	//ugly skin checks :(
+	//ugly skin checks instead :(
 	if (!Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "female/", 7) || !Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "crakhor/", 8))
 		return true;
 
@@ -87,16 +86,15 @@ qboolean IsFemale (edict_t *ent)
 
 qboolean IsNeutral (edict_t *ent)
 {
-	char		*info;
-
 	if (!ent->client)
 		return false;
 
-	info = Info_ValueForKey (ent->client->pers.userinfo, "gender");
+	//ignore userinfo
+	/*info = Info_ValueForKey (ent->client->pers.userinfo, "gender");
 	if (info[0] != 'f' && info[0] != 'F' && info[0] != 'm' && info[0] != 'M')
-		return true;
+		return true;*/
 
-	//ugly skin checks :(
+	//ugly skin checks instead :(
 	if (!Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "male/", 5) || !Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "cyborg/", 7) ||
 		!Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "female/", 7) || !Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "crakhor/", 8))
 		return false;

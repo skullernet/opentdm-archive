@@ -37,3 +37,21 @@ extern vote_t	vote;
 
 extern qboolean	tdm_settings_not_default;
 
+#define WEAPON_SHOTGUN			(1<<1)
+#define	WEAPON_SSHOTGUN			(1<<2)
+#define	WEAPON_MACHINEGUN		(1<<3)
+#define	WEAPON_CHAINGUN			(1<<4)
+#define WEAPON_GRENADES			(1<<5)
+#define WEAPON_GRENADELAUNCHER	(1<<6)
+#define	WEAPON_ROCKETLAUNCHER	(1<<7)
+#define WEAPON_RAILGUN			(1<<8)
+#define WEAPON_BFG10K			(1<<9)
+#define	WEAPON_HYPERBLASTER		(1<<10)
+
+#define POWERUP_QUAD			(1<<1)
+#define POWERUP_INVULN			(1<<2)
+#define POWERUP_POWERSHIELD		(1<<3)
+#define POWERUP_POWERSCREEN		(1<<4)
+#define POWERUP_SILENCER		(1<<5)
+#define POWERUP_REBREATHER		(1<<6)
+#define	POWERUP_ENVIROSUIT		(1<<7)
