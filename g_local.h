@@ -777,6 +777,8 @@ extern	cvar_t	*g_http_bind;
 extern	cvar_t	*g_http_proxy;
 extern	cvar_t	*g_http_baseurl;
 
+extern	cvar_t	*g_debug_spawns;
+
 #define world	(&g_edicts[0])
 
 // item spawnflags

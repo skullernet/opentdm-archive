@@ -546,15 +546,16 @@ PlayersRangeFromSpot
 Returns the distance to the nearest player from the given spot
 ================
 */
-float	PlayersRangeFromSpot (edict_t *spot)
+float	PlayersRangeFromSpot (edict_t *spot, edict_t **closest_player)
 {
-	edict_t	*player;
+	edict_t	*player, *bestplayer;
 	float	bestplayerdistance;
 	vec3_t	v;
 	int		n;
 	float	playerdistance;
 
 	bestplayerdistance = 9999999;
+	bestplayer = NULL;
 
 	for (n = 1; n <= game.maxclients; n++)
 	{
@@ -573,8 +574,14 @@ float	PlayersRangeFromSpot (edict_t *spot)
 		playerdistance = VectorLength (v);
 
 		if (playerdistance < bestplayerdistance)
+		{
+			bestplayer = player;
 			bestplayerdistance = playerdistance;
+		}
 	}
+
+	if (closest_player)
+		*closest_player = bestplayer;
 
 	return bestplayerdistance;
 }
@@ -598,7 +605,7 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTelefrag (void)
 		spawn = level.spawns[genrand_int32() % level.numspawns];
 
 		//64 should be safe enough...
-		if (PlayersRangeFromSpot (spawn) < 64)
+		if (PlayersRangeFromSpot (spawn, NULL) < 64)
 			continue;
 
 		return spawn;
@@ -619,6 +626,7 @@ to other players
 edict_t *SelectRandomDeathmatchSpawnPointAvoidingTwoClosest (void)
 {
 	edict_t	*spot, *spot1, *spot2;
+	edict_t	*player, *player1, *player2;
 	int		selection;
 	int		i;
 	float	range, range1, range2;
@@ -631,9 +639,10 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTwoClosest (void)
 	{
 		spot = level.spawns[i];
 
-		range = PlayersRangeFromSpot(spot);
+		range = PlayersRangeFromSpot(spot, &player);
 		if (range < range1)
 		{
+			player1 = player;
 			range1 = range;
 			spot1 = spot;
 		}
@@ -648,11 +657,33 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTwoClosest (void)
 		if (spot == spot1)
 			continue;
 
-		range = PlayersRangeFromSpot(spot);
+		range = PlayersRangeFromSpot(spot, &player);
 		if (range < range2)
 		{
+			player2 = player;
 			range2 = range;
 			spot2 = spot;
+		}
+	}
+
+	if (g_debug_spawns->value)
+	{
+		if (spot1)
+		{
+			gi.WriteByte (svc_temp_entity);
+			gi.WriteByte (TE_DEBUGTRAIL);
+			gi.WritePosition (spot1->s.origin);
+			gi.WritePosition (player1->s.origin);
+			gi.multicast (NULL, MULTICAST_ALL);
+		}
+
+		if (spot2)
+		{
+			gi.WriteByte (svc_temp_entity);
+			gi.WriteByte (TE_DEBUGTRAIL);
+			gi.WritePosition (spot2->s.origin);
+			gi.WritePosition (player2->s.origin);
+			gi.multicast (NULL, MULTICAST_ALL);
 		}
 	}
 
@@ -689,7 +720,7 @@ edict_t *SelectFarthestDeathmatchSpawnPoint (void)
 	bestdistance = 0;
 	while ((spot = G_Find (spot, FOFS(classname), "info_player_deathmatch")) != NULL)
 	{
-		bestplayerdistance = PlayersRangeFromSpot (spot);
+		bestplayerdistance = PlayersRangeFromSpot (spot, NULL);
 
 		if (bestplayerdistance > bestdistance)
 		{

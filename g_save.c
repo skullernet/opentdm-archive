@@ -237,6 +237,8 @@ void InitGame (void)
 	g_http_bind = gi.cvar ("g_http_bind", "", 0);
 	g_http_proxy = gi.cvar ("g_http_proxy", "", 0);
 
+	g_debug_spawns = gi.cvar ("g_debug_spawns", "0", 0);
+
 #ifdef _DEBUG
 	g_http_baseurl = gi.cvar ("g_http_baseurl", "http://localhost/api/", CVAR_NOSET);
 #else

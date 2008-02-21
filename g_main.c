@@ -115,6 +115,8 @@ cvar_t	*g_http_bind;
 cvar_t	*g_http_proxy;
 cvar_t	*g_http_baseurl;
 
+cvar_t	*g_debug_spawns;
+
 void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint);
 void ClientThink (edict_t *ent, usercmd_t *cmd);
 qboolean ClientConnect (edict_t *ent, char *userinfo);
