@@ -99,7 +99,7 @@ qboolean IsNeutral (edict_t *ent)
 		!Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "female/", 7) || !Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "crakhor/", 8))
 		return false;
 
-	return false;
+	return true;
 }
 
 void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
@@ -637,7 +637,19 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTwoClosest (void)
 			range1 = range;
 			spot1 = spot;
 		}
-		else if (range < range2)
+	}
+
+	//r1ch: we require two loops, or the ordering of the spawns in the level will skew the outcome
+	for (i = 0; i < level.numspawns; i++)
+	{
+		spot = level.spawns[i];
+
+		//already recorded this one
+		if (spot == spot1)
+			continue;
+
+		range = PlayersRangeFromSpot(spot);
+		if (range < range2)
 		{
 			range2 = range;
 			spot2 = spot;
