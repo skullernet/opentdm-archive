@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "g_local.h"
 #include "g_tdm.h"
+#include "g_svcmds.h"
 
 /*
 ==============
@@ -43,9 +44,9 @@ qboolean TDM_RateLimited (edict_t *ent, int penalty)
 ==============
 TDM_ForceReady_f
 ==============
-Force everyone to be ready, admin command.
+Force everyone to be ready/notready, admin command.
 */
-static void TDM_ForceReady_f (void)
+static void TDM_ForceReady_f (qboolean status)
 {
 	edict_t	*ent;
 
@@ -57,7 +58,7 @@ static void TDM_ForceReady_f (void)
 		if (!ent->client->resp.team)
 			continue;
 
-		ent->client->resp.ready = true;
+		ent->client->resp.ready = status;
 	}
 
 	TDM_CheckMatchStart ();
@@ -74,30 +75,444 @@ void TDM_Commands_f (edict_t *ent)
 	gi.cprintf (ent, PRINT_HIGH,
 		"General\n"
 		"-------\n"
-		"menu         Show OpenTDM menu\n"
-		"join         Join a team\n"
-		"vote         Propose new settings\n"
-		"accept       Accept a team invite\n"
-		"captain      Show / become / set captain\n"
-		"settings     Show match settings\n"
-		"ready        Set ready\n"
-		"notready     Set not ready\n"
-		"time         Call a time out\n"
-		"chase        Enter chasecam mode\n"
+		"menu           Show OpenTDM menu\n"
+		"join           Join a team\n"
+		"vote           Propose new settings\n"
+		"accept         Accept a team invite\n"
+		"captain        Show / become / set captain\n"
+		"settings       Show match settings\n"
+		"ready          Set ready\n"
+		"notready       Set not ready\n"
+		"time           Call a time out\n"
+		"chase          Enter chasecam mode\n"
+		"overtime       Show overtime\n"
+		"timelimit      Show timelimit\n"
+		"bfg            Show bfg settings\n"
+		"powerups       Show powerups settings\n"
+		"obsmode        Show obsmode settins\n"
 		"\n"
 		"Team Captains\n"
 		"-------------\n"
-		"teamname     Change team name\n"
-		"teamskin     Change team skin\n"
-		"invite       Invite a player\n"
-		"pickplayer   Pick a player\n"
-		"lockteam     Lock team\n"
-		"unlockteam   Unlock team\n"
-		"teamready    Force team ready\n"
-		"teamnotready Force team not ready\n"
-		"kickplayer   Remove a player from team\n"
+		"time           Call timeout\n"
+		"teamname       Change team name\n"
+		"teamskin       Change team skin\n"
+		"invite         Invite a player\n"
+		"pickplayer     Pick a player\n"
+		"lockteam       Lock team\n"
+		"unlockteam     Unlock team\n"
+		"teamready      Force team ready\n"
+		"teamnotready   Force team not ready\n"
+		"kickplayer     Remove a player from team\n"
 		);
 }
+
+/*
+==============
+TDM_Acommands_f
+==============
+Show brief help on all commands
+*/
+void TDM_Acommands_f (edict_t *ent)
+{
+	gi.cprintf (ent, PRINT_HIGH,
+		"Admin commands\n"
+		"-------\n"
+		"acommands          Show OpenTDM admin commands\n"
+		"tl <mins>          Change match timelimit\n"
+		"powerups 0/1       Enable powerups\n"
+		"bfg 0/1            Enable BFG10k\n"
+		"obsmode 0/1/2      Enable observer talk during the match\n"
+		"break              End current match\n"
+		"hold               Pause current match\n"
+		"changemap <map>    Change current map\n"
+		"overtime 0/1/2     Set overtime\n"
+		"kick / boot <id>   Kick a player from server\n"
+		"kickban <id>       kickban a player from server\n"
+		"ban <id>           Ban ip on the server\n"
+		"unban <ip>         Unban ip on the server\n"
+		"bans               Show current bans\n"
+		"readyall           Force all players to be ready\n"
+//		"forceteam          Force team\n"
+		"notreadyall        Force all players not to be ready\n"
+		);
+}
+
+/*
+==============
+TDM_Timelimit_f
+==============
+Set the timelimit.
+*/
+void TDM_Timelimit_f (edict_t *ent)
+{
+	unsigned	limit;
+	const char	*input;
+	char 		seconds[16];
+
+	input = gi.argv(1);
+
+	if (!input[0] || !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Timelimit is %d minute%s.\n", (int)g_match_time->value/60, (int)g_match_time->value/60 == 1 ? "" : "s");
+		return;
+	}
+
+	limit = strtoul (input, NULL, 10);
+	sprintf (seconds, "%d", limit * 60);
+	g_match_time = gi.cvar_set ("g_match_time", seconds);
+	gi.bprintf (PRINT_HIGH, "Timelimit set to %s.\n", input);
+}
+
+/*
+==============
+TDM_Powerups_f
+==============
+Enable / disable all powerups. For better weapon settings, use vote.
+*/
+void TDM_Powerups_f (edict_t *ent)
+{
+	unsigned	i;
+	unsigned	flags;
+	const char	*input;
+	char		value[16];
+	static char	settings[100];
+
+	settings[0] = 0;
+
+	input = gi.argv(1);
+
+	if (!input[0] || !ent->client->pers.admin)
+	{
+		for (i = 0; i < sizeof(powerupvotes) / sizeof(powerupvotes[0]); i++)
+		{
+			if ((int)g_powerupflags->value & powerupvotes[i].value)
+			{
+				strcat (settings, TDM_SetColorText (va ("%s", powerupvotes[i].names[0])));
+				strcat (settings, " ");
+			}
+		}
+		gi.cprintf (ent, PRINT_HIGH, "Removed powerups: %s\n", settings[0] == '\0' ? "none" : settings);
+		return;
+	}
+	else if (!Q_stricmp (input, "0"))
+		flags = 0xFFFFFFFFU;
+	else if (!Q_stricmp (input, "1"))
+		flags = 0;
+	else
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: powerups 1/0.\n", settings);
+		return;
+	}
+
+
+	if ((unsigned)g_powerupflags->value == flags)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Powerups are already set to %s.\n", input);
+		return;
+	}
+
+	sprintf (value, "%d", flags);
+	g_powerupflags = gi.cvar_set ("g_powerupflags", value);
+	TDM_ResetLevel ();
+	gi.bprintf (PRINT_HIGH, "Powerups set to %s.\n", input);
+}
+
+/*
+==============
+TDM_Bfg_f
+==============
+Enable / disable bfg.
+*/
+void TDM_Bfg_f (edict_t *ent)
+{
+	unsigned	flags;
+	const char	*input;
+	char		value[16];
+
+	input = gi.argv(1);
+	flags = (unsigned)g_itemflags->value;
+
+	if (!input[0] || !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Bfg is set to %d.\n", (unsigned)g_itemflags->value & WEAPON_BFG10K ? 0 : 1);
+		return;
+	}
+	else if (!Q_stricmp (input, "0"))
+		flags |= WEAPON_BFG10K;
+	else if (!Q_stricmp (input, "1"))
+		flags &= ~WEAPON_BFG10K;
+	else
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: bfg 1/0.\n");
+		return;
+	}
+
+	if ((unsigned)g_itemflags->value == flags)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Bfg is already set to %s.\n", input);
+		return;
+	}
+
+	sprintf (value, "%d", flags);
+	g_itemflags = gi.cvar_set ("g_itemflags", value);
+	TDM_ResetLevel ();
+	gi.bprintf (PRINT_HIGH, "Bfg set to %s.\n", input);
+}
+
+/*
+==============
+TDM_CheckMap
+==============
+Check map name.
+*/
+qboolean TDM_Checkmap (edict_t *ent, const char *mapname)
+{
+	int		i;
+	size_t		len;
+	//TODO: check map from maplist oO
+
+	len = strlen (mapname);
+
+	if (len >= MAX_QPATH - 1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Invalid map name.\n");
+		return false;
+	}
+
+	for (i = 0; i < len; i++)
+	{
+		if (!isalnum (mapname[i]) && mapname[i] != '_' && mapname[i] != '-')
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Invalid map name.\n");
+			return false;
+		}
+	}
+	return true;
+}
+
+/*
+==============
+TDM_Changemap_f
+==============
+Change current map.
+*/
+void TDM_Changemap_f (edict_t *ent)
+{
+	const char	*mapname;
+
+	mapname = gi.argv(1);
+	if (!mapname[0])
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: changemap <mapname>\n");
+		return;
+	}
+
+	if (!TDM_Checkmap(ent, mapname))
+		return;
+
+	strcpy (level.nextmap, mapname);
+	gi.bprintf (PRINT_HIGH, "New map: %s\n", mapname);
+	EndDMLevel();
+}
+
+/*
+==============
+TDM_Overtime_f
+==============
+Set overtime.
+*/
+void TDM_Overtime_f (edict_t *ent)
+{
+	int		tiemode;
+	unsigned	overtimemins;
+	const char	*input;
+	const char	*time;
+	char		value[16];
+	char		time_value[16];
+
+	input = gi.argv(1);
+
+	if (!input[0] || !ent->client->pers.admin)
+	{
+		if (g_tie_mode->value == 1)
+			gi.cprintf (ent, PRINT_HIGH, "Overtime is set to %d minute%s.\n", (int)g_overtime->value/60, (int)g_overtime->value/60 == 1 ? "" : "s");
+		else
+			gi.cprintf (ent, PRINT_HIGH, "Game is set to %s.\n", (int)g_tie_mode->value == 0 ? "tie mode" : "sudden death");
+		return;
+	}
+	else if (!Q_stricmp (input, "0"))
+	{
+		tiemode = 0;
+	}
+	else if (!Q_stricmp (input, "1"))
+	{
+		time = gi.argv(2);
+		if (!time[0])
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Usage: overtime 0/1/2 <minutes> (tie/overtime/sudden death)\n");
+			return;
+		}
+		overtimemins = strtoul (time, NULL, 10);
+		tiemode = 1;
+	}
+	else if (!Q_stricmp (input, "2"))
+	{
+		tiemode = 2;
+	}
+	else
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: overtime 0/1/2 <minutes> (tie/overtime/sudden death)\n");
+		return;
+	}
+
+	if (g_tie_mode->value == tiemode && tiemode == 1)
+	{
+		if (g_overtime->value == overtimemins)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "That overtime is already set!\n");
+			return;
+		}
+	}
+	else if (g_tie_mode->value == tiemode)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "That tie mode is already set!\n");
+		return;
+	}
+
+	sprintf (value, "%d", tiemode);
+	g_tie_mode = gi.cvar_set ("g_tie_mode", value);
+
+
+	if (tiemode == 1)
+	{
+		sprintf (time_value, "%d", overtimemins * 60);
+		g_overtime = gi.cvar_set ("g_overtime", time_value);
+		gi.bprintf (PRINT_HIGH, "New overtime: %d minute%s\n", (int)overtimemins, overtimemins == 1 ? "" : "s");
+	}
+	else
+		gi.bprintf (PRINT_HIGH, "New tie mode: %s\n", tiemode == 0 ? "no overtime" : "sudden death");
+}
+
+/*
+==============
+TDM_Break_f
+==============
+Show scoreboard and end the match.
+*/
+void TDM_Break_f (edict_t *ent)
+{
+	if (tdm_match_status < MM_PLAYING || tdm_match_status == MM_SCOREBOARD)
+	{
+//		gi.cprintf (ent, PRINT_HIGH, "Cannot break the match during warmup.\n");
+		return;
+	}
+	gi.bprintf (PRINT_HIGH, "%s has ended the match.\n", ent->client->pers.netname);
+	TDM_EndMatch();
+}
+
+/*
+==============
+TDM_Bans_f
+==============
+Show current bans on the server.
+*/
+void TDM_Bans_f (edict_t *ent)
+{
+	SVCmd_ListIP_f (ent);
+}
+
+/*
+==============
+TDM_Unban_f
+==============
+Remove the ban.
+*/
+void TDM_Unban_f (edict_t *ent)
+{
+	SVCmd_RemoveIP_f (ent, gi.argv(1));
+}
+
+/*
+==============
+TDM_Ban_f
+==============
+Ban an ip from the server. Default 1 hour.
+*/
+void TDM_Ban_f (edict_t *ent)
+{
+	SVCmd_AddIP_f (ent, gi.argv(1), 60);
+}
+
+/*
+==============
+TDM_Kickban_f
+==============
+Kickban a player from the server.
+*/
+void TDM_Kickban_f (edict_t *ent)
+{
+	edict_t	*victim;
+
+	if (gi.argc() < 2)
+	{
+		gi.cprintf(ent, PRINT_HIGH, "Usage: kickban <id>\n");
+		return;
+	}
+
+	if (LookupPlayer (gi.args(), &victim, ent))
+	{
+		if (victim->client->pers.admin)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You cannot kickban an admin!\n");
+			return;
+		}
+
+		SVCmd_AddIP_f (ent, victim->client->pers.ip, 60);
+
+		gi.AddCommandString (va ("kick %d\n", (int)(victim - g_edicts - 1)));
+	}
+}
+
+/*
+==============
+TDM_Obsmode_f
+==============
+Enable/disable observer talk during the match. values: speak, whisper, shutup
+*/
+void TDM_Obsmode_f (edict_t *ent)
+{
+	const char	*input;
+	char 		value[10] = { 0 };
+
+	input = gi.argv(1);
+
+	if (!input[0] || !ent->client->pers.admin)
+	{
+		if (g_chat_mode->value == 0)
+			sprintf(value, "speak");
+		else if (g_chat_mode->value == 1)
+			sprintf(value, "whisper");
+		else
+			sprintf(value, "shutup");
+		gi.cprintf (ent, PRINT_HIGH, "Obsmode is %s.\n", value);
+		return;
+	}
+	else if (!Q_stricmp (input, "speak"))
+		value[0] = '0';
+	else if (!Q_stricmp (input, "whisper"))
+		value[0] = '1';
+	else if (!Q_stricmp (input, "shutup"))
+		value[0] = '2';
+	else
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: obsmode speak/whisper/shutup\n");
+		return;
+	}
+
+	g_chat_mode = gi.cvar_set ("g_chat_mode", value);
+	gi.bprintf (PRINT_HIGH, "Obsmode is set to %s.\n", input);
+}
+
 
 /*
 ==============
@@ -221,11 +636,23 @@ void TDM_Timeout_f (edict_t *ent)
 		return;
 	}
 
-	level.timeout_end_framenum = level.realframenum + SECS_TO_FRAMES(g_max_timeout->value);
-	level.tdm_timeout_caller = ent->client->resp.teamplayerinfo;
-	level.last_tdm_match_status = tdm_match_status;
-	tdm_match_status = MM_TIMEOUT;
-
+	// wision: if i'm admin, i want unlimited timeout!
+	// wision: check what happens if admin is just a spectator and he calls timeout
+	if (ent->client->pers.admin)
+	{
+//		level.timeout_end_framenum = level.realframenum + SECS_TO_FRAMES(g_max_timeout->value);
+		level.tdm_timeout_caller = ent->client->resp.teamplayerinfo;
+		level.last_tdm_match_status = tdm_match_status;
+		tdm_match_status = MM_TIMEOUT;
+	}
+	else
+	{
+		level.timeout_end_framenum = level.realframenum + SECS_TO_FRAMES(g_max_timeout->value);
+		level.tdm_timeout_caller = ent->client->resp.teamplayerinfo;
+		level.last_tdm_match_status = tdm_match_status;
+		tdm_match_status = MM_TIMEOUT;
+	}
+	
 	if (TDM_Is1V1 ())
 		gi.bprintf (PRINT_CHAT, "%s called a time out. Match will resume automatically in %s.\n", ent->client->pers.netname, TDM_SecsToString (g_max_timeout->value));
 	else
@@ -502,17 +929,6 @@ void TDM_Lockteam_f (edict_t *ent, qboolean lock)
 	gi.cprintf (ent, PRINT_HIGH, "Team '%s' is %slocked.\n", teaminfo[ent->client->resp.team].name, (lock ? "" : "un"));
 }
 
-/*
-==============
-TDM_Ban_f
-==============
-Kick and ban a player from the server. Defaults to one hour.
-*/
-void TDM_Ban_f (edict_t *ent)
-{
-	//TODO: Implement banning functions
-}
-
 void TDM_Forceteam_f (edict_t *ent)
 {
 	//TODO: Force team
@@ -753,7 +1169,8 @@ void TDM_Admin_f (edict_t *ent)
 {
 	if (ent->client->pers.admin)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "You are already an admin!\n");
+		gi.cprintf (ent, PRINT_HIGH, "You are no longer registered as an admin.\n");
+		ent->client->pers.admin = false;
 		return;
 	}
 
@@ -768,7 +1185,7 @@ void TDM_Admin_f (edict_t *ent)
 
 	if (!strcmp (gi.argv(1), g_admin_password->string))
 	{
-		gi.bprintf (PRINT_CHAT, "%s became an admin.\n", ent->client->pers.netname);
+		gi.bprintf (PRINT_HIGH, "%s became an admin.\n", ent->client->pers.netname);
 		ent->client->pers.admin = true;
 	}
 	else
@@ -857,6 +1274,12 @@ Kick a player from the server (admin only)
 void TDM_Kick_f (edict_t *ent)
 {
 	edict_t	*victim;
+
+	if (gi.argc() < 2)
+	{
+		gi.cprintf(ent, PRINT_HIGH, "Usage: kick <id>\n");
+		return;
+	}
 
 	if (LookupPlayer (gi.args(), &victim, ent))
 	{
@@ -1175,29 +1598,65 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 {
 	if (ent->client->pers.admin)
 	{
-		if (!Q_stricmp (cmd, "!forceready"))
+		if (!Q_stricmp (cmd, "forceready") || !Q_stricmp (cmd, "readyall"))
 		{
-			TDM_ForceReady_f ();
+			TDM_ForceReady_f (true);
 			return true;
 		}
-		else if (!Q_stricmp (cmd, "!kickplayer"))
+		else if (!Q_stricmp (cmd, "kickplayer"))
 		{
 			TDM_KickPlayer_f (ent);
 			return true;
 		}
-		else if (!Q_stricmp (cmd, "!kick"))
+		else if (!Q_stricmp (cmd, "kick") || !Q_stricmp (cmd, "boot"))
 		{
 			TDM_Kick_f (ent);
 			return true;
 		}
-		else if (!Q_stricmp (cmd, "!ban"))
+		else if (!Q_stricmp (cmd, "ban"))
 		{
 			TDM_Ban_f (ent);
 			return true;
 		}
-		else if (!Q_stricmp (cmd, "!forceteam"))
+		else if (!Q_stricmp (cmd, "forceteam"))
 		{
 			TDM_Forceteam_f (ent);
+			return true;
+		}
+		// wision: some more acommands
+		else if (!Q_stricmp (cmd, "kickban"))
+		{
+			TDM_Kickban_f (ent);
+			return true;
+		}
+		else if (!Q_stricmp (cmd, "acommands"))
+		{
+			TDM_Acommands_f (ent);
+			return true;
+		}
+		else if (!Q_stricmp (cmd, "unreadyall") || !Q_stricmp (cmd, "notreadyall"))
+		{
+			TDM_ForceReady_f (false);
+			return true;
+		}
+		else if (!Q_stricmp (cmd, "unban"))
+		{
+			TDM_Unban_f (ent);
+			return true;
+		}
+		else if (!Q_stricmp (cmd, "bans"))
+		{
+			TDM_Bans_f (ent);
+			return true;
+		}
+		else if (!Q_stricmp (cmd, "break"))
+		{
+			TDM_Break_f (ent);
+			return true;
+		}
+		else if (!Q_stricmp (cmd, "changemap"))
+		{
+			TDM_Changemap_f (ent);
 			return true;
 		}
 	}
@@ -1209,7 +1668,7 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Commands_f (ent);
 		else if (!Q_stricmp (cmd, "settings") || !Q_stricmp (cmd, "matchinfo"))
 			TDM_Settings_f (ent);
-		else if (!Q_stricmp (cmd, "calltime") | !Q_stricmp (cmd, "pause") || !Q_stricmp (cmd, "ctime") || !Q_stricmp (cmd, "time"))
+		else if (!Q_stricmp (cmd, "calltime") | !Q_stricmp (cmd, "pause") || !Q_stricmp (cmd, "ctime") || !Q_stricmp (cmd, "time") || !Q_stricmp (cmd, "hold"))
 			TDM_Timeout_f (ent);
 		else if (!Q_stricmp (cmd, "stats") || !Q_stricmp (cmd, "kills"))
 			TDM_Stats_f (ent, &current_matchinfo);
@@ -1279,7 +1738,7 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Settings_f (ent);
 		else if (!Q_stricmp (cmd, "observer") || !Q_stricmp (cmd, "spectate") || !Q_stricmp (cmd, "chase"))
 			ToggleChaseCam (ent);
-		else if (!Q_stricmp (cmd, "calltime") | !Q_stricmp (cmd, "pause") || !Q_stricmp (cmd, "ctime") || !Q_stricmp (cmd, "time"))
+		else if (!Q_stricmp (cmd, "calltime") | !Q_stricmp (cmd, "pause") || !Q_stricmp (cmd, "ctime") || !Q_stricmp (cmd, "time") || !Q_stricmp (cmd, "hold"))
 			TDM_Timeout_f (ent);
 		else if (!Q_stricmp (cmd, "stats") || !Q_stricmp (cmd, "kills"))
 			TDM_Stats_f (ent, &current_matchinfo);
@@ -1317,6 +1776,17 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_OldScores_f (ent);
 		else if (!Q_stricmp (cmd, "ghost") || !Q_stricmp (cmd, "restore") || !Q_stricmp (cmd, "recover") | !Q_stricmp (cmd, "rejoin"))
 			TDM_Ghost_f (ent);
+		//wision: some compatibility with old mods (ppl are lazy to learn new commands)
+		else if (!Q_stricmp (cmd, "powerups"))
+			TDM_Powerups_f (ent);
+		else if (!Q_stricmp (cmd, "tl"))
+			TDM_Timelimit_f (ent);
+		else if (!Q_stricmp (cmd, "bfg"))
+			TDM_Bfg_f (ent);
+		else if (!Q_stricmp (cmd, "overtime") || !Q_stricmp (cmd, "ot"))
+			TDM_Overtime_f (ent);
+		else if (!Q_stricmp (cmd, "obsmode"))
+			TDM_Obsmode_f (ent);
 		else if (!Q_stricmp (cmd, "stopsound"))
 			return true;	//prevent chat from our stuffcmds on people who have no sound
 		else

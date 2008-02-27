@@ -898,6 +898,11 @@ qboolean CanDamage (edict_t *targ, edict_t *inflictor);
 void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir, vec3_t point, vec3_t normal, int damage, int knockback, int dflags, int mod);
 void T_RadiusDamage (edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod);
 
+//
+// g_main.c
+//
+void EndDMLevel (void);
+
 // damage flags
 #define DAMAGE_RADIUS			0x00000001	// damage was indirect
 #define DAMAGE_NO_ARMOR			0x00000002	// armour does not protect from this damage

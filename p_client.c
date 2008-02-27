@@ -389,6 +389,7 @@ void TossClientWeapon (edict_t *self)
 ==================
 LookAtKiller
 ==================
+wision: maybe make it active until client spawns?
 */
 void LookAtKiller (edict_t *self, edict_t *inflictor, edict_t *attacker)
 {
@@ -622,6 +623,7 @@ SelectRandomDeathmatchSpawnPointAvoidingTwoClosest
 go to a random point, but NOT the two points closest
 to other players
 ================
+wision: this one ruins the game on small maps (i.e. with 4 spawn points)
 */
 edict_t *SelectRandomDeathmatchSpawnPointAvoidingTwoClosest (void)
 {
@@ -1505,15 +1507,22 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	{
 		if (client->resp.team == TEAM_SPEC)
 		{
-			if (client->menu.active)
-				return;
+			// wision: toggle chase when specing
+			if (!client->chase_target)
+				ToggleChaseCam (ent);
+			else
+				NextChaseMode (ent);
 
 			if (client->showscores || client->showoldscores) 
 				return;
 
 			//don't show menu during timeout, since invuse/etc are disallowed
-			if (tdm_match_status != MM_TIMEOUT)
+			// wision: hide menu after join
+			if (tdm_match_status != MM_TIMEOUT && ent->client->menu.active)
+			{
 				TDM_ShowTeamMenu (ent);
+				return;
+			}
 		}
 		else 
 		{
@@ -1533,8 +1542,10 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 			{
 				client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
 
+				// wision: use +moveup for changing the pov
 				if (client->chase_target)
-					NextChaseMode (ent);
+					ChaseNext (ent);
+//					NextChaseMode (ent);
 				else
 					GetChaseTarget(ent);
 			}

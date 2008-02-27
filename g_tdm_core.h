@@ -20,6 +20,7 @@ qboolean TDM_ProcessText (char *buff, int len, qboolean (*func)(char *, int, voi
 void TDM_ResetVotableVariables (void);
 int TDM_GetTeamFromArg (edict_t *ent, const char *value);
 void TDM_FixDeltaAngles (void);
+void TDM_EndMatch (void);
 
 typedef enum
 {

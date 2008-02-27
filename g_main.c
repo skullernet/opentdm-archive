@@ -297,20 +297,26 @@ void EndDMLevel (void)
 	}
 
 	// see if it's in the map list
-	if (*sv_maplist->string) {
+	if (*sv_maplist->string)
+	{
 		s = strdup(sv_maplist->string);
 		f = NULL;
 		t = strtok(s, seps);
-		while (t != NULL) {
-			if (Q_stricmp(t, level.mapname) == 0) {
+		while (t != NULL)
+		{
+			if (Q_stricmp(t, level.mapname) == 0)
+			{
 				// it's in the list, go to the next one
 				t = strtok(NULL, seps);
-				if (t == NULL) { // end of list, go to first one
+				if (t == NULL)
+				{
+					// end of list, go to first one
 					if (f == NULL) // there isn't a first one, same level
 						BeginIntermission (CreateTargetChangeLevel (level.mapname) );
 					else
 						BeginIntermission (CreateTargetChangeLevel (f) );
-				} else
+				}
+				else
 					BeginIntermission (CreateTargetChangeLevel (t) );
 				free(s);
 				return;
@@ -324,10 +330,13 @@ void EndDMLevel (void)
 
 	if (level.nextmap[0]) // go to a specific map
 		BeginIntermission (CreateTargetChangeLevel (level.nextmap) );
-	else {	// search for a changelevel
+	else
+	{
+		// search for a changelevel
 		ent = G_Find (NULL, FOFS(classname), "target_changelevel");
 		if (!ent)
-		{	// the map designer didn't include a changelevel,
+		{
+			// the map designer didn't include a changelevel,
 			// so create a fake ent that goes back to the same level
 			BeginIntermission (CreateTargetChangeLevel (level.mapname) );
 			return;

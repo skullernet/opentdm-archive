@@ -923,6 +923,10 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	if (gi.argc () < 2 && !arg0)
 		return;
 
+	// wision: don't allow spectators to talk during shutup mode
+	if (g_chat_mode->value == 2 && !ent->client->resp.team)
+		return;
+	
 	if (tdm_match_status > MM_COUNTDOWN && !ent->client->resp.team && g_chat_mode->value == 1)
 	{
 		//Observers can talk only to each other during the match.

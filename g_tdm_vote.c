@@ -344,7 +344,7 @@ static void TDM_AnnounceVote (void)
 	if (vote.flags & (VOTE_CONFIG|VOTE_WEBCONFIG))
 		strcat (what, ")");
 
-	gi.bprintf (PRINT_CHAT, "%s%s\n", message, what);
+	gi.bprintf (PRINT_HIGH, "%s%s\n", message, what);
 }
 
 /*
@@ -431,8 +431,6 @@ Vote to change the map. Causes an intermission for reasons unknown :).
 */
 qboolean TDM_VoteMap (edict_t *ent)
 {
-	unsigned	i;
-	size_t		len;
 	const char	*value;
 
 	value = gi.argv(2);
@@ -443,24 +441,8 @@ qboolean TDM_VoteMap (edict_t *ent)
 		return false;
 	}
 
-	//TODO: check map from maplist oO
-
-	len = strlen (value);
-
-	if (len >= MAX_QPATH - 1)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "Invalid map name.\n");
+	if (!TDM_Checkmap (ent, value))
 		return false;
-	}
-
-	for (i = 0; i < len; i++)
-	{
-		if (!isalnum (value[i]) && value[i] != '_' && value[i] != '-')
-		{
-			gi.cprintf (ent, PRINT_HIGH, "Invalid map name.\n");
-			return false;
-		}
-	}
 
 	if (!strcmp (level.mapname, value))
 	{

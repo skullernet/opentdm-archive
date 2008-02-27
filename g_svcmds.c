@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "g_local.h"
+#include "g_svcmds.h"
 
 
 /*
@@ -52,23 +53,12 @@ If 0, then only addresses matching the list will be allowed.  This lets you easi
 ==============================================================================
 */
 
-typedef struct
-{
-	unsigned	mask;
-	unsigned	compare;
-} ipfilter_t;
-
-#define	MAX_IPFILTERS	1024
-
-ipfilter_t	ipfilters[MAX_IPFILTERS];
-int			numipfilters;
-
 /*
 =================
 StringToFilter
 =================
 */
-static qboolean StringToFilter (char *s, ipfilter_t *f)
+qboolean StringToFilter (char *s, ipfilter_t *f, int exp)
 {
 	char	num[128];
 	int		i, j;
@@ -106,7 +96,38 @@ static qboolean StringToFilter (char *s, ipfilter_t *f)
 	
 	f->mask = *(unsigned *)m;
 	f->compare = *(unsigned *)b;
+	f->expire = exp;
+
+	return true;
+}
+
+/*
+=================
+CheckIpFilterList
+=================
+*/
+qboolean CheckIpFilterList (edict_t *ent, unsigned *i)
+{
+	unsigned j;
+
+	for (j = 0; j < numipfilters; j++)
+	{
+		if (ipfilters[j].compare == 0xffffffff)
+			break;		// free spot
+	}
 	
+	if (j == numipfilters)
+	{
+		if (numipfilters == MAX_IPFILTERS)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "IP filter list is full\n");
+			return false;
+		}
+		numipfilters++;
+	}
+	// wision: return free slot number
+	*i = j;
+
 	return true;
 }
 
@@ -154,29 +175,27 @@ qboolean SV_FilterPacket (const char *from)
 SV_AddIP_f
 =================
 */
-void SVCmd_AddIP_f (void)
+void SVCmd_AddIP_f (edict_t *ent, char *ip, int exp)
 {
-	int		i;
-	
-	if (gi.argc() < 3) {
-		gi.cprintf(NULL, PRINT_HIGH, "Usage:  addip <ip-mask>\n");
+	unsigned	i;
+
+	// wision: different message for server and ingame admin
+	if (!ip[0] && ent == NULL)
+	{
+		gi.cprintf(ent, PRINT_HIGH, "Usage: addip <ip-mask>\n");
+		return;
+	}
+	else if (!ip[0] && ent != NULL)
+	{
+		gi.cprintf(ent, PRINT_HIGH, "Usage: ban <ip-mask>\n");
 		return;
 	}
 
-	for (i=0 ; i<numipfilters ; i++)
-		if (ipfilters[i].compare == 0xffffffff)
-			break;		// free spot
-	if (i == numipfilters)
-	{
-		if (numipfilters == MAX_IPFILTERS)
-		{
-			gi.cprintf (NULL, PRINT_HIGH, "IP filter list is full\n");
-			return;
-		}
-		numipfilters++;
-	}
-	
-	if (!StringToFilter (gi.argv(2), &ipfilters[i]))
+	// wision: i = empty slot in the banlist array
+	if (!CheckIpFilterList(ent, &i))
+		return;
+
+	if (!StringToFilter (ip, &ipfilters[i], exp))
 		ipfilters[i].compare = 0xffffffff;
 }
 
@@ -185,30 +204,38 @@ void SVCmd_AddIP_f (void)
 SV_RemoveIP_f
 =================
 */
-void SVCmd_RemoveIP_f (void)
+void SVCmd_RemoveIP_f (edict_t *ent, char *ip)
 {
 	ipfilter_t	f;
 	int			i, j;
 
-	if (gi.argc() < 3) {
-		gi.cprintf(NULL, PRINT_HIGH, "Usage:  sv removeip <ip-mask>\n");
+	// wision: different message for server and ingame admin
+	if (!ip[0] && ent == NULL)
+	{
+		gi.cprintf(ent, PRINT_HIGH, "Usage: sv removeip <ip-mask>\n");
+		return;
+	}
+	else if (!ip[0] && ent != NULL)
+	{
+		gi.cprintf(ent, PRINT_HIGH, "Usage: unban <ip-mask>\n");
 		return;
 	}
 
-	if (!StringToFilter (gi.argv(2), &f))
+	if (!StringToFilter (ip, &f, 0))
 		return;
 
 	for (i=0 ; i<numipfilters ; i++)
-		if (ipfilters[i].mask == f.mask
-		&& ipfilters[i].compare == f.compare)
+	{
+		if (ipfilters[i].mask == f.mask && ipfilters[i].compare == f.compare)
 		{
 			for (j=i+1 ; j<numipfilters ; j++)
 				ipfilters[j-1] = ipfilters[j];
 			numipfilters--;
-			gi.cprintf (NULL, PRINT_HIGH, "Removed.\n");
+			gi.cprintf (ent, PRINT_HIGH, "Removed %s.\n", ip);
 			return;
 		}
-	gi.cprintf (NULL, PRINT_HIGH, "Didn't find %s.\n", gi.argv(2));
+	}
+	gi.cprintf (ent, PRINT_HIGH, "Didn't find %s.\n", ip);
 }
 
 /*
@@ -216,16 +243,24 @@ void SVCmd_RemoveIP_f (void)
 SV_ListIP_f
 =================
 */
-void SVCmd_ListIP_f (void)
+void SVCmd_ListIP_f (edict_t *ent)
 {
 	int		i;
 	byte	b[4];
+	char	value[32];
 
-	gi.cprintf (NULL, PRINT_HIGH, "Filter list:\n");
+	gi.cprintf (ent, PRINT_HIGH, "Filter list:\n IP                 Duration\n");
 	for (i=0 ; i<numipfilters ; i++)
 	{
+		if (ipfilters[i].expire == 0)
+			sprintf(value, "permanent");
+		else if (ipfilters[i].expire == 1)
+			sprintf(value, "1 minute");
+		else
+			sprintf(value, "%d minutes", ipfilters[i].expire);
+			
 		*(unsigned *)b = ipfilters[i].compare;
-		gi.cprintf (NULL, PRINT_HIGH, "%3i.%3i.%3i.%3i\n", b[0], b[1], b[2], b[3]);
+		gi.cprintf (ent, PRINT_HIGH, "  %3i.%3i.%3i.%3i    %s\n", b[0], b[1], b[2], b[3], value);
 	}
 }
 
@@ -299,11 +334,11 @@ void	ServerCommand (void)
 	if (Q_stricmp (cmd, "itemlist") == 0)
 		Svcmd_Itemlist_f ();
 	else if (Q_stricmp (cmd, "addip") == 0)
-		SVCmd_AddIP_f ();
+		SVCmd_AddIP_f (NULL, gi.argv(2), 0);
 	else if (Q_stricmp (cmd, "removeip") == 0)
-		SVCmd_RemoveIP_f ();
+		SVCmd_RemoveIP_f (NULL, gi.argv(2));
 	else if (Q_stricmp (cmd, "listip") == 0)
-		SVCmd_ListIP_f ();
+		SVCmd_ListIP_f (NULL);
 	else if (Q_stricmp (cmd, "writeip") == 0)
 		SVCmd_WriteIP_f ();
 	else if (TDM_ServerCommand (cmd))
