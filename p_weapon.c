@@ -109,7 +109,7 @@ current
 */
 void ChangeWeapon (edict_t *ent)
 {
-	if (ent->client->grenade_time)
+	if (ent->client->grenade_time && !ent->client->grenade_blew_up)
 	{
 		ent->client->grenade_time = level.time;
 		ent->client->weapon_sound = 0;

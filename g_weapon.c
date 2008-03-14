@@ -632,7 +632,7 @@ void fire_rail (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick
 		}
 		else
 		{
-			if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
+			if ((tr.ent->svflags & (SVF_MONSTER|SVF_DEADMONSTER)) || (tr.ent->client))
 				ignore = tr.ent;
 			else
 				ignore = NULL;
