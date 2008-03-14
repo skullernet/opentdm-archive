@@ -239,6 +239,8 @@ void InitGame (void)
 
 	g_debug_spawns = gi.cvar ("g_debug_spawns", "0", 0);
 
+	g_max_players_per_team = gi.cvar ("g_max_players_per_team", "4", 0);
+
 #ifdef _DEBUG
 	g_http_baseurl = gi.cvar ("g_http_baseurl", "http://localhost/api/", CVAR_NOSET);
 #else

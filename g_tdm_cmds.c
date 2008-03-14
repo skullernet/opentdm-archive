@@ -962,11 +962,11 @@ void TDM_Invite_f (edict_t *ent)
 		return;
 	}
 
-	if (tdm_match_status != MM_WARMUP)
+	/*if (tdm_match_status != MM_WARMUP)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You can only invite players during warmup.\n");
 		return;
-	}
+	}*/
 
 	if (LookupPlayer (gi.args(), &victim, ent))
 	{
@@ -1028,11 +1028,11 @@ void TDM_PickPlayer_f (edict_t *ent)
 		return;
 	}
 
-	if (tdm_match_status != MM_WARMUP)
+	/*if (tdm_match_status != MM_WARMUP)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You can only pick players during warmup.\n");
 		return;
-	}
+	}*/
 
 	if (TDM_RateLimited (ent, SECS_TO_FRAMES(1)))
 		return;
@@ -1075,18 +1075,26 @@ void TDM_Accept_f (edict_t *ent)
 		return;
 	}
 
-	if (tdm_match_status != MM_WARMUP)
+	/*if (tdm_match_status != MM_WARMUP)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "The match has started, too late buddy!\n");
+		gi.cprintf (ent, PRINT_HIGH, "The match has already started!\n");
 		ent->client->resp.last_invited_by = NULL;
 		return;
-	}
+	}*/
 
 	//holy dereference batman
 	if (!ent->client->resp.last_invited_by->inuse ||
 		teaminfo[ent->client->resp.last_invited_by->client->resp.team].captain != ent->client->resp.last_invited_by)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "The invite is no longer valid.\n");
+		ent->client->resp.last_invited_by = NULL;
+		return;
+	}
+
+	//prevent invite going over max allowed on a team
+	if (g_max_players_per_team->value && teaminfo[ent->client->resp.last_invited_by->client->resp.team].players >= g_max_players_per_team->value)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "The team is already full.\n");
 		ent->client->resp.last_invited_by = NULL;
 		return;
 	}

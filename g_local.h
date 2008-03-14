@@ -779,6 +779,8 @@ extern	cvar_t	*g_http_baseurl;
 
 extern	cvar_t	*g_debug_spawns;
 
+extern	cvar_t	*g_max_players_per_team;
+
 #define world	(&g_edicts[0])
 
 // item spawnflags

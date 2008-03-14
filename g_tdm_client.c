@@ -126,6 +126,13 @@ qboolean CanJoin (edict_t *ent, unsigned team)
 		}
 	}
 
+	//r1: cap at max allowed per-team (default 4)
+	if (g_max_players_per_team->value && teaminfo[team].players >= g_max_players_per_team->value)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Team '%s' is full.\n", teaminfo[team].name);
+		return false;
+	}
+
 	return true;
 }
 

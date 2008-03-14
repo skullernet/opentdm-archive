@@ -371,10 +371,14 @@ void TDM_BeginMatch (void)
 	//should already be 0, check this is needed
 	teaminfo[TEAM_A].score = teaminfo[TEAM_B].score = 0;
 
+	//put everyone in the server and go!
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
 		if (!ent->inuse)
 			continue;
+
+		//reset invites on players who were invite during warmup, to prevent them joining mid-game
+		ent->client->resp.last_invited_by = NULL;
 
 		if (ent->client->resp.team)
 		{
