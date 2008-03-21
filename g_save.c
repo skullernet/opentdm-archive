@@ -247,6 +247,8 @@ void InitGame (void)
 	g_max_players_per_team = gi.cvar ("g_max_players_per_team", "6", 0);
 
 	g_maplistfile = gi.cvar ("g_maplistfile", "", 0);
+
+	g_bugs = gi.cvar ("g_bugs", "0", 0);
 	
 #ifdef _DEBUG
 	g_http_baseurl = gi.cvar ("g_http_baseurl", "http://localhost/api/", CVAR_NOSET);

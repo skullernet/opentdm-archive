@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "m_player.h"
 
 
-static qboolean	is_quad;
+static edict_t	*is_quad;
 static byte		is_silenced;
 
 
@@ -109,7 +109,7 @@ current
 */
 void ChangeWeapon (edict_t *ent)
 {
-	if (ent->client->grenade_time && !ent->client->grenade_blew_up)
+	if (ent->client->grenade_time && (!ent->client->grenade_blew_up || g_bugs->value >= 2))
 	{
 		ent->client->grenade_time = level.time;
 		ent->client->weapon_sound = 0;
@@ -236,7 +236,11 @@ void Think_Weapon (edict_t *ent)
 	// call active weapon think routine
 	if (ent->client->weapon && ent->client->weapon->weaponthink)
 	{
-		is_quad = (ent->client->quad_framenum > level.framenum);
+		if (ent->client->quad_framenum > level.framenum)
+			is_quad = ent;
+		else
+			is_quad = NULL;
+
 		if (ent->client->silencer_shots)
 			is_silenced = MZ_SILENCED;
 		else
@@ -526,8 +530,13 @@ void weapon_grenade_fire (edict_t *ent, qboolean held)
 	float	radius;
 
 	radius = damage+40;
+
 	if (is_quad)
-		damage *= 4;
+	{
+		//r1: prevent quad on someone making grenades into quad grenades on death explode
+		if (is_quad == ent || g_bugs->value >= 1)
+			damage *= 4;
+	}
 
 	VectorSet(offset, 8, 8, ent->viewheight-8);
 	AngleVectors (ent->client->v_angle, forward, right, NULL);
@@ -688,7 +697,8 @@ void weapon_grenadelauncher_fire (edict_t *ent)
 	float	radius;
 
 	radius = damage+40;
-	if (is_quad)
+
+	if (is_quad == ent)
 		damage *= 4;
 
 	VectorSet(offset, 8, 8, ent->viewheight-8);
@@ -742,7 +752,8 @@ void Weapon_RocketLauncher_Fire (edict_t *ent)
 	damage = 100 + (int)(random() * 20.0f);
 	radius_damage = 120;
 	damage_radius = 120;
-	if (is_quad)
+
+	if (is_quad == ent)
 	{
 		damage *= 4;
 		radius_damage *= 4;
@@ -796,8 +807,9 @@ void Blaster_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, in
 	vec3_t	start;
 	vec3_t	offset;
 
-	if (is_quad)
+	if (is_quad == ent)
 		damage *= 4;
+
 	AngleVectors (ent->client->v_angle, forward, right, NULL);
 	VectorSet(offset, 24, 8, ent->viewheight-8);
 	VectorAdd (offset, g_offset, offset);
@@ -963,7 +975,7 @@ void Machinegun_Fire (edict_t *ent)
 		return;
 	}
 
-	if (is_quad)
+	if (is_quad == ent)
 	{
 		damage *= 4;
 		kick *= 4;
@@ -1097,7 +1109,7 @@ void Chaingun_Fire (edict_t *ent)
 		return;
 	}
 
-	if (is_quad)
+	if (is_quad == ent)
 	{
 		damage *= 4;
 		kick *= 4;
@@ -1178,7 +1190,7 @@ void weapon_shotgun_fire (edict_t *ent)
 	VectorSet(offset, 0, 8,  ent->viewheight-8);
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
 
-	if (is_quad)
+	if (is_quad == ent)
 	{
 		damage *= 4;
 		kick *= 4;
@@ -1231,7 +1243,7 @@ void weapon_supershotgun_fire (edict_t *ent)
 	VectorSet(offset, 0, 8,  ent->viewheight-8);
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
 
-	if (is_quad)
+	if (is_quad == ent)
 	{
 		damage *= 4;
 		kick *= 4;
@@ -1297,7 +1309,7 @@ void weapon_railgun_fire (edict_t *ent)
 	if ((int)g_gamemode->value == GAMEMODE_ITDM)
 		damage = 400;
 
-	if (is_quad)
+	if (is_quad == ent)
 	{
 		damage *= 4;
 		kick *= 4;
@@ -1375,7 +1387,7 @@ void weapon_bfg_fire (edict_t *ent)
 		return;
 	}
 
-	if (is_quad)
+	if (is_quad == ent)
 		damage *= 4;
 
 	AngleVectors (ent->client->v_angle, forward, right, NULL);

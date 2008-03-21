@@ -1018,7 +1018,7 @@ void TDM_BeginIntermission (void)
 
 		// wision: is this correct place to have this?
 		if (client->client->resp.team && g_force_screenshot->value == 1)
-			G_StuffCmd (client, "screenshot");
+			G_StuffCmd (client, "screenshot\n");
 	}
 }
 

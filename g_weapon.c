@@ -262,6 +262,18 @@ void fire_shotgun (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int k
 		fire_lead (self, start, aimdir, damage, kick, TE_SHOTGUN, hspread, vspread, mod);
 }
 
+void CheckSolidExplode (edict_t *ent)
+{
+	trace_t		tr;
+
+	if (g_bugs->value >= 2)
+		return;
+
+	tr = gi.trace (ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, MASK_SHOT);
+
+	if (tr.startsolid && ent->touch)
+		ent->touch (ent, tr.ent, NULL, NULL);
+}
 
 /*
 =================
@@ -481,6 +493,8 @@ void fire_grenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
 	grenade->enttype = ENT_GRENADE;
 
 	gi.linkentity (grenade);
+
+	CheckSolidExplode (grenade);
 }
 
 void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, qboolean held)
@@ -525,6 +539,8 @@ void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int 
 	{
 		gi.sound (self, CHAN_WEAPON, gi.soundindex ("weapons/hgrent1a.wav"), 1, ATTN_NORM, 0);
 		gi.linkentity (grenade);
+
+		CheckSolidExplode (grenade);
 	}
 }
 
@@ -597,6 +613,8 @@ void fire_rocket (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 	rocket->classname = "rocket";
 
 	gi.linkentity (rocket);
+
+	CheckSolidExplode (rocket);
 }
 
 
@@ -862,4 +880,6 @@ void fire_bfg (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, f
 	bfg->teamchain = NULL;
 
 	gi.linkentity (bfg);
+
+	CheckSolidExplode (bfg);
 }
