@@ -18,7 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 #include "g_local.h"
-
+#include "g_tdm_cmds.h"
 
 
 /*
@@ -267,9 +267,21 @@ void Cmd_Score_f (edict_t *ent)
 		return;
 	}
 
-	if (ent->client->showscores || ent->client->showoldscores)
+	// wision: switch between showing oldscore and current score during warmup
+	if (ent->client->showoldscores)
 	{
 		ent->client->showoldscores = false;
+		return;
+	}
+
+	if (tdm_match_status < MM_COUNTDOWN && ent->client->showscores && old_matchinfo.scoreboard_string[0])
+	{
+		TDM_OldScores_f (ent);
+		return;
+	}
+
+	if (ent->client->showscores)
+	{
 		ent->client->showscores = false;
 		return;
 	}

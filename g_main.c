@@ -89,6 +89,7 @@ cvar_t	*g_match_time;
 cvar_t	*g_match_countdown;
 cvar_t	*g_vote_time;
 cvar_t	*g_intermission_time;
+cvar_t	*g_force_screenshot;
 
 cvar_t	*g_tdmflags;
 cvar_t	*g_itdmflags;
@@ -118,6 +119,8 @@ cvar_t	*g_http_baseurl;
 cvar_t	*g_debug_spawns;
 
 cvar_t	*g_max_players_per_team;
+
+cvar_t	*g_maplistfile;
 
 void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint);
 void ClientThink (edict_t *ent, usercmd_t *cmd);
@@ -500,7 +503,7 @@ void G_RunFrame (void)
 	TDM_UpdateConfigStrings (false);
 
 	TDM_CheckTimes ();
-
+	
 	// see if it is time to end a deathmatch
 	CheckDMRules ();
 

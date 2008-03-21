@@ -927,7 +927,7 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	if (g_chat_mode->value == 2 && !ent->client->resp.team)
 		return;
 	
-	if (tdm_match_status > MM_COUNTDOWN && !ent->client->resp.team && g_chat_mode->value == 1)
+	if (tdm_match_status > MM_COUNTDOWN && tdm_match_status < MM_SCOREBOARD && !ent->client->resp.team && g_chat_mode->value == 1)
 	{
 		//Observers can talk only to each other during the match.
 		team = true;
@@ -1033,14 +1033,16 @@ void Cmd_PlayerList_f(edict_t *ent)
 		if (!e2->inuse)
 			continue;
 
-		Com_sprintf (st, sizeof(st), "%2d  %02d:%02d   %4d     %3d  %-12s  %s\n",
+		Com_sprintf (st, sizeof(st), "%2d  %02d:%02d   %4d     %3d  %-12s  %s%s\n",
 			i,
 			(level.framenum - e2->client->resp.enterframe) / 600,
 			((level.framenum - e2->client->resp.enterframe) % 600)/10,
 			e2->client->ping,
 			e2->client->resp.score,
 			e2->client->pers.netname,
-			teaminfo[e2->client->resp.team].name);
+			teaminfo[e2->client->resp.team].name,
+			e2->client->resp.team == TEAM_SPEC && e2->client->chase_target ? 
+				va ("->%s", e2->client->chase_target->client->pers.netname) : "");
 
 		if (strlen(text) > 800)
 		{
@@ -1144,7 +1146,7 @@ void ClientCommand (edict_t *ent)
 		Cmd_PutAway_f (ent);
 	else if (Q_stricmp (cmd, "wave") == 0)
 		Cmd_Wave_f (ent);
-	else if (Q_stricmp(cmd, "playerlist") == 0 || Q_stricmp (cmd, "players") == 0)
+	else if (Q_stricmp(cmd, "playerlist") == 0 || Q_stricmp (cmd, "players") == 0 || Q_stricmp (cmd, "details") == 0)
 		Cmd_PlayerList_f(ent);
 	else	// anything that doesn't match a command will be a chat
 		Cmd_Say_f (ent, false, true);

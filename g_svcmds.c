@@ -58,24 +58,24 @@ If 0, then only addresses matching the list will be allowed.  This lets you easi
 StringToFilter
 =================
 */
-qboolean StringToFilter (char *s, ipfilter_t *f, int exp)
+qboolean StringToFilter (const char *s, ipfilter_t *f, int seconds)
 {
 	char	num[128];
 	int		i, j;
 	byte	b[4];
 	byte	m[4];
 	
-	for (i=0 ; i<4 ; i++)
+	for (i = 0; i < 4 ;i++)
 	{
 		b[i] = 0;
 		m[i] = 0;
 	}
 	
-	for (i=0 ; i<4 ; i++)
+	for (i = 0 ;i < 4 ;i++)
 	{
 		if (*s < '0' || *s > '9')
 		{
-			gi.cprintf(NULL, PRINT_HIGH, "Bad filter address: %s\n", s);
+			gi.cprintf (NULL, PRINT_HIGH, "Bad filter address: %s\n", s);
 			return false;
 		}
 		
@@ -84,6 +84,7 @@ qboolean StringToFilter (char *s, ipfilter_t *f, int exp)
 		{
 			num[j++] = *s++;
 		}
+
 		num[j] = 0;
 		b[i] = atoi(num);
 		if (b[i] != 0)
@@ -96,39 +97,52 @@ qboolean StringToFilter (char *s, ipfilter_t *f, int exp)
 	
 	f->mask = *(unsigned *)m;
 	f->compare = *(unsigned *)b;
-	f->expire = exp;
+
+	if (seconds)
+		f->expire = time(NULL) + seconds;
+	else
+		f->expire = -1;
 
 	return true;
 }
 
 /*
 =================
-CheckIpFilterList
+RemoveIP
 =================
+Removes IP from the filter list defined by index i in the array.
 */
-qboolean CheckIpFilterList (edict_t *ent, unsigned *i)
+void RemoveIP (int i)
 {
-	unsigned j;
+	int			j;
 
-	for (j = 0; j < numipfilters; j++)
-	{
-		if (ipfilters[j].compare == 0xffffffff)
-			break;		// free spot
-	}
+	for (j = i+1; j < numipfilters; j++)
+		ipfilters[j-1] = ipfilters[j];
+
+	numipfilters--;
+}
+
+/*
+==============
+TDM_CheckBans
+==============
+Decrease timeout for timed bans and remove expired ones.
+*/
+void TDM_CheckBans (void)
+{
+	unsigned		i;
+	unsigned		now;
+
+	now = (unsigned)time(NULL);
 	
-	if (j == numipfilters)
+	for (i = 0; i < numipfilters; i++)
 	{
-		if (numipfilters == MAX_IPFILTERS)
+		if (ipfilters[i].expire && ipfilters[i].expire < now)
 		{
-			gi.cprintf (ent, PRINT_HIGH, "IP filter list is full\n");
-			return false;
+			RemoveIP (i);
+			i--;
 		}
-		numipfilters++;
 	}
-	// wision: return free slot number
-	*i = j;
-
-	return true;
 }
 
 /*
@@ -145,6 +159,9 @@ qboolean SV_FilterPacket (const char *from)
 
 	i = 0;
 	p = from;
+
+	TDM_CheckBans ();
+
 	while (*p && i < 4)
 	{
 		m[i] = 0;
@@ -160,7 +177,7 @@ qboolean SV_FilterPacket (const char *from)
 	
 	in = *(unsigned *)m;
 
-	for (i=0 ; i<numipfilters ; i++)
+	for (i = 0; i < numipfilters; i++)
 	{
 		if ( (in & ipfilters[i].mask) == ipfilters[i].compare)
 			return (int)filterban->value;
@@ -175,28 +192,34 @@ qboolean SV_FilterPacket (const char *from)
 SV_AddIP_f
 =================
 */
-void SVCmd_AddIP_f (edict_t *ent, char *ip, int exp)
+void SVCmd_AddIP_f (edict_t *ent, char *ip, int expiry)
 {
-	unsigned	i;
+	ipfilter_t	new_filter;
 
 	// wision: different message for server and ingame admin
-	if (!ip[0] && ent == NULL)
+	if (!ip[0])
 	{
-		gi.cprintf(ent, PRINT_HIGH, "Usage: addip <ip-mask>\n");
-		return;
-	}
-	else if (!ip[0] && ent != NULL)
-	{
-		gi.cprintf(ent, PRINT_HIGH, "Usage: ban <ip-mask>\n");
+		gi.cprintf(ent, PRINT_HIGH, "Usage: %s <ip-mask>%s\n", ent == NULL ? "addip" : "ban", ent == NULL ? "" : " [duration]");
 		return;
 	}
 
-	// wision: i = empty slot in the banlist array
-	if (!CheckIpFilterList(ent, &i))
+	TDM_CheckBans ();
+
+	// check if list is full
+	if (numipfilters == MAX_IPFILTERS)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "IP filter list is full\n");
+		return;
+	}
+
+	// minutes to seconds
+	expiry *= 60;
+
+	if (!StringToFilter (ip, &new_filter, expiry))
 		return;
 
-	if (!StringToFilter (ip, &ipfilters[i], exp))
-		ipfilters[i].compare = 0xffffffff;
+	ipfilters[numipfilters] = new_filter;
+	numipfilters++;
 }
 
 /*
@@ -207,30 +230,25 @@ SV_RemoveIP_f
 void SVCmd_RemoveIP_f (edict_t *ent, char *ip)
 {
 	ipfilter_t	f;
-	int			i, j;
+	int			i;
 
-	// wision: different message for server and ingame admin
-	if (!ip[0] && ent == NULL)
+	if (!ip[0])
 	{
-		gi.cprintf(ent, PRINT_HIGH, "Usage: sv removeip <ip-mask>\n");
-		return;
-	}
-	else if (!ip[0] && ent != NULL)
-	{
-		gi.cprintf(ent, PRINT_HIGH, "Usage: unban <ip-mask>\n");
+		// wision: different message for server and ingame admin
+		gi.cprintf(ent, PRINT_HIGH, "Usage: %s <ip-mask>\n", ent == NULL ? "sv removeip" : "unban");
 		return;
 	}
 
 	if (!StringToFilter (ip, &f, 0))
 		return;
 
-	for (i=0 ; i<numipfilters ; i++)
+	TDM_CheckBans ();
+
+	for (i = 0; i < numipfilters ;i++)
 	{
 		if (ipfilters[i].mask == f.mask && ipfilters[i].compare == f.compare)
 		{
-			for (j=i+1 ; j<numipfilters ; j++)
-				ipfilters[j-1] = ipfilters[j];
-			numipfilters--;
+			RemoveIP (i);
 			gi.cprintf (ent, PRINT_HIGH, "Removed %s.\n", ip);
 			return;
 		}
@@ -245,21 +263,30 @@ SV_ListIP_f
 */
 void SVCmd_ListIP_f (edict_t *ent)
 {
-	int		i;
-	byte	b[4];
-	char	value[32];
+	int			i;
+	byte		b[4];
+	char		value[32];
+	unsigned	now;
+
+	TDM_CheckBans ();
+
+	now = (unsigned)time(NULL);
 
 	gi.cprintf (ent, PRINT_HIGH, "Filter list:\n IP                 Duration\n");
-	for (i=0 ; i<numipfilters ; i++)
+	for (i = 0; i < numipfilters; i++)
 	{
-		if (ipfilters[i].expire == 0)
-			sprintf(value, "permanent");
-		else if (ipfilters[i].expire == 1)
-			sprintf(value, "1 minute");
+		unsigned	remaining, minutes;
+
+		remaining = ipfilters[i].expire - now;
+
+		minutes = remaining / 60;
+
+		if (ipfilters[i].expire == -1)
+			strcpy (value, "permanent");
 		else
-			sprintf(value, "%d minutes", ipfilters[i].expire);
+			sprintf (value, "%d minute%s", minutes, minutes == 1 ? "" : "s");
 			
-		*(unsigned *)b = ipfilters[i].compare;
+		*(unsigned int *)b = ipfilters[i].compare;
 		gi.cprintf (ent, PRINT_HIGH, "  %3i.%3i.%3i.%3i    %s\n", b[0], b[1], b[2], b[3], value);
 	}
 }
@@ -277,7 +304,7 @@ void SVCmd_WriteIP_f (void)
 	int		i;
 	cvar_t	*game;
 
-	game = gi.cvar("game", "", 0);
+	game = gi.cvar ("game", "", 0);
 
 	if (!*game->string)
 		sprintf (name, "%s/listip.cfg", GAMEVERSION);
@@ -295,8 +322,14 @@ void SVCmd_WriteIP_f (void)
 	
 	fprintf(f, "set filterban %d\n", (int)filterban->value);
 
-	for (i=0 ; i<numipfilters ; i++)
+	TDM_CheckBans ();
+
+	for (i = 0; i < numipfilters; i++)
 	{
+		// only write permanent bans to disk
+		if (ipfilters[i].expire)
+			continue;
+
 		*(unsigned *)b = ipfilters[i].compare;
 		fprintf (f, "sv addip %i.%i.%i.%i\n", b[0], b[1], b[2], b[3]);
 	}
@@ -304,11 +337,11 @@ void SVCmd_WriteIP_f (void)
 	fclose (f);
 }
 
-
 void Svcmd_Itemlist_f (void)
 {
 	const gitem_t	*i;
 	int				j;
+
 	for (j = 1; j < game.num_items; j++)
 	{
 		i = &itemlist[j];
@@ -349,4 +382,3 @@ void	ServerCommand (void)
 	else
 		gi.cprintf (NULL, PRINT_HIGH, "Unknown server command \"%s\"\n", cmd);
 }
-

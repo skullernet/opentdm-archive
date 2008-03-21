@@ -750,6 +750,7 @@ extern	cvar_t	*g_match_time;
 extern	cvar_t	*g_match_countdown;
 extern	cvar_t	*g_vote_time;
 extern	cvar_t	*g_intermission_time;
+extern	cvar_t	*g_force_screenshot;
 
 extern	cvar_t	*g_tdmflags;
 extern	cvar_t	*g_itdmflags;
@@ -778,6 +779,8 @@ extern	cvar_t	*g_http_proxy;
 extern	cvar_t	*g_http_baseurl;
 
 extern	cvar_t	*g_debug_spawns;
+
+extern	cvar_t	*g_maplistfile;
 
 extern	cvar_t	*g_max_players_per_team;
 
@@ -841,6 +844,7 @@ extern	const gitem_t	itemlist[];
 //
 void Cmd_Help_f (edict_t *ent);
 void Cmd_Score_f (edict_t *ent);
+void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0);
 
 //
 // g_items.c
@@ -1078,7 +1082,7 @@ void HTTP_RunDownloads (void);
 #define	MAX_TEAMS	3
 
 //combined, these must be < 64 plus some slop for other configstring text
-#define	MAX_TEAMNAME_LENGTH 24
+#define	MAX_TEAMNAME_LENGTH 16
 #define	MAX_TEAMSKIN_LENGTH	24
 
 //this structure is used to hold information about match

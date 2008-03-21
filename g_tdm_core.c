@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "g_local.h"
 #include "g_tdm.h"
+#include "g_svcmds.h"
 
 //dynamic FRAMETIME, oh my.
 float	FRAMETIME;
@@ -399,248 +400,401 @@ function.
 char *TDM_ScoreBoardString (edict_t *ent)
 {
 	char		entry[1024];
+	char		tmpstr[60];
 	static char	string[1400];
 	int			len;
 	int			i, j, k;
 	int			sorted[2][MAX_CLIENTS];
 	int			sortedscores[2][MAX_CLIENTS];
 	int			score, total[2], totalscore[2];
+	float		averageping[2];
 	int			last[2];
 	int			width[2];
 	int			maxplayers;
-	int			offset;
-	const char	*winnerString[MAX_TEAMS];
+	int			offset, offsetfix[2];
+	int			firstteam, secondteam;
 	qboolean	drawn_header;
 
-	gclient_t	*cl;
-	edict_t		*cl_ent;
-	int			team;
-	const int	maxsize = 1300;
+	gclient_t		*cl;
+	teamplayer_t	*tmpl;
+	edict_t			*cl_ent;
+	int				team;
+	const int		maxsize = 1300;
 	
 	// sort the clients by team and score
 	total[0] = total[1] = 0;
 	last[0] = last[1] = 0;
 	totalscore[0] = totalscore[1] = 0;
+	averageping[0] = averageping[1] = 0.0;
 
-	for (i=0 ; i < game.maxclients ; i++)
+	// wision: match scoreboard
+	if (current_matchinfo.teamplayers)
 	{
-		cl_ent = g_edicts + 1 + i;
+		for (i = 0; i < current_matchinfo.num_teamplayers; i++)
+		{
+			if (current_matchinfo.teamplayers[i].team == TEAM_A)
+				team = 0;
+			else if (current_matchinfo.teamplayers[i].team == TEAM_B)
+				team = 1;
+			else
+				continue; // unknown team?
 
-		if (!cl_ent->inuse)
-			continue;
+			score = current_matchinfo.teamplayers[i].enemy_kills
+						- current_matchinfo.teamplayers[i].team_kills
+						- current_matchinfo.teamplayers[i].suicides;
 
-		if (game.clients[i].resp.team == TEAM_A)
-			team = 0;
-		else if (game.clients[i].resp.team == TEAM_B)
-			team = 1;
+			for (j = 0; j < total[team]; j++)
+			{
+				if (score > sortedscores[team][j])
+					break;
+			}
+
+			for (k = total[team]; k > j; k--)
+			{
+				sorted[team][k] = sorted[team][k-1];
+				sortedscores[team][k] = sortedscores[team][k-1];
+			}
+
+			sorted[team][j] = i;
+			sortedscores[team][j] = score;
+			totalscore[team] += score;
+			total[team]++;
+
+			if (current_matchinfo.teamplayers[i].ping > 999)
+				averageping[team] += 999;
+			else
+				averageping[team] += (float)current_matchinfo.teamplayers[i].ping;
+		}
+
+		if (total[0] > 0)
+			averageping[0] = averageping[0] / (float)total[0];
+		if (total[1] > 0)
+			averageping[1] = averageping[1] / (float)total[1];
+
+		// wision: set which team should be on the top
+		if (teaminfo[TEAM_A].score < teaminfo[TEAM_B].score)
+		{
+			firstteam = TEAM_B;
+			secondteam = TEAM_A;
+		}
 		else
-			continue; // unknown team?
-
-		score = game.clients[i].resp.score;
-		for (j=0 ; j<total[team] ; j++)
 		{
-			if (score > sortedscores[team][j])
-				break;
+			firstteam = TEAM_A;
+			secondteam = TEAM_B;
+		}
+	
+		if (total[0] > total[1])
+			maxplayers = total[0];
+		else
+			maxplayers = total[1];
+
+		for (i = 0; i < MAX_TEAMS - 1; i++)
+		{
+			//determine how wide to draw team score
+			len = abs(teaminfo[i+1].score);
+
+			if (len > 999)
+				width[i] = 4;
+			else if (len > 99)
+				width[i] = 3;
+			else if (len > 9)
+				width[i] = 2;
+			else
+				width[i] = 1;
+
+			//for negative sign
+			if (teaminfo[i+1].score < 0)
+				width[i]++;
 		}
 
-		for (k=total[team] ; k>j ; k--)
+		//init string
+		*string = 0;
+		len = 0;
+
+		//figure out how far the other team needs to be drawn below
+		offset = maxplayers * 8 + 24;
+		offsetfix[0] = offsetfix[1] = 0;
+
+		// team info bars
+		sprintf (string,
+			"xv 0 yv 0 string2 \"        Team           Frags\" "
+			"xv 0 yv 8 string \"       %-16.16s %4d\" "
+			"xv 0 yv 16 string \"       %-16.16s %4d\" ",
+			teaminfo[firstteam].name,
+			teaminfo[firstteam].score,
+			teaminfo[secondteam].name,
+			teaminfo[secondteam].score
+			);
+
+		// headers
+		sprintf (tmpstr, "%s:%.f(%s)", teaminfo[firstteam].name, averageping[firstteam-1], teaminfo[firstteam].skin);
+		sprintf (string + strlen(string),
+			"xv %d yv 32 string \"%s\" "
+			"xv 8 yv 40 string2 \"Name          Frags Deaths Net Ping\" ",
+			((35-strlen(tmpstr))/2)*8,
+			tmpstr
+			);
+
+		sprintf (tmpstr, "%s:%.f(%s)", teaminfo[secondteam].name, averageping[secondteam-1], teaminfo[secondteam].skin);
+		sprintf (string + strlen(string),
+			"xv %d yv %d string \"%s\" "
+			"xv 8 yv %d string2 \"Name          Frags Deaths Net Ping\" ",
+			((35-strlen(tmpstr))/2)*8, offset + 32,
+			tmpstr, offset + 40
+			);
+
+		len = strlen(string);
+
+		//now the players
+		for (i = 0; i < current_matchinfo.num_teamplayers; i++)
 		{
-			sorted[team][k] = sorted[team][k-1];
-			sortedscores[team][k] = sortedscores[team][k-1];
+			if (i >= maxplayers)
+				break; // we're done
+
+			// top (winning team)
+			if (i < total[firstteam-1])
+			{
+				tmpl = &current_matchinfo.teamplayers[sorted[firstteam-1][i]];
+
+				// don't show disconnected players during the match and fix the offset for real players
+				if (tdm_match_status != MM_SCOREBOARD && tmpl->client == NULL)
+				{
+					offsetfix[firstteam-1] += 8;
+					continue;
+				}
+
+				// calculate player's score
+				j = tmpl->enemy_kills - tmpl->team_kills - tmpl->suicides;
+				sprintf (entry,
+					"xv 0 yv %d string%s \"%s\" xv 120 string \" %4d    %3d %3d  %3d\" ",
+					i * 8 + 40 + 8 - offsetfix[firstteam-1],
+					(tmpl->client == ent) ? "2" : "",
+					tmpl->name,
+					j, 
+					tmpl->deaths,
+					j - tmpl->deaths,
+					(tmpl->ping > 999) ? 999 : tmpl->ping);
+
+				if (maxsize - len > strlen(entry))
+				{
+					strcat (string, entry);
+					len = strlen(string);
+					last[firstteam-1] = i;
+				}
+			}
+
+			// bottom (losing team)
+			if (i < total[secondteam-1])
+			{
+				tmpl = &current_matchinfo.teamplayers[sorted[secondteam-1][i]];
+
+				// don't show disconnected players during the match and fix the offset for real players
+				if (tdm_match_status != MM_SCOREBOARD && tmpl->client == NULL)
+				{
+					offsetfix[secondteam-1] += 8;
+					continue;
+				}
+
+				// calculate player's score
+				j = tmpl->enemy_kills - tmpl->team_kills - tmpl->suicides;
+				sprintf (entry,
+					"xv 0 yv %d string%s \"%s\" xv 120 string \" %4d    %3d %3d  %3d\" ",
+					i * 8 + 40 + 8 + offset - offsetfix[secondteam-1],
+					(tmpl->client == ent) ? "2" : "",
+					tmpl->name,
+					j, 
+					tmpl->deaths,
+					j - tmpl->deaths,
+					(tmpl->ping > 999) ? 999 : tmpl->ping);
+
+				if (maxsize - len > strlen(entry))
+				{
+					strcat (string, entry);
+					len = strlen(string);
+					last[secondteam-1] = i;
+				}
+			}
 		}
-		sorted[team][j] = i;
-		sortedscores[team][j] = score;
-		totalscore[team] += score;
-		total[team]++;
 	}
-
-	if (total[0] > total[1])
-		maxplayers = total[0];
+	// wision: warmup scoreboard
 	else
-		maxplayers = total[1];
-
-	//determine how wide to draw team score
-	len = abs(teaminfo[TEAM_A].score);
-
-	if (len > 999)
-		width[0] = 4;
-	else if (len > 99)
-		width[0] = 3;
-	else if (len > 9)
-		width[0] = 2;
-	else
-		width[0] = 1;
-
-	//for negative sign
-	if (teaminfo[TEAM_A].score < 0)
-		width[0]++;
-
-	len = abs(teaminfo[TEAM_B].score);
-
-	if (len > 999)
-		width[1] = 4;
-	else if (len > 99)
-		width[1] = 3;
-	else if (len > 9)
-		width[1] = 2;
-	else
-		width[1] = 1;
-
-	//for negative sign
-	if (teaminfo[TEAM_B].score < 0)
-		width[1]++;
-
-	//init string
-	*string = 0;
-	len = 0;
-
-	//figure out how far the other team needs to be drawn below
-	offset = maxplayers * 8 + 64;
-
-	//if end of the match, highlight the winning team
-	winnerString[TEAM_A] = winnerString[TEAM_B] = "";
-
-	if (current_matchinfo.winning_team != TEAM_SPEC)
-		winnerString[current_matchinfo.winning_team] = "2";
-
-	// team info bars
-	sprintf(string,
-		
-		//Team A
-		"xv 0 yv 0 picn /players/%s_i.pcx "
-		"xv 34 yv 0 string%s \"%s\" "
-		"xv 32 yv 8 num %d 23 "
-
-		//Team B
-		"xv 0 yv %d picn /players/%s_i.pcx "
-		"xv 34 yv %d string%s \"%s\" "
-		"xv 32 yv %d num %d 24 ",
-		teaminfo[TEAM_A].skin, winnerString[TEAM_A], va ("%s (%d player%s)", teaminfo[TEAM_A].name, total[0], total[0] == 1 ? "" : "s"), width[0],
-		offset + 0, teaminfo[TEAM_B].skin,
-		offset + 0, winnerString[TEAM_B], va ("%s (%d player%s)", teaminfo[TEAM_B].name, total[1], total[1] == 1 ? "" : "s"),
-		offset + 8, width[1]);
-
-	len = strlen(string);
-
-	//now the lpayers
-	for (i=0 ; i<16 ; i++)
 	{
-		if (i >= total[0] && i >= total[1])
-			break; // we're done
-
-#if 1
-		// set up y
-		sprintf(entry, "yv %d ", 42 + i * 8);
-		if (maxsize - len > strlen(entry)) {
-			strcat(string, entry);
-			len = strlen(string);
-		}
-#else
-		*entry = 0;
-#endif
-
-		// top
-		if (i < total[0])
+		for (i=0 ; i < game.maxclients ; i++)
 		{
-			cl = &game.clients[sorted[0][i]];
-			cl_ent = g_edicts + 1 + sorted[0][i];
+			cl_ent = g_edicts + 1 + i;
 
-#if 1
-			if (current_matchinfo.teamplayers)
-			{
-				sprintf(entry+strlen(entry),
-				"xv 0 yv %d %s \"%2d %-12.12s %2dk %2dd %2ds %2dt %3dp\" ",
-				i * 8 + 40, (cl_ent == ent) ? "string2" : "string",
-				cl->resp.score, 
-				cl->pers.netname,
-				cl->resp.teamplayerinfo->enemy_kills,
-				cl->resp.teamplayerinfo->deaths,
-				cl->resp.teamplayerinfo->suicides,
-				cl->resp.teamplayerinfo->team_kills,
-				(cl->ping > 999) ? 999 : cl->ping);
-			}
+			if (!cl_ent->inuse)
+				continue;
+
+			if (game.clients[i].resp.team == TEAM_A)
+				team = 0;
+			else if (game.clients[i].resp.team == TEAM_B)
+				team = 1;
 			else
+				continue; // unknown team?
+
+			score = game.clients[i].resp.score;
+			for (j = 0; j < total[team]; j++)
 			{
-				sprintf(entry+strlen(entry),
-				"xv 0 yv %d %s \"%s %3d %-12.12s\" ",
-				i * 8 + 40, (cl_ent == ent) ? "string2" : "string",
-				cl->resp.ready ? "READY" : "     ",
-				(cl->ping > 999) ? 999 : cl->ping, 
-				cl->pers.netname);
+				if (score > sortedscores[team][j])
+					break;
 			}
 
-#else
-			sprintf(entry+strlen(entry),
-				"ctf 0 %d %d %d %d ",
-				42 + i * 8,
-				sorted[0][i],
-				cl->resp.score,
-				cl->ping > 999 ? 999 : cl->ping);
-#endif
-
-			if (maxsize - len > strlen(entry)) {
-				strcat(string, entry);
-				len = strlen(string);
-				last[0] = i;
+			for (k = total[team]; k > j; k--)
+			{
+				sorted[team][k] = sorted[team][k-1];
+				sortedscores[team][k] = sortedscores[team][k-1];
 			}
+			sorted[team][j] = i;
+			sortedscores[team][j] = score;
+			totalscore[team] += score;
+			total[team]++;
+
+			if (game.clients[i].ping > 999)
+				averageping[team] += 999;
+			else
+				averageping[team] += (float)game.clients[i].ping;
 		}
 
-		// bottom
-		if (i < total[1])
+		// calculate average ping
+		if (total[1] > 0)
+			averageping[1] = averageping[1] / (float)total[1];
+		if (total[0] > 0)
+			averageping[0] = averageping[0] / (float)total[0];
+
+		// set TEAM_B as 1st team if TEAM_A is without players
+		if (total[0] < total[1])
 		{
-			cl = &game.clients[sorted[1][i]];
-			cl_ent = g_edicts + 1 + sorted[1][i];
+			firstteam = TEAM_B;
+			secondteam = TEAM_A;
+			maxplayers = total[1];
+		}
+		else
+		{
+			firstteam = TEAM_A;
+			secondteam = TEAM_B;
+			maxplayers = total[0];
+		}
+	
+		for (i = 0; i < MAX_TEAMS - 1; i++)
+		{
+			//determine how wide to draw team score
+			len = abs(teaminfo[i+1].score);
 
-#if 1
-			if (current_matchinfo.teamplayers)
-			{
-				sprintf(entry+strlen(entry),
-				"xv 0 yv %d %s \"%2d %-12.12s %2dk %2dd %2ds %2dt %3dp\" ",
-				i * 8 + 40 + offset, (cl_ent == ent) ? "string2" : "string",
-				cl->resp.score, 
-				cl->pers.netname,
-				cl->resp.teamplayerinfo->enemy_kills,
-				cl->resp.teamplayerinfo->deaths,
-				cl->resp.teamplayerinfo->suicides,
-				cl->resp.teamplayerinfo->team_kills,
-				(cl->ping > 999) ? 999 : cl->ping);
-			}
+			if (len > 999)
+				width[i] = 4;
+			else if (len > 99)
+				width[i] = 3;
+			else if (len > 9)
+				width[i] = 2;
 			else
+				width[i] = 1;
+
+			//for negative sign
+			if (teaminfo[i+1].score < 0)
+				width[i]++;
+		}
+
+		//init string
+		*string = 0;
+		len = 0;
+
+		//figure out how far the other team needs to be drawn below
+		offset = maxplayers * 8 + 24;
+
+		// team info bars
+		sprintf (string,
+			"xv 0 yv 0 string2 \"        Team           Frags\" "
+			"xv 0 yv 8 string \"       %-16.16s %4d\" "
+			"xv 0 yv 16 string \"       %-16.16s %4d\" ",
+			teaminfo[firstteam].name,
+			teaminfo[firstteam].score,
+			teaminfo[secondteam].name,
+			teaminfo[secondteam].score
+			);
+
+		// headers
+		if (total[firstteam-1] > 0)
+		{
+			sprintf (tmpstr, "%s:%.f(%s)", teaminfo[firstteam].name, averageping[firstteam-1], teaminfo[firstteam].skin);
+			sprintf (string + strlen(string),
+				"xv %d yv 32 string \"%s\" "
+				"xv 8 yv 40 string2 \"Name                           Ping\" ",
+				((35-strlen(tmpstr))/2)*8,
+				tmpstr
+				);
+		}
+		if (total[secondteam-1] > 0)
+		{
+			sprintf (tmpstr, "%s:%.f(%s)", teaminfo[secondteam].name, averageping[secondteam-1], teaminfo[secondteam].skin);
+			sprintf (string + strlen(string),
+				"xv %d yv %d string \"%s\" "
+				"xv 8 yv %d string2 \"Name                           Ping\" ",
+				((35-strlen(tmpstr))/2)*8, offset + 32,
+				tmpstr,	offset + 40
+				);
+		}
+
+		len = strlen(string);
+
+		//now the players
+		for (i = 0; i < 16; i++)
+		{
+			if (i >= maxplayers)
+				break; // we're done
+
+			// top
+			if (i < total[firstteam-1])
 			{
-				sprintf(entry+strlen(entry),
-				"xv 0 yv %d %s \"%s %3d %-12.12s\" ",
-				i * 8 + 40 + offset, (cl_ent == ent) ? "string2" : "string",
-				cl->resp.ready ? "READY" : "     ",
-				(cl->ping > 999) ? 999 : cl->ping, 
-				cl->pers.netname);
+				cl = &game.clients[sorted[firstteam-1][i]];
+				cl_ent = g_edicts + 1 + sorted[firstteam-1][i];
+
+				sprintf (entry,
+					"xv 0 yv %d string%s \"%s\" xv 120 string \" %s      %3d\" ",
+					i * 8 + 40 + 8,
+					(cl_ent == ent) ? "2" : "",
+					cl->pers.netname,
+					cl->resp.ready ? "  [READY]  " : "[NOT READY]",
+					(cl->ping > 999) ? 999 : cl->ping
+					);
+
+				if (maxsize - len > strlen(entry))
+				{
+					strcat (string, entry);
+					len = strlen(string);
+					last[firstteam-1] = i;
+				}
 			}
-#else
 
-			sprintf(entry+strlen(entry),
-				"ctf 0 %d %d %d %d ",
-				42 + i * 8 + offset,
-				sorted[1][i],
-				cl->resp.score,
-				cl->ping > 999 ? 999 : cl->ping);
-
-#endif
-			if (maxsize - len > strlen(entry))
+			// bottom
+			if (i < total[secondteam-1])
 			{
-				strcat(string, entry);
-				len = strlen(string);
-				last[1] = i;
+				cl = &game.clients[sorted[secondteam-1][i]];
+				cl_ent = g_edicts + 1 + sorted[secondteam-1][i];
+
+				sprintf (entry,
+					"xv 0 yv %d string%s \"%s\" xv 120 string \" %s      %3d\" ",
+					i * 8 + 40 + 8 + offset,
+					(cl_ent == ent) ? "2" : "",
+					cl->pers.netname,
+					cl->resp.ready ? "  [READY]  " : "[NOT READY]",
+					(cl->ping > 999) ? 999 : cl->ping
+					);
+
+				if (maxsize - len > strlen(entry))
+				{
+					strcat (string, entry);
+					len = strlen(string);
+					last[secondteam-1] = i;
+				}
 			}
 		}
 	}
 
 	// put in spectators if we have enough room
-	if (last[0] > last[1])
-		j = last[0];
-	else
-		j = last[1];
-
-	j = (j + 2) * 8 + 42 + offset;
-
+	j = 0;
+	j = total[0] * 8 + total[1] * 8 + 80;
+	
 	drawn_header = false;
 	if (maxsize - len > 50)
 	{
@@ -656,23 +810,23 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			if (!drawn_header)
 			{
 				drawn_header = true;
-				sprintf(entry, "xv 0 yv %d string2 \"Spectators\" ", j);
-				strcat(string, entry);
+				sprintf (entry, "xv 24 yv %d string2 \"          Spectators\" ", j);
+				strcat (string, entry);
 				len = strlen(string);
 				j += 8;
 			}
 
-			sprintf(entry,
-				"xv 0 yv %d string \"%3dp %s%s\" ",
+			sprintf (entry,
+				"xv 64 yv %d string \"%s:%d%s\" ",
 				//0, // x
-				j, // y
-				cl->ping > 999 ? 999 : cl->ping,
+				j+8, // y
 				cl->pers.netname,
-				cl->chase_target ? va(" -> %-12.12s", cl->chase_target->client->pers.netname) : "");
+				cl->ping > 999 ? 999 : cl->ping,
+				cl->chase_target ? va("-> %-12.12s", cl->chase_target->client->pers.netname) : "");
 
 			if (maxsize - len > strlen(entry))
 			{
-				strcat(string, entry);
+				strcat (string, entry);
 				len = strlen(string);
 			}
 			
@@ -682,13 +836,13 @@ char *TDM_ScoreBoardString (edict_t *ent)
 
 	if (maxsize - len > 80)
 	{
-		if (total[0] - last[0] > 1) // couldn't fit everyone
-			sprintf(string + strlen(string), "xv 8 yv %d string \"..and %d more\" ",
-				offset + 42 + (last[0]+1)*8, total[0] - last[0] - 1);
+		if (total[firstteam-1] - last[firstteam-1] > 1) // couldn't fit everyone
+			sprintf (string + strlen(string), "xv 8 yv %d string \"..and %d more\" ",
+				offset + 42 + (last[firstteam-1]+1)*8, total[firstteam-1] - last[firstteam-1] - 1);
 
-		if (total[1] - last[1] > 1) // couldn't fit everyone
-			sprintf(string + strlen(string), "xv 8 yv %d string \"..and %d more\" ",
-				offset + 42 + (last[1]+1)*8, total[1] - last[1] - 1);
+		if (total[secondteam-1] - last[secondteam-1] > 1) // couldn't fit everyone
+			sprintf (string + strlen(string), "xv 8 yv %d string \"..and %d more\" ",
+				offset + 42 + (last[secondteam-1]+1)*8, total[secondteam-1] - last[secondteam-1] - 1);
 	}
 
 	return string;
@@ -861,6 +1015,10 @@ void TDM_BeginIntermission (void)
 
 		if (client->client->chase_target)
 			DisableChaseCam (client);
+
+		// wision: is this correct place to have this?
+		if (client->client->resp.team && g_force_screenshot->value == 1)
+			G_StuffCmd (client, "screenshot");
 	}
 }
 
@@ -1187,6 +1345,41 @@ void TDM_CheckTimes (void)
 		TDM_RemoveVote ();
 	}
 
+	if (vote.active && ((vote.end_frame - level.framenum - 1) % SECS_TO_FRAMES(15)) == 0)
+	{
+		int	vote_total = 0;
+		int	vote_hold = 0;
+		int	vote_yes = 0;
+		int	vote_no = 0;
+		edict_t	*ent;
+
+		for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+		{
+			if (!ent->inuse)
+				continue;
+
+			if (!ent->client->resp.team)
+				continue;
+
+			if (ent->client->resp.vote == VOTE_YES)
+				vote_yes++;
+			else if (ent->client->resp.vote == VOTE_NO)
+	 			vote_no++;
+			else if (ent->client->resp.vote == VOTE_HOLD)
+	 			vote_hold++;
+
+			vote_total++;
+		}
+
+		if (vote_total % 2 == 0)
+			vote_total = vote_total/2 - vote_yes + 1;
+		else
+			vote_total = ceil((float)vote_total/2.0) - vote_yes;
+
+		gi.bprintf (PRINT_HIGH, "Yes: %d No: %d. Need %d vote%s to pass the vote.\n",
+				vote_yes, vote_no, vote_total, vote_total == 1 ? "" : "s");
+	}
+	
 	if (tdm_match_status == MM_WARMUP && tdm_settings_not_default && teaminfo[TEAM_A].players == 0 && teaminfo[TEAM_B].players == 0)
 	{
 		qboolean	reset = true;

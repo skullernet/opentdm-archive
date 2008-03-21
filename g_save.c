@@ -204,7 +204,8 @@ void InitGame (void)
 	g_match_time = gi.cvar ("g_match_time", "600", 0);
 	g_match_countdown = gi.cvar ("g_match_countdown", "15", 0);
 	g_vote_time = gi.cvar ("g_vote_time", "30", 0);
-	g_intermission_time = gi.cvar ("g_intermission_time", "7.5", 0);
+	g_intermission_time = gi.cvar ("g_intermission_time", "5", 0);
+	g_force_screenshot = gi.cvar ("g_force_screenshot", "0", 0);
 
 	g_tdmflags = gi.cvar ("g_tdmflags", "1040", 0);
 	g_itdmflags = gi.cvar ("g_itdmflags", "142427", 0);
@@ -219,8 +220,12 @@ void InitGame (void)
 	g_teleporter_nofreeze = gi.cvar ("g_teleporter_nofreeze", "0", 0);
 
 	g_tie_mode = gi.cvar ("g_tie_mode", "1", 0);
-	g_overtime = gi.cvar ("g_overtime", "180", 0);
-	g_respawn_time = gi.cvar ("g_respawn_time", "1.5", 0);
+	// wision: 60 as default overtime for all leagues
+	g_overtime = gi.cvar ("g_overtime", "60", 0);
+	// wision: default from other mods (battle)..
+	// low values are making raping easy on small maps in duels
+	// shouldn't even be configurable probably
+	g_respawn_time = gi.cvar ("g_respawn_time", "5", 0);
 
 	//max timeout when called via cmd
 	g_max_timeout = gi.cvar ("g_max_timeout", "300", 0);
@@ -231,7 +236,7 @@ void InitGame (void)
 	//allow all chat or only players?
 	g_chat_mode = gi.cvar ("g_chat_mode", "0", 0);
 
-	g_idle_time = gi.cvar ("g_idle_time", "150", 0);
+	g_idle_time = gi.cvar ("g_idle_time", "300", 0);
 
 	g_http_enabled = gi.cvar ("g_http_enabled", "1", 0);
 	g_http_bind = gi.cvar ("g_http_bind", "", 0);
@@ -239,8 +244,10 @@ void InitGame (void)
 
 	g_debug_spawns = gi.cvar ("g_debug_spawns", "0", 0);
 
-	g_max_players_per_team = gi.cvar ("g_max_players_per_team", "4", 0);
+	g_max_players_per_team = gi.cvar ("g_max_players_per_team", "6", 0);
 
+	g_maplistfile = gi.cvar ("g_maplistfile", "", 0);
+	
 #ifdef _DEBUG
 	g_http_baseurl = gi.cvar ("g_http_baseurl", "http://localhost/api/", CVAR_NOSET);
 #else

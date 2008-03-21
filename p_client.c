@@ -1079,17 +1079,21 @@ void ClientBeginDeathmatch (edict_t *ent)
 {
 	gclient_t	*client;
 	char		userinfo[MAX_INFO_STRING];
+	char		saved_ip[24];
 
 	G_InitEdict (ent);
 
 	client = ent->client;
 
 	strcpy (userinfo, ent->client->pers.userinfo);
+	strcpy (saved_ip, ent->client->pers.ip);
 
 	//init here on rather than on clientconnect, clientconnect doesn't always
 	//guarantee a client is actually making it all the way into the game.
 	memset (&client->pers, 0, sizeof(client->pers));
 	memset (&client->resp, 0, sizeof(client->resp));
+
+	strcpy (ent->client->pers.ip, saved_ip);
 
 	client->pers.connected = true;
 	ClientUserinfoChanged (ent, userinfo);
@@ -1169,6 +1173,7 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	
 	if (strcmp (old_name, s))
 	{
+		// wision: enable this one maybe?
 		if (old_name[0] && tdm_match_status > MM_COUNTDOWN)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "You cannot change your name in the middle of the match!\n");
@@ -1509,7 +1514,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		{
 			// wision: toggle chase when specing
 			if (!client->chase_target)
-				ToggleChaseCam (ent);
+				GetChaseTarget(ent);
 			else
 				NextChaseMode (ent);
 
@@ -1542,12 +1547,11 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 			{
 				client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
 
-				// wision: use +moveup for changing the pov
+				// wision: use +moveup for changing the pov while chasing only
 				if (client->chase_target)
 					ChaseNext (ent);
-//					NextChaseMode (ent);
-				else
-					GetChaseTarget(ent);
+//				else
+//					GetChaseTarget(ent);
 			}
 		}
 		else
@@ -1593,14 +1597,13 @@ void ClientBeginServerFrame (edict_t *ent)
 
 	if (ent->deadflag)
 	{
-		// wait for any button just going down
-		if ( level.time > client->respawn_framenum)
+		// force spawn set by g_respawn_time
+		// spawn 1 sec after the death if player pressed attack button
+		if ((level.time > client->respawn_framenum && ((int)dmflags->value & DF_FORCE_RESPAWN)) ||
+			(level.time > client->respawn_framenum - ((g_respawn_time->value - 1) * (1 / FRAMETIME)) && (client->latched_buttons & BUTTON_ATTACK)))
 		{
-			if ((client->latched_buttons & BUTTON_ATTACK ) || ((int)dmflags->value & DF_FORCE_RESPAWN))
-			{
-				respawn(ent);
-				client->latched_buttons = 0;
-			}
+			respawn(ent);
+			client->latched_buttons = 0;
 		}
 		return;
 	}

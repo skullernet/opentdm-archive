@@ -66,6 +66,23 @@ static void TDM_ForceReady_f (qboolean status)
 
 /*
 ==============
+TDM_StartMatch_f
+==============
+Start the match right away.
+*/
+void TDM_StartMatch_f (edict_t *ent)
+{
+	if (!teaminfo[TEAM_A].players || !teaminfo[TEAM_B].players)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Not enough players to start the match.\n");
+		return;
+	}
+
+	TDM_BeginMatch ();
+}
+
+/*
+==============
 TDM_Commands_f
 ==============
 Show brief help on all commands
@@ -128,7 +145,7 @@ void TDM_Acommands_f (edict_t *ent)
 		"overtime 0/1/2     Set overtime\n"
 		"kick / boot <id>   Kick a player from server\n"
 		"kickban <id>       kickban a player from server\n"
-		"ban <id>           Ban ip on the server\n"
+		"ban <id> [mins]    Ban ip on the server, default for 1 hour\n"
 		"unban <ip>         Unban ip on the server\n"
 		"bans               Show current bans\n"
 		"readyall           Force all players to be ready\n"
@@ -261,15 +278,67 @@ void TDM_Bfg_f (edict_t *ent)
 
 /*
 ==============
-TDM_CheckMap
+TDM_CheckMap_FileExists
 ==============
 Check map name.
 */
+qboolean TDM_CheckMapExists (const char *mapname)
+{
+	cvar_t	*gamedir;      // our mod dir
+	cvar_t	*basedir;      // our root dir
+	FILE	*mf;
+	char	buffer[MAX_QPATH + 1];
+
+	gamedir = gi.cvar ("gamedir", NULL, 0);   // created by engine, we need to expose it for mod
+	basedir = gi.cvar ("basedir", NULL, 0);   // created by engine, we need to expose it for mod
+
+	buffer[sizeof(buffer)-1] = '\0';
+
+	if (basedir)
+	{
+		// check basedir
+		snprintf (buffer, sizeof(buffer), "%s/baseq2/maps/%s.bsp", basedir->string, mapname);
+
+		mf = fopen (buffer, "r");
+		if (mf != NULL)
+		{
+			fclose (mf);
+			return true;
+		}
+	}
+
+	if (gamedir)
+	{
+		// check gamedir
+		snprintf (buffer, sizeof(buffer), "%s/maps/%s.bsp", gamedir->string, mapname);
+		mf = fopen (buffer, "r");
+		if (mf == NULL)
+			return false;
+		else
+		{   
+			fclose (mf);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/*
+==============
+TDM_CheckMap
+==============
+Check map name.
+Modified code from QwazyWabbit. http://www.clanwos.org/forums/viewtopic.php?t=3983
+*/
 qboolean TDM_Checkmap (edict_t *ent, const char *mapname)
 {
+	cvar_t	*gamedir;      // our mod dir
 	int		i;
-	size_t		len;
-	//TODO: check map from maplist oO
+	size_t	len;
+	FILE	*maplst;
+	char	*entry;
+	char	buffer[MAX_QPATH + 1];
 
 	len = strlen (mapname);
 
@@ -287,7 +356,68 @@ qboolean TDM_Checkmap (edict_t *ent, const char *mapname)
 			return false;
 		}
 	}
-	return true;
+	
+	// maplist is not in use
+	if (!g_maplistfile || !g_maplistfile->string[0])
+		return true;
+
+	// created by engine, we need to expose it for mod
+	gamedir = gi.cvar ("gamedir", NULL, 0); 
+
+	// Make sure we can find the game directory.
+	if (!gamedir || !gamedir->string[0])
+	{
+//		gi.dprintf ("No maplist -- can't find gamedir\n");
+		return true;
+	}
+	
+	buffer[sizeof(buffer)-1] = '\0';
+
+	if (gamedir)
+	{
+		snprintf (buffer, sizeof(buffer)-1, "./%s/%s", gamedir->string, g_maplistfile->string);
+		maplst = fopen (buffer, "r");
+		if (maplst == NULL)
+		{
+	//		gi.dprintf ("No maplist -- can't open ./%s/%s\n", gamedir->string, g_maplistfile->string);
+			return true;
+		}
+	}
+	else
+		return true;
+
+	for (;;)
+	{
+		entry = fgets (buffer, sizeof (buffer), maplst);
+
+		if (entry == NULL)
+			break;
+		
+		// Trim any newline(s) or spaces from the end of the string.
+		entry = buffer + strlen (buffer) - 1;
+		while (entry >= buffer && (*entry == 10 || *entry == 13 || *entry == ' '))
+		{
+			*entry = 0;
+			entry--;
+		}
+		
+//		if (!buffer[0] || !Q_stricmp(buffer, level.mapname))
+		if (!buffer[0])
+			continue;
+		
+		if (!Q_stricmp (buffer, mapname) && TDM_CheckMapExists (buffer))
+		{
+			if (maplst != NULL)
+				fclose (maplst);
+			return true;
+		}
+	}
+
+	if (maplst != NULL)
+		fclose (maplst);
+	
+	gi.cprintf (ent, PRINT_HIGH, "Map '%s' was not found\n", mapname);
+	return false;
 }
 
 /*
@@ -310,7 +440,9 @@ void TDM_Changemap_f (edict_t *ent)
 	if (!TDM_Checkmap(ent, mapname))
 		return;
 
+	// safe, checkmap checks length
 	strcpy (level.nextmap, mapname);
+
 	gi.bprintf (PRINT_HIGH, "New map: %s\n", mapname);
 	EndDMLevel();
 }
@@ -440,7 +572,26 @@ Ban an ip from the server. Default 1 hour.
 */
 void TDM_Ban_f (edict_t *ent)
 {
-	SVCmd_AddIP_f (ent, gi.argv(1), 60);
+	int			time = 60;
+	const char	*input;
+	
+	if (gi.argc() > 2)
+	{
+		input = gi.argv(2);
+		time = strtoul (input, NULL, 10);
+
+		// don't allow admins more than 12 hours
+		// only real admin should be able to put permban
+		if (time > 720)
+			time = 720;
+		else if (time <= 0)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You may not set permanent bans.\n");
+			return;
+		}
+	}
+
+	SVCmd_AddIP_f (ent, gi.argv(1), time);
 }
 
 /*
@@ -497,11 +648,11 @@ void TDM_Obsmode_f (edict_t *ent)
 		gi.cprintf (ent, PRINT_HIGH, "Obsmode is %s.\n", value);
 		return;
 	}
-	else if (!Q_stricmp (input, "speak"))
+	else if (!Q_stricmp (input, "speak") || !Q_stricmp (input, "0"))
 		value[0] = '0';
-	else if (!Q_stricmp (input, "whisper"))
+	else if (!Q_stricmp (input, "whisper") || !Q_stricmp (input, "1"))
 		value[0] = '1';
-	else if (!Q_stricmp (input, "shutup"))
+	else if (!Q_stricmp (input, "shutup") || !Q_stricmp (input, "2"))
 		value[0] = '2';
 	else
 	{
@@ -1109,6 +1260,47 @@ void TDM_Accept_f (edict_t *ent)
 
 /*
 ==============
+TDM_Talk_f
+==============
+Talk to a player.
+*/
+void TDM_Talk_f (edict_t *ent)
+{
+	edict_t	*victim;
+
+	if (gi.argc() < 3)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: %s <name/id> message\n", gi.argv(0));
+		return;
+	}
+
+	if (LookupPlayer (gi.argv(1), &victim, ent))
+	{
+		if (victim == ent)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You cannot talk to yourself.");
+			return;
+		}
+		if (tdm_match_status >= MM_PLAYING)
+		{
+			if (ent->client->resp.team == TEAM_SPEC && victim->client->resp.team != TEAM_SPEC)
+			{
+				gi.cprintf (ent, PRINT_HIGH, "Spectators cannot talk to players during the match.");
+				return;
+			}
+		}
+		if (g_chat_mode->value == 2 && ent->client->resp.team == TEAM_SPEC && !victim->client->pers.admin)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Spectators cannot talk during shutup mode.");
+			return;
+		}
+		gi.cprintf (ent, PRINT_CHAT, "{%s}: %s\n", ent->client->pers.netname, gi.argv(2));
+		gi.cprintf (victim, PRINT_CHAT, "{%s}: %s\n", ent->client->pers.netname, gi.argv(2));
+	}
+}
+
+/*
+==============
 TDM_KickPlayer_f
 ==============
 Kick a player from a team
@@ -1426,36 +1618,6 @@ void TDM_Teamskin_f (edict_t *ent)
 
 /*
 ==============
-TDM_Ready_f
-==============
-Toggle ready status
-*/
-void TDM_Ready_f (edict_t *ent)
-{
-	if (!ent->client->resp.team)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "You must be on a team to be ready.\n");
-		return;
-	}
-
-	if (tdm_match_status >= MM_PLAYING)
-		return;
-
-	if (ent->client->resp.ready)
-		return;
-
-	if (TDM_RateLimited (ent, SECS_TO_FRAMES(1)))
-		return;
-
-	ent->client->resp.ready = true;
-
-	gi.bprintf (PRINT_HIGH, "%s is ready!\n", ent->client->pers.netname);
-
-	TDM_CheckMatchStart ();
-}
-
-/*
-==============
 TDM_NotReady_f
 ==============
 Set notready status
@@ -1481,6 +1643,39 @@ void TDM_NotReady_f (edict_t *ent)
 	ent->client->resp.ready = false;
 
 	gi.bprintf (PRINT_HIGH, "%s is not ready!\n", ent->client->pers.netname);
+
+	TDM_CheckMatchStart ();
+}
+
+/*
+==============
+TDM_Ready_f
+==============
+Toggle ready status
+*/
+void TDM_Ready_f (edict_t *ent)
+{
+	if (!ent->client->resp.team)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "You must be on a team to be ready.\n");
+		return;
+	}
+
+	if (tdm_match_status >= MM_PLAYING)
+		return;
+
+	if (ent->client->resp.ready)
+	{
+		TDM_NotReady_f(ent);
+		return;
+	}
+
+	if (TDM_RateLimited (ent, SECS_TO_FRAMES(1)))
+		return;
+
+	ent->client->resp.ready = true;
+
+	gi.bprintf (PRINT_HIGH, "%s is ready!\n", ent->client->pers.netname);
 
 	TDM_CheckMatchStart ();
 }
@@ -1606,9 +1801,14 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 {
 	if (ent->client->pers.admin)
 	{
-		if (!Q_stricmp (cmd, "forceready") || !Q_stricmp (cmd, "readyall"))
+		if (!Q_stricmp (cmd, "forceready") || !Q_stricmp (cmd, "readyall") || !Q_stricmp (cmd, "allready") || !Q_stricmp (cmd, "startcountdown"))
 		{
 			TDM_ForceReady_f (true);
+			return true;
+		}
+		else if (!Q_stricmp (cmd, "startmatch"))
+		{
+			TDM_StartMatch_f (ent);
 			return true;
 		}
 		else if (!Q_stricmp (cmd, "kickplayer"))
@@ -1784,6 +1984,8 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_OldScores_f (ent);
 		else if (!Q_stricmp (cmd, "ghost") || !Q_stricmp (cmd, "restore") || !Q_stricmp (cmd, "recover") | !Q_stricmp (cmd, "rejoin"))
 			TDM_Ghost_f (ent);
+		else if (!Q_stricmp (cmd, "talk"))
+			TDM_Talk_f (ent);
 		//wision: some compatibility with old mods (ppl are lazy to learn new commands)
 		else if (!Q_stricmp (cmd, "powerups"))
 			TDM_Powerups_f (ent);

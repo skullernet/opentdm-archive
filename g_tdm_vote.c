@@ -1302,9 +1302,9 @@ qboolean TDM_VoteChat (edict_t *ent)
 		return false;
 	}
 
-	if (!Q_stricmp (value, "players") || !Q_stricmp (value, "team") || !Q_stricmp (value, "nospec") || !Q_stricmp (value, "1"))
+	if (!Q_stricmp (value, "players") || !Q_stricmp (value, "team") || !Q_stricmp (value, "nospec") || !Q_stricmp (value, "whisper") || !Q_stricmp (value, "1"))
 		chatmode = 1;
-	else if (!Q_stricmp (value, "all") || !Q_stricmp (value, "everyone") || !Q_stricmp (value, "0"))
+	else if (!Q_stricmp (value, "all") || !Q_stricmp (value, "everyone") || !Q_stricmp (value, "speak") || !Q_stricmp (value, "0"))
 		chatmode = 0;
 	else
 	{
@@ -1363,7 +1363,7 @@ void TDM_Vote_X (edict_t *ent, player_vote_t x, const char *whatisit)
 	}
 	else if (ent->client->resp.vote == x)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "You have already voted %s.\n", gi.argv(1));
+		gi.cprintf (ent, PRINT_HIGH, "You have already voted %s.\n", whatisit);
 	}
 	else if (ent->client->resp.vote != x)
 	{
@@ -1398,6 +1398,12 @@ void TDM_Vote_f (edict_t *ent)
 	const char	*cmd;
 	qboolean	started_new_vote;
 
+	if ((!vote.active || !ent->client->resp.team) && (!Q_stricmp (gi.argv(0), "yes") || !Q_stricmp (gi.argv(0), "no")))
+	{
+		Cmd_Say_f (ent, false, true);
+		return;
+	}
+	
 	if (!Q_stricmp (gi.argv(0), "yes") || !Q_stricmp (gi.argv(0), "no"))
 	{
 		cmd = gi.argv(0);
