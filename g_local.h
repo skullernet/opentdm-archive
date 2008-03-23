@@ -786,6 +786,8 @@ extern	cvar_t	*g_max_players_per_team;
 
 extern	cvar_t	*g_bugs;
 
+extern	cvar_t	*g_allow_name_change_during_match;
+
 #define world	(&g_edicts[0])
 
 // item spawnflags

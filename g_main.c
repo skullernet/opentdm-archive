@@ -124,6 +124,8 @@ cvar_t	*g_maplistfile;
 
 cvar_t	*g_bugs;
 
+cvar_t	*g_allow_name_change_during_match;
+
 void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint);
 void ClientThink (edict_t *ent, usercmd_t *cmd);
 qboolean ClientConnect (edict_t *ent, char *userinfo);

@@ -249,6 +249,8 @@ void InitGame (void)
 	g_maplistfile = gi.cvar ("g_maplistfile", "", 0);
 
 	g_bugs = gi.cvar ("g_bugs", "0", 0);
+	g_allow_name_change_during_match = gi.cvar ("g_allow_name_change_during_match", "1", 0);
+
 	
 #ifdef _DEBUG
 	g_http_baseurl = gi.cvar ("g_http_baseurl", "http://localhost/api/", CVAR_NOSET);

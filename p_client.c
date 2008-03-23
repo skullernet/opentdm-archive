@@ -1174,7 +1174,7 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	if (strcmp (old_name, s))
 	{
 		// wision: enable this one maybe?
-		if (old_name[0] && tdm_match_status > MM_COUNTDOWN)
+		if (old_name[0] && tdm_match_status > MM_COUNTDOWN && !g_allow_name_change_during_match->value)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "You cannot change your name in the middle of the match!\n");
 			Info_SetValueForKey (userinfo, "name", old_name);
