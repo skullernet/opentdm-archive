@@ -58,7 +58,9 @@ void TDM_AddPlayerToMatchinfo (edict_t *ent)
 		if (level.tdm_timeout_caller == current_matchinfo.teamplayers + i)
 			level.tdm_timeout_caller = new_teamplayers + i;
 
-		current_matchinfo.teamplayers[i].client->client->resp.teamplayerinfo = new_teamplayers + i;
+		//might not have a current client (disconnected)
+		if (current_matchinfo.teamplayers[i].client)
+			current_matchinfo.teamplayers[i].client->client->resp.teamplayerinfo = new_teamplayers + i;
 	}
 
 	//remove old memory
