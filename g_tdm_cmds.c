@@ -1107,7 +1107,7 @@ void TDM_Invite_f (edict_t *ent)
 		return;
 	}
 
-	if (g_gamemode->value == GAMEMODE_1V1)
+	if (TDM_Is1V1())
 	{
 		gi.cprintf (ent, PRINT_HIGH, "This command is unavailable in 1v1 mode.\n");
 		return;
@@ -1130,9 +1130,9 @@ void TDM_Invite_f (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
 			return;
 
-		if (victim->client->resp.team == ent->client->resp.team)
+		if (victim->client->resp.team)
 		{
-			gi.cprintf (ent, PRINT_HIGH, "%s is already on your team.\n", victim->client->pers.netname);
+			gi.cprintf (ent, PRINT_HIGH, "%s is already on a team.\n", victim->client->pers.netname);
 			return;
 		}
 
@@ -1167,7 +1167,7 @@ void TDM_PickPlayer_f (edict_t *ent)
 		return;
 	}
 
-	if (g_gamemode->value == GAMEMODE_1V1)
+	if (TDM_Is1V1())
 	{
 		gi.cprintf (ent, PRINT_HIGH, "This command is unavailable in 1v1 mode.\n");
 		return;
@@ -1196,9 +1196,9 @@ void TDM_PickPlayer_f (edict_t *ent)
 			return;
 		}
 
-		if (victim->client->resp.team == ent->client->resp.team)
+		if (victim->client->resp.team)
 		{
-			gi.cprintf (ent, PRINT_HIGH, "%s is already in your team.\n", victim->client->pers.netname);
+			gi.cprintf (ent, PRINT_HIGH, "%s is already on a team.\n", victim->client->pers.netname);
 			return;
 		}
 
@@ -1463,6 +1463,21 @@ void TDM_Captain_f (edict_t *ent)
 			TDM_SetCaptain (victim->client->resp.team, victim);
 		}
 	}
+}
+
+/*
+==============
+TDM_Captains_f
+==============
+Show who the captains are for each team.
+*/
+void TDM_Captains_f (edict_t *ent)
+{
+	gi.cprintf (ent, PRINT_HIGH, "Team '%s' captain: %s\nTeam '%s' captain: %s\n",
+		teaminfo[TEAM_A].name,
+		teaminfo[TEAM_A].captain ? teaminfo[TEAM_A].captain->client->pers.netname : "(none)",
+		teaminfo[TEAM_B].name,
+		teaminfo[TEAM_B].captain ? teaminfo[TEAM_B].captain->client->pers.netname : "(none)");
 }
 
 /*
@@ -1892,8 +1907,15 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Ghost_f (ent);
 		else if (!Q_stricmp (cmd, "win"))
 			TDM_Win_f (ent);
-		else if (!Q_stricmp (cmd, "observer") || !Q_stricmp (cmd, "spectate") || !Q_stricmp (cmd, "chase"))
+		else if (!Q_stricmp (cmd, "observer") || !Q_stricmp (cmd, "spectate") || !Q_stricmp (cmd, "chase") ||
+				!Q_stricmp (cmd, "spec") || !Q_stricmp (cmd, "obs"))
 			ToggleChaseCam (ent);
+		else if (!Q_stricmp (cmd, "pickplayer") || !Q_stricmp (cmd, "pick"))
+			TDM_PickPlayer_f (ent);
+		else if (!Q_stricmp (cmd, "invite"))
+			TDM_Invite_f (ent);
+		else if (!Q_stricmp (cmd, "accept"))
+			TDM_Accept_f (ent);
 		else if (!Q_stricmp (cmd, "admin") || !Q_stricmp (cmd, "referee"))
 			TDM_Admin_f (ent);
 		else if (!Q_stricmp (cmd, "stopsound"))
@@ -1914,6 +1936,8 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Admin_f (ent);
 		else if (!Q_stricmp (cmd, "captain"))
 			TDM_Captain_f (ent);
+		else if (!Q_stricmp (cmd, "captains"))
+			TDM_Captains_f (ent);
 		else if (!Q_stricmp (cmd, "vote"))
 			TDM_Vote_f (ent);
 		else if (!Q_stricmp (cmd, "yes") || !Q_stricmp (cmd, "no"))
@@ -1944,7 +1968,8 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Team_f (ent);
 		else if (!Q_stricmp (cmd, "settings") || !Q_stricmp (cmd, "matchinfo"))
 			TDM_Settings_f (ent);
-		else if (!Q_stricmp (cmd, "observer") || !Q_stricmp (cmd, "spectate") || !Q_stricmp (cmd, "chase"))
+		else if (!Q_stricmp (cmd, "observer") || !Q_stricmp (cmd, "spectate") || !Q_stricmp (cmd, "chase") ||
+				!Q_stricmp (cmd, "spec") || !Q_stricmp (cmd, "obs"))
 			ToggleChaseCam (ent);
 		else if (!Q_stricmp (cmd, "calltime") | !Q_stricmp (cmd, "pause") || !Q_stricmp (cmd, "ctime") || !Q_stricmp (cmd, "time") || !Q_stricmp (cmd, "hold"))
 			TDM_Timeout_f (ent);

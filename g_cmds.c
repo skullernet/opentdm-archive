@@ -725,7 +725,7 @@ void Cmd_Kill_f (edict_t *ent)
 	if (!ent->client->resp.team)
 		return;
 
-	if((level.framenum - ent->client->respawn_framenum) < 5 * (1 / FRAMETIME))
+	if((level.framenum - ent->client->respawn_framenum) < 5 * (1 * SERVER_FPS))
 		return;
 
 	if (tdm_match_status == MM_COUNTDOWN)
@@ -853,15 +853,15 @@ void Cmd_Wave_f (edict_t *ent)
 		if (level.framenum < cl->resp.flood_waves_locktill)
 		{
 			gi.cprintf(ent, PRINT_HIGH, "You can't use waves for %d more minutes\n",
-				(int)((cl->resp.flood_waves_locktill - level.framenum)/(60 / FRAMETIME)));
+				(int)((cl->resp.flood_waves_locktill - level.framenum)/(60 * SERVER_FPS)));
 			return;
 		}
 		i = cl->resp.flood_waves_whenhead - flood_waves->value + 1;
 		if (i < 0)
 			i = (sizeof(cl->resp.flood_waves_when)/sizeof(cl->resp.flood_waves_when[0])) + i;
-		if (cl->resp.flood_waves_when[i] && (level.framenum - cl->resp.flood_waves_when[i]) < flood_waves_waitdelay->value * (60 / FRAMETIME))
+		if (cl->resp.flood_waves_when[i] && (level.framenum - cl->resp.flood_waves_when[i]) < flood_waves_waitdelay->value * (60 * SERVER_FPS))
 		{
-			cl->resp.flood_waves_locktill = level.framenum + (flood_waves_waitdelay->value * (60 / FRAMETIME));
+			cl->resp.flood_waves_locktill = level.framenum + (flood_waves_waitdelay->value * (60 * SERVER_FPS));
 			gi.cprintf(ent, PRINT_CHAT, "Flood protection:  You can't use waves for %d minutes.\n", (int)(flood_waves_waitdelay->value));
 			return;
 		}
@@ -982,9 +982,9 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 		i = cl->resp.flood_whenhead - flood_msgs->value + 1;
 		if (i < 0)
 			i = (sizeof(cl->resp.flood_when)/sizeof(cl->resp.flood_when[0])) + i;
-		if (cl->resp.flood_when[i] && (level.realframenum - cl->resp.flood_when[i]) < flood_waitdelay->value / FRAMETIME)
+		if (cl->resp.flood_when[i] && (level.realframenum - cl->resp.flood_when[i]) < flood_waitdelay->value * SERVER_FPS)
 		{
-			cl->resp.flood_locktill = level.realframenum + (flood_waitdelay->value / FRAMETIME);
+			cl->resp.flood_locktill = level.realframenum + (flood_waitdelay->value * SERVER_FPS);
 			gi.cprintf(ent, PRINT_CHAT, "Flood protection:  You can't talk for %d seconds.\n", (int)(flood_waitdelay->value));
 			return;
 		}

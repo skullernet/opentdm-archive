@@ -356,7 +356,7 @@ void TossClientWeapon (edict_t *self)
 	if (!((int)(dmflags->value) & DF_QUAD_DROP))
 		quad = false;
 	else
-		quad = (self->client->quad_framenum > (level.framenum + 1 * (1 / FRAMETIME)));
+		quad = (self->client->quad_framenum > (level.framenum + 1 * (1 * SERVER_FPS)));
 
 	if (item && quad)
 		spread = 22.5;
@@ -453,7 +453,7 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 	if (!self->deadflag)
 	{
-		self->client->respawn_framenum = level.time + g_respawn_time->value * (1 / FRAMETIME);
+		self->client->respawn_framenum = level.time + g_respawn_time->value * (1 * SERVER_FPS);
 		LookAtKiller (self, inflictor, attacker);
 		self->client->ps.pmove.pm_type = PM_DEAD;
 		ClientObituary (self, inflictor, attacker);
@@ -957,7 +957,7 @@ void PutClientInServer (edict_t *ent)
 	ent->mass = 200;
 	ent->solid = SOLID_BBOX;
 	ent->deadflag = DEAD_NO;
-	ent->air_finished = level.time + 12 * (1 / FRAMETIME);
+	ent->air_finished = level.time + 12 * (1 * SERVER_FPS);
 	ent->clipmask = MASK_PLAYERSOLID;
 	ent->model = "players/male/tris.md2";
 	ent->pain = player_pain;
@@ -1600,7 +1600,7 @@ void ClientBeginServerFrame (edict_t *ent)
 		// force spawn set by g_respawn_time
 		// spawn 1 sec after the death if player pressed attack button
 		if ((level.time > client->respawn_framenum && ((int)dmflags->value & DF_FORCE_RESPAWN)) ||
-			(level.time > client->respawn_framenum - ((g_respawn_time->value - 1) * (1 / FRAMETIME)) && (client->latched_buttons & BUTTON_ATTACK)))
+			(level.time > client->respawn_framenum - ((g_respawn_time->value - 1) * (1 * SERVER_FPS)) && (client->latched_buttons & BUTTON_ATTACK)))
 		{
 			respawn(ent);
 			client->latched_buttons = 0;

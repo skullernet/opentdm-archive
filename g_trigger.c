@@ -52,7 +52,7 @@ void multi_trigger (edict_t *ent)
 	if (ent->wait > 0)	
 	{
 		ent->think = multi_wait;
-		ent->nextthink = level.time + ent->wait * (1 / FRAMETIME);
+		ent->nextthink = level.time + ent->wait * (1 * SERVER_FPS);
 	}
 	else
 	{	// we can't just remove (self) here, because this is a touch function
@@ -297,7 +297,7 @@ void trigger_push_touch (edict_t *self, edict_t *other, cplane_t *plane, csurfac
 			VectorCopy (other->velocity, other->client->oldvelocity);
 			if (other->fly_sound_debounce_time < level.time)
 			{
-				other->fly_sound_debounce_time = level.time + 1.5 * (1 / FRAMETIME);
+				other->fly_sound_debounce_time = level.time + 1.5f * (1 * SERVER_FPS);
 				gi.sound (other, CHAN_AUTO, windsound, 1, ATTN_NORM, 0);
 			}
 		}
@@ -366,7 +366,7 @@ void hurt_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *sur
 		return;
 
 	if (self->spawnflags & 16)
-		self->timestamp = level.time + 1 * (1 / FRAMETIME);
+		self->timestamp = level.time + 1 * (1 * SERVER_FPS);
 	else
 		self->timestamp = level.time + 1;
 

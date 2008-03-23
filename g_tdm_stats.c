@@ -1269,6 +1269,49 @@ teamplayer_t *TDM_FindTeamplayerForJoinCode (unsigned code)
 	return NULL;
 }
 
+void TDM_SetupTeamInfoForPlayer (edict_t *ent, teamplayer_t *info)
+{
+	const char *code;
+
+	strcpy (info->name, ent->client->pers.netname);
+	
+	info->client = ent;
+	info->ping = ent->client->ping;
+	info->team = ent->client->resp.team;
+	info->matchinfo = &current_matchinfo;
+
+	//user has a preferred joincode they want to always use
+	code = Info_ValueForKey (ent->client->pers.userinfo, "joincode");
+	if (code[0])
+	{
+		unsigned	value;
+
+		value = strtoul (code, NULL, 10);
+		if (!value || TDM_FindTeamplayerForJoinCode (value))
+			gi.cprintf (ent, PRINT_HIGH, "Your preferred join code could not be set.\n");
+		else
+			info->joincode = value;
+	}
+
+	if (!info->joincode)
+	{
+		unsigned	joincode;
+
+		//no prefered code, they get random
+		do
+		{
+			joincode = genrand_int31 () % 9999;
+		} while (TDM_FindTeamplayerForJoinCode (joincode));
+
+		info->joincode = joincode;
+	}
+
+	G_StuffCmd (ent, "set joincode \"%u\" u\n", info->joincode);
+	gi.cprintf (ent, PRINT_HIGH, "Your join code for this match is %s\n", TDM_SetColorText(va("%u", info->joincode)));
+
+	ent->client->resp.teamplayerinfo = info;
+}
+
 /*
 ==============
 TDM_SetupTeamPlayers
@@ -1298,42 +1341,7 @@ void TDM_SetupMatchInfoAndTeamPlayers (void)
 	{
 		if (ent->client->resp.team)
 		{
-			const char *code;
-
-			strcpy (current_matchinfo.teamplayers[i].name, ent->client->pers.netname);
-			
-			current_matchinfo.teamplayers[i].client = ent;
-			current_matchinfo.teamplayers[i].ping = ent->client->ping;
-			current_matchinfo.teamplayers[i].team = ent->client->resp.team;
-			current_matchinfo.teamplayers[i].matchinfo = &current_matchinfo;
-
-			//user has a preferred joincode they want to always use
-			code = Info_ValueForKey (ent->client->pers.userinfo, "joincode");
-			if (code[0])
-			{
-				unsigned	value;
-
-				value = strtoul (code, NULL, 10);
-				if (!value || TDM_FindTeamplayerForJoinCode (value))
-					gi.cprintf (ent, PRINT_HIGH, "Your preferred join code could not be set.\n");
-				else
-					current_matchinfo.teamplayers[i].joincode = value;
-			}
-
-			if (!current_matchinfo.teamplayers[i].joincode)
-			{
-				//no prefered code, they get random
-				do
-				{
-					current_matchinfo.teamplayers[i].joincode = genrand_int31 () % 9999;
-				} while (!TDM_FindTeamplayerForJoinCode (current_matchinfo.teamplayers[i].joincode));
-			}
-
-			G_StuffCmd (ent, "set joincode \"%u\" u\n", current_matchinfo.teamplayers[i].joincode);
-			gi.cprintf (ent, PRINT_HIGH, "Your join code for this match is %s\n", TDM_SetColorText(va("%u", current_matchinfo.teamplayers[i].joincode)));
-
-			ent->client->resp.teamplayerinfo = current_matchinfo.teamplayers + i;
-
+			TDM_SetupTeamInfoForPlayer (ent, current_matchinfo.teamplayers + i);
 			i++;
 		}
 	}

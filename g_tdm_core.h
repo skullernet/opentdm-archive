@@ -21,6 +21,7 @@ void TDM_ResetVotableVariables (void);
 int TDM_GetTeamFromArg (edict_t *ent, const char *value);
 void TDM_FixDeltaAngles (void);
 
+void TDM_BeginCountdown (void);
 void TDM_BeginMatch (void);
 void TDM_EndMatch (void);
 

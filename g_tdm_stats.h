@@ -21,3 +21,4 @@ void TDM_RemoveStatsLink (edict_t *ent);
 void TDM_SetupMatchInfoAndTeamPlayers (void);
 void TDM_WriteStatsString (edict_t *ent, teamplayer_t *info);
 teamplayer_t *TDM_FindTeamplayerForJoinCode (unsigned code);
+void TDM_SetupTeamInfoForPlayer (edict_t *ent, teamplayer_t *info);

@@ -28,6 +28,49 @@ const int	teamJoinEntries[MAX_TEAMS] = {9, 3, 6};
 
 /*
 ==============
+TDM_AddPlayerToMatchinfo
+==============
+A new player joined mid-match (invite / etc), update teamplayerinfo to reflect this.
+*/
+void TDM_AddPlayerToMatchinfo (edict_t *ent)
+{
+	int				i;
+	teamplayer_t	*new_teamplayers;
+
+	if (!current_matchinfo.teamplayers)
+		TDM_Error ("TDM_AddPlayerToMatchinfo: no teamplayers");
+
+	//allocate a new teamplayers array
+	new_teamplayers = gi.TagMalloc (sizeof(teamplayer_t) * (current_matchinfo.num_teamplayers + 1), TAG_GAME);
+	memcpy (new_teamplayers, current_matchinfo.teamplayers, sizeof(teamplayer_t) * current_matchinfo.num_teamplayers);
+
+	//setup this client
+	TDM_SetupTeamInfoForPlayer (ent, new_teamplayers + current_matchinfo.num_teamplayers);
+
+	//fix up pointers on existing clients and other things that reference teamplayers. NASTY!
+	for (i = 0; i < current_matchinfo.num_teamplayers; i++)
+	{
+		if (current_matchinfo.captains[TEAM_A] == current_matchinfo.teamplayers + i)
+			current_matchinfo.captains[TEAM_A] = new_teamplayers + i;
+		else if (current_matchinfo.captains[TEAM_B] == current_matchinfo.teamplayers + i)
+			current_matchinfo.captains[TEAM_B] = new_teamplayers + i;
+
+		if (level.tdm_timeout_caller == current_matchinfo.teamplayers + i)
+			level.tdm_timeout_caller = new_teamplayers + i;
+
+		current_matchinfo.teamplayers[i].client->client->resp.teamplayerinfo = new_teamplayers + i;
+	}
+
+	//remove old memory
+	gi.TagFree (current_matchinfo.teamplayers);
+
+	//move everything to new
+	current_matchinfo.teamplayers = new_teamplayers;
+	current_matchinfo.num_teamplayers++;
+}
+
+/*
+==============
 JoinedTeam
 ==============
 A player just joined a team, so do things.
@@ -35,7 +78,10 @@ A player just joined a team, so do things.
 void JoinedTeam (edict_t *ent)
 {
 	if (g_gamemode->value != GAMEMODE_1V1)
-		gi.bprintf (PRINT_HIGH, "%s %sjoined team '%s'\n", ent->client->pers.netname, tdm_match_status >= MM_PLAYING ? "re" : "", teaminfo[ent->client->resp.team].name);
+	{
+		//FIXME: show rejoined for ghost code, joined for picked players
+		gi.bprintf (PRINT_HIGH, "%s joined team '%s'\n", ent->client->pers.netname, teaminfo[ent->client->resp.team].name);
+	}
 	else
 		gi.bprintf (PRINT_HIGH, "%s %sjoined the game.\n", ent->client->pers.netname, tdm_match_status >= MM_PLAYING ? "re" : "");
 
@@ -48,6 +94,10 @@ void JoinedTeam (edict_t *ent)
 
 	//nasty hack for setting team names for 1v1 mode
 	TDM_UpdateTeamNames ();
+
+	//if we were invited mid-game, reallocate and insert into teamplayers
+	if (tdm_match_status != MM_WARMUP)
+		TDM_AddPlayerToMatchinfo (ent);
 
 	//wision: set skin for new player
 	gi.configstring (CS_PLAYERSKINS + (ent - g_edicts) - 1, va("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->resp.team].skin));

@@ -42,6 +42,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	VOTE_CHAT		0x2000
 
+#define	VOTE_RESTART	0x4000
+
 //the ordering of weapons must match ITEM_ defines too!
 const weaponinfo_t	weaponvotes[WEAPON_MAX] = 
 {
@@ -102,6 +104,13 @@ static void TDM_ApplyVote (void)
 
 		if (!(vote.flags & (VOTE_CONFIG|VOTE_WEBCONFIG)))
 			gi.bprintf (PRINT_CHAT, "New timelimit: %d minute%s\n", (int)vote.newtimelimit, vote.newtimelimit == 1 ? "" : "s");
+
+		//update matchinfo, since this can be voted mid-game
+		if (tdm_match_status >= MM_PLAYING && tdm_match_status < MM_SCOREBOARD)
+		{
+			current_matchinfo.timelimit = g_match_time->value / 60;
+			level.match_end_framenum = level.match_start_framenum + (int)(g_match_time->value * SERVER_FPS);
+		}
 	}
 
 	if (vote.flags & VOTE_MAP)
@@ -180,6 +189,17 @@ static void TDM_ApplyVote (void)
 
 		if (!(vote.flags & (VOTE_CONFIG|VOTE_WEBCONFIG)))
 			gi.bprintf (PRINT_CHAT, "New overtime: %d minute%s\n", (int)vote.overtimemins, vote.overtimemins == 1 ? "" : "s");
+	}
+
+	if (vote.flags & VOTE_RESTART)
+	{
+		gi.bprintf (PRINT_CHAT, "Restarting the match...\n");
+		
+		//ugly, but we need to free dynamic memory since the match start allocs a new array
+		gi.TagFree (current_matchinfo.teamplayers);
+		current_matchinfo.teamplayers = NULL;
+		
+		TDM_BeginCountdown ();
 	}
 }
 
@@ -343,6 +363,9 @@ static void TDM_AnnounceVote (void)
 
 	if (vote.flags & (VOTE_CONFIG|VOTE_WEBCONFIG))
 		strcat (what, ")");
+
+	if (vote.flags & VOTE_RESTART)
+		strcat (what, "restart the match");
 
 	gi.bprintf (PRINT_HIGH, "%s%s\n", message, what);
 }
@@ -1341,6 +1364,31 @@ qboolean TDM_VoteChat (edict_t *ent)
 
 /*
 ==============
+TDM_VoteRestart
+==============
+Vote to restart the match.
+*/
+qboolean TDM_VoteRestart (edict_t *ent)
+{
+	if (tdm_match_status < MM_PLAYING || tdm_match_status >= MM_SCOREBOARD)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "No match to restart!\n");
+		return false;
+	}
+
+	if (!ent->client->resp.team && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Only players in the match can vote for a restart.\n");
+		return false;
+	}
+
+	vote.flags |= VOTE_RESTART;
+
+	return true;
+}
+
+/*
+==============
 TDM_Vote_X
 ==============
 Vote yes or no.
@@ -1381,7 +1429,7 @@ A player started a vote, set up common vote stuff.
 void TDM_SetupVote (edict_t *ent)
 {
 	vote.initiator = ent;
-	vote.end_frame = level.framenum + g_vote_time->value * (1 / FRAMETIME);
+	vote.end_frame = level.framenum + (int)g_vote_time->value * (1 * SERVER_FPS);
 	vote.active = true;
 
 	ent->client->resp.vote = VOTE_YES;
@@ -1433,10 +1481,22 @@ void TDM_Vote_f (edict_t *ent)
 		cmd = gi.argv(1);
 	}
 
+	//allow some commands mid-game
 	if (tdm_match_status != MM_WARMUP)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "You can only propose new settings during warmup.\n");
-		return;
+		if (!Q_stricmp (cmd, "timelimit") || !Q_stricmp (cmd, "tl") || !Q_stricmp (cmd, "restart") || !Q_stricmp (cmd, "yes") || !Q_stricmp (cmd, "no"))
+		{
+			if (!(tdm_match_status >= MM_PLAYING && tdm_match_status < MM_SCOREBOARD))
+			{
+				gi.cprintf (ent, PRINT_HIGH, "You can only vote for a timelimit change or restart during a match.\n");
+				return;
+			}
+		}
+		else
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You can only propose new settings during warmup.\n");
+			return;
+		}
 	}
 
 	if (!ent->client->resp.team && !ent->client->pers.admin)
@@ -1480,6 +1540,8 @@ void TDM_Vote_f (edict_t *ent)
 		started_new_vote = TDM_VoteWebConfig (ent);
 	else if (!Q_stricmp (cmd, "chat"))
 		started_new_vote = TDM_VoteChat (ent);
+	else if (!Q_stricmp (cmd, "restart"))
+		started_new_vote = TDM_VoteRestart (ent);
 	else if (!Q_stricmp (cmd, "yes"))
 		TDM_Vote_X (ent, VOTE_YES, "YES");
 	else if (!Q_stricmp (cmd, "no"))

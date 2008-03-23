@@ -438,7 +438,7 @@ void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST,
 				if (level.time >= ent->pain_debounce_time)
 				{
 					gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
-					ent->pain_debounce_time = level.time + 1 * (1 / FRAMETIME);
+					ent->pain_debounce_time = level.time + 1 * (1 * SERVER_FPS);
 				}
 				NoAmmoWeaponChange (ent);
 			}
@@ -550,7 +550,7 @@ void weapon_grenade_fire (edict_t *ent, qboolean held)
 	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
 		ent->client->inventory[ent->client->ammo_index]--;
 
-	ent->client->grenade_time = level.time + 1.0 * (1 / FRAMETIME);
+	ent->client->grenade_time = level.time + 1.0 * (1 * SERVER_FPS);
 
 	if(ent->deadflag || ent->s.modelindex != 255) // VWep animations screw up corpses
 	{
@@ -605,7 +605,7 @@ void Weapon_Grenade (edict_t *ent)
 				if (level.time >= ent->pain_debounce_time)
 				{
 					gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
-					ent->pain_debounce_time = level.time + 1 * (1 / FRAMETIME);
+					ent->pain_debounce_time = level.time + 1 * (1 * SERVER_FPS);
 				}
 				NoAmmoWeaponChange (ent);
 			}
@@ -632,7 +632,7 @@ void Weapon_Grenade (edict_t *ent)
 		{
 			if (!ent->client->grenade_time)
 			{
-				ent->client->grenade_time = level.time + (GRENADE_TIMER + 0.2) * (1 / FRAMETIME);
+				ent->client->grenade_time = level.time + (GRENADE_TIMER + 0.2) * (1 * SERVER_FPS);
 				ent->client->weapon_sound = gi.soundindex("weapons/hgrenc1b.wav");
 			}
 
@@ -709,7 +709,7 @@ void weapon_grenadelauncher_fire (edict_t *ent)
 	ent->client->kick_angles_final[0] = -1;
 
 	ent->client->kick_origin_start = 0;
-	ent->client->kick_origin_end = 0.1f / FRAMETIME;
+	ent->client->kick_origin_end = 0.1f * SERVER_FPS;
 
 	fire_grenade (ent, start, forward, damage, 600, 2.5, radius);
 	TDM_WeaponFired (ent);
@@ -765,7 +765,7 @@ void Weapon_RocketLauncher_Fire (edict_t *ent)
 	ent->client->kick_angles_final[0] = -1;
 
 	ent->client->kick_origin_start = 0;
-	ent->client->kick_origin_end = 0.1f / FRAMETIME;
+	ent->client->kick_origin_end = 0.1f * SERVER_FPS;
 
 	VectorSet(offset, 8, 8, ent->viewheight-8);
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
@@ -819,7 +819,7 @@ void Blaster_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, in
 	ent->client->kick_angles_final[0] = -1;
 
 	ent->client->kick_origin_start = 0;
-	ent->client->kick_origin_end = 0.1f / FRAMETIME;
+	ent->client->kick_origin_end = 0.1f * SERVER_FPS;
 
 	fire_blaster (ent, start, forward, damage, 1000, effect, hyper);
 
@@ -875,7 +875,7 @@ void Weapon_HyperBlaster_Fire (edict_t *ent)
 			if (level.time >= ent->pain_debounce_time)
 			{
 				gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
-				ent->pain_debounce_time = level.time + 1 * (1 / FRAMETIME);
+				ent->pain_debounce_time = level.time + 1 * (1 * SERVER_FPS);
 			}
 			NoAmmoWeaponChange (ent);
 		}
@@ -969,7 +969,7 @@ void Machinegun_Fire (edict_t *ent)
 		if (level.time >= ent->pain_debounce_time)
 		{
 			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
-			ent->pain_debounce_time = level.time + 1 * (1 / FRAMETIME);
+			ent->pain_debounce_time = level.time + 1 * (1 * SERVER_FPS);
 		}
 		NoAmmoWeaponChange (ent);
 		return;
@@ -990,7 +990,7 @@ void Machinegun_Fire (edict_t *ent)
 	ent->client->kick_angles_final[0] = ent->client->machinegun_shots * -1.5f;
 
 	ent->client->kick_origin_start = 0;
-	ent->client->kick_origin_end = 0.1f / FRAMETIME;
+	ent->client->kick_origin_end = 0.1f * SERVER_FPS;
 
 	// get start / end positions
 	VectorAdd (ent->client->v_angle, ent->client->kick_angles_final, angles);
@@ -1103,7 +1103,7 @@ void Chaingun_Fire (edict_t *ent)
 		if (level.time >= ent->pain_debounce_time)
 		{
 			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
-			ent->pain_debounce_time = level.time + 1 * (1 / FRAMETIME);
+			ent->pain_debounce_time = level.time + 1 * (1 * SERVER_FPS);
 		}
 		NoAmmoWeaponChange (ent);
 		return;
@@ -1122,7 +1122,7 @@ void Chaingun_Fire (edict_t *ent)
 	}
 
 	ent->client->kick_origin_start = 0;
-	ent->client->kick_origin_end = 0.1f / FRAMETIME;
+	ent->client->kick_origin_end = 0.1f * SERVER_FPS;
 
 	for (i=0 ; i<shots ; i++)
 	{
@@ -1185,7 +1185,7 @@ void weapon_shotgun_fire (edict_t *ent)
 	ent->client->kick_angles_final[0] = -2;
 
 	ent->client->kick_origin_start = 0;
-	ent->client->kick_origin_end = 0.1f / FRAMETIME;
+	ent->client->kick_origin_end = 0.1f * SERVER_FPS;
 
 	VectorSet(offset, 0, 8,  ent->viewheight-8);
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
@@ -1238,7 +1238,7 @@ void weapon_supershotgun_fire (edict_t *ent)
 	ent->client->kick_angles_final[0] = -2;
 
 	ent->client->kick_origin_start = 0;
-	ent->client->kick_origin_end = 0.1f / FRAMETIME;
+	ent->client->kick_origin_end = 0.1f * SERVER_FPS;
 
 	VectorSet(offset, 0, 8,  ent->viewheight-8);
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
@@ -1321,7 +1321,7 @@ void weapon_railgun_fire (edict_t *ent)
 	ent->client->kick_angles_final[0] = -3;
 
 	ent->client->kick_origin_start = 0;
-	ent->client->kick_origin_end = 0.1f / FRAMETIME;
+	ent->client->kick_origin_end = 0.1f * SERVER_FPS;
 
 	VectorSet(offset, 0, 7,  ent->viewheight-8);
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
@@ -1395,7 +1395,7 @@ void weapon_bfg_fire (edict_t *ent)
 	VectorScale (forward, -2, ent->client->kick_origin_final);
 
 	ent->client->kick_origin_start = 0;
-	ent->client->kick_origin_end = 0.1f / FRAMETIME;
+	ent->client->kick_origin_end = 0.1f * SERVER_FPS;
 
 	// make a big pitch kick with an inverse fall
 	ent->client->v_dmg_pitch = -40;

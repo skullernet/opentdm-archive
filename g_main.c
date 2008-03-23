@@ -445,7 +445,7 @@ void G_RunFrame (void)
 	int		i;
 	edict_t	*ent;
 
-	//FIXME: shouldn't we increment framenum after the game has ryn, in preparation for the next frame?
+	//FIXME: shouldn't we increment framenum after the game has run, in preparation for the next frame?
 	//otherwise usercmds that arrive after we return will still use the old framenum, which seems wrong.
 	//level.realframenum++;
 

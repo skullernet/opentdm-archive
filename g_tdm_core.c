@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 //dynamic FRAMETIME, oh my.
 float	FRAMETIME;
+int		SERVER_FPS;
 
 teaminfo_t	teaminfo[MAX_TEAMS];
 matchmode_t	tdm_match_status;
@@ -200,9 +201,15 @@ void TDM_SetFrameTime (void)
 
 	sv_fps = gi.cvar ("sv_fps", NULL, 0);
 	if (!sv_fps)
+	{
 		FRAMETIME = 0.1f;
+		SERVER_FPS = 10;
+	}
 	else
+	{
 		FRAMETIME = 1.0f / sv_fps->value;
+		SERVER_FPS = (int)sv_fps->intvalue;
+	}
 
 	if ((int)(0.1f / FRAMETIME) == 0)
 		gi.error ("Invalid server FPS");
@@ -358,7 +365,7 @@ void TDM_BeginMatch (void)
 	edict_t		*ent;
 
 	//level.match_start_framenum = 0;
-	level.match_end_framenum = level.framenum + (int)(g_match_time->value / FRAMETIME);
+	level.match_end_framenum = level.framenum + (int)(g_match_time->value * SERVER_FPS);
 	tdm_match_status = MM_PLAYING;
 
 	//must setup teamplayers before level, or we lose item spawn stats
@@ -889,7 +896,7 @@ void TDM_BeginCountdown (void)
 	//called to apply a temporary hack for people who do 1v1 on tdm mode
 	TDM_UpdateTeamNames ();
 
-	level.match_start_framenum = level.framenum + (int)(g_match_countdown->value / FRAMETIME);
+	level.match_start_framenum = level.framenum + (int)(g_match_countdown->value * SERVER_FPS);
 }
 
 /*
@@ -957,7 +964,7 @@ void TDM_BeginIntermission (void)
 	int		i;
 	edict_t	*ent, *client;
 
-	level.match_score_end_framenum = level.framenum + (10.0f / FRAMETIME);
+	level.match_score_end_framenum = level.framenum + (10 * SERVER_FPS);
 
 	//remove any weapons or similar stuff still in flight
 	for (ent = g_edicts + game.maxclients + 1; ent < g_edicts + globals.num_edicts; ent++)
@@ -1106,7 +1113,7 @@ void TDM_EndMatch (void)
 
 void TDM_Overtime (void)
 {
-	level.match_end_framenum = level.framenum + (int)(g_overtime->value / FRAMETIME);
+	level.match_end_framenum = level.framenum + (int)g_overtime->value * SERVER_FPS;
 
 	gi.bprintf (PRINT_HIGH, "Scores are tied %d - %d, adding %g minute%s overtime.\n",
 		teaminfo[TEAM_A].score, teaminfo[TEAM_A].score, g_overtime->value / 60, g_overtime->value / 60 == 1 ? "" : "s");
@@ -1224,13 +1231,13 @@ void TDM_CheckTimes (void)
 
 		remaining = level.match_start_framenum - level.framenum;
 
-		if (remaining == (int)(10.4f / FRAMETIME))
+		if (remaining == (int)(10.4f * SERVER_FPS))
 		{
 			gi.sound (world, 0, gi.soundindex ("world/10_0.wav"), 1, ATTN_NONE, 0);
 		}
-		else if (remaining > 0 && remaining <= (int)(5.0f / FRAMETIME) && remaining % (int)(1.0f / FRAMETIME) == 0)
+		else if (remaining > 0 && remaining <= SECS_TO_FRAMES(5) && remaining % SECS_TO_FRAMES(1) == 0)
 		{
-			gi.bprintf (PRINT_HIGH, "%d\n", (int)(remaining * FRAMETIME));
+			gi.bprintf (PRINT_HIGH, "%d\n", (int)(remaining / SERVER_FPS));
 		}
 		else if (remaining == 0)
 		{
@@ -1244,9 +1251,9 @@ void TDM_CheckTimes (void)
 
 		remaining = level.match_resume_framenum - level.realframenum;		
 		
-		if (remaining > 0 && remaining <= (int)(5.0f / FRAMETIME) && remaining % (int)(1.0f / FRAMETIME) == 0)
+		if (remaining > 0 && remaining <= SECS_TO_FRAMES(5) && remaining % SECS_TO_FRAMES(1) == 0)
 		{
-			gi.bprintf (PRINT_HIGH, "%d\n", (int)(remaining * FRAMETIME));
+			gi.bprintf (PRINT_HIGH, "%d\n", (int)(remaining / SERVER_FPS));
 		}
 		else if (remaining == 0)
 		{
@@ -1274,7 +1281,7 @@ void TDM_CheckTimes (void)
 		{
 			remaining = level.match_end_framenum - level.framenum;
 
-			if (remaining == (int)(10.4f / FRAMETIME))
+			if (remaining == (int)(10.4f * SERVER_FPS))
 			{
 				gi.sound (world, 0, gi.soundindex ("world/10_0.wav"), 1, ATTN_NONE, 0);
 			}
@@ -1374,7 +1381,7 @@ void TDM_CheckTimes (void)
 		if (vote_total % 2 == 0)
 			vote_total = vote_total/2 - vote_yes + 1;
 		else
-			vote_total = ceil((float)vote_total/2.0) - vote_yes;
+			vote_total = ceil((float)vote_total/2.0f) - vote_yes;
 
 		gi.bprintf (PRINT_HIGH, "Yes: %d No: %d. Need %d vote%s to pass the vote.\n",
 				vote_yes, vote_no, vote_total, vote_total == 1 ? "" : "s");
@@ -2282,7 +2289,7 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 			break;
 		case MM_WARMUP:
 			timeout_remaining = 0;
-			time_remaining = g_match_time->value * (1/FRAMETIME) - 1;
+			time_remaining = g_match_time->value * (1 * SERVER_FPS) - 1;
 			break;
 		case MM_SUDDEN_DEATH:
 			timeout_remaining = 0;

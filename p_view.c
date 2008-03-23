@@ -133,7 +133,7 @@ void P_DamageFeedback (edict_t *player)
 	if ((level.time > player->pain_debounce_time) && !(player->flags & FL_GODMODE) && (client->invincible_framenum <= level.framenum))
 	{
 		r = genrand_int32() & 1;
-		player->pain_debounce_time = level.time + 0.7f * (1 / FRAMETIME);
+		player->pain_debounce_time = level.time + 0.7f * (1 * SERVER_FPS);
 		if (player->health < 25)
 			l = SND_PAIN25_1;
 		else if (player->health < 50)
@@ -245,7 +245,7 @@ void SV_CalcViewOffset (edict_t *ent)
 	else
 	{
 		// add angles based on weapon kick
-		if ((level.framenum % (int)(0.1f / FRAMETIME)) == 0)
+		if ((level.framenum % (int)(0.1f * SERVER_FPS)) == 0)
 		{
 			VectorCopy (ent->client->kick_angles, angles);
 
@@ -526,7 +526,8 @@ void P_FallingDamage (edict_t *ent)
 			return;
 		delta = ent->velocity[2] - ent->client->oldvelocity[2];
 	}
-	delta = delta*delta * 0.0001;
+
+	delta = delta*delta * 0.0001f;
 
 	// never take falling damage if completely underwater
 	if (ent->waterlevel == 3)
@@ -593,7 +594,7 @@ void P_WorldEffects (void)
 
 	if (current_player->movetype == MOVETYPE_NOCLIP)
 	{
-		current_player->air_finished = level.time + 12 * (1 / FRAMETIME);	// don't need air
+		current_player->air_finished = level.time + 12 * (1 * SERVER_FPS);	// don't need air
 		return;
 	}
 
@@ -647,7 +648,7 @@ void P_WorldEffects (void)
 		{	// gasp for air
 			gi.sound (current_player, CHAN_VOICE, gi.soundindex("player/gasp1.wav"), 1, ATTN_NORM, 0);
 		}
-		else  if (current_player->air_finished < level.time + 11 * (1 / FRAMETIME))
+		else  if (current_player->air_finished < level.time + 11 * (1 * SERVER_FPS))
 		{	// just break surface
 			gi.sound (current_player, CHAN_VOICE, gi.soundindex("player/gasp2.wav"), 1, ATTN_NORM, 0);
 		}
@@ -661,7 +662,7 @@ void P_WorldEffects (void)
 		// breather or envirosuit give air
 		if (breather || envirosuit)
 		{
-			current_player->air_finished = level.time + 10 * (1 / FRAMETIME);
+			current_player->air_finished = level.time + 10 * (1 * SERVER_FPS);
 
 			if (((int)(current_client->breather_framenum - level.framenum) % 25) == 0)
 			{
@@ -680,7 +681,7 @@ void P_WorldEffects (void)
 			if (current_player->client->next_drown_time < level.time 
 				&& current_player->health > 0)
 			{
-				current_player->client->next_drown_time = level.time + 1 * (1 / FRAMETIME);
+				current_player->client->next_drown_time = level.time + 1 * (1 * SERVER_FPS);
 
 				// take more damage the longer underwater
 				current_player->dmg += 2;
@@ -703,7 +704,7 @@ void P_WorldEffects (void)
 	}
 	else
 	{
-		current_player->air_finished = level.time + 12 * (1 / FRAMETIME);
+		current_player->air_finished = level.time + 12 * (1 * SERVER_FPS);
 		current_player->dmg = 2;
 	}
 
@@ -722,12 +723,12 @@ void P_WorldEffects (void)
 					gi.sound (current_player, CHAN_VOICE, gi.soundindex("player/burn1.wav"), 1, ATTN_NORM, 0);
 				else
 					gi.sound (current_player, CHAN_VOICE, gi.soundindex("player/burn2.wav"), 1, ATTN_NORM, 0);
-				current_player->pain_debounce_time = level.time + 1 * (1 / FRAMETIME);
+				current_player->pain_debounce_time = level.time + 1 * (1 * SERVER_FPS);
 			}
 
 			//FIXME: ugly hack to a void sizzle damage being multiplied based on server framenum, can be biased depending on what
 			//frame the client entered the volume
-			if ((level.framenum % (int)(0.1f / FRAMETIME)) == 0)
+			if ((level.framenum % (int)(0.1f * SERVER_FPS)) == 0)
 			{
 				if (envirosuit)	// take 1/3 damage with envirosuit
 					T_Damage (current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1*waterlevel, 0, 0, MOD_LAVA);
@@ -743,7 +744,7 @@ void P_WorldEffects (void)
 			{	
 				//FIXME: ugly hack to a void sizzle damage being multiplied based on server framenum, can be biased depending on what
 				//frame the client entered the volume
-				if ((level.framenum % (int)(0.1f / FRAMETIME)) == 0)
+				if ((level.framenum % (int)(0.1f * SERVER_FPS)) == 0)
 				{
 					T_Damage (current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1*waterlevel, 0, 0, MOD_SLIME);
 				}
@@ -866,7 +867,7 @@ void G_SetClientFrame (edict_t *ent)
 	if (ent->s.modelindex != 255)
 		return;		// not in the player model
 
-	if ((level.framenum % (int)(0.1f / FRAMETIME)) != 0)
+	if ((level.framenum % (int)(0.1f * SERVER_FPS)) != 0)
 		return;		// not time to advance a frame (anims only run at 10 hz)
 
 	client = ent->client;
@@ -1037,7 +1038,7 @@ void ClientEndServerFrame (edict_t *ent)
 			bobmove = 0.0625;
 	}
 
-	bobmove *= (10 / (1/FRAMETIME));
+	bobmove *= (10.0f / (1 * SERVER_FPS));
 	
 	bobtime = (current_client->bobtime += bobmove);
 

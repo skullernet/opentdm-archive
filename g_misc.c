@@ -179,7 +179,7 @@ void ThrowGib (edict_t *self, char *gibname, int damage, int type)
 	gib->avelocity[2] = random()*600;
 
 	gib->think = G_FreeEdict;
-	gib->nextthink = level.time + (10 + random()*10) * (1 / FRAMETIME);
+	gib->nextthink = level.time + (10 + random()*10) * (1 * SERVER_FPS);
 
 	gi.linkentity (gib);
 }
@@ -225,7 +225,7 @@ void ThrowHead (edict_t *self, char *gibname, int damage, int type)
 	self->avelocity[YAW] = crandom()*600;
 
 	self->think = G_FreeEdict;
-	self->nextthink = level.time + (10 + random()*10) * (1 / FRAMETIME);
+	self->nextthink = level.time + (10 + random()*10) * (1 * SERVER_FPS);
 
 	gi.linkentity (self);
 }
@@ -310,7 +310,7 @@ void ThrowDebris (edict_t *self, char *modelname, float speed, vec3_t origin)
 	chunk->avelocity[1] = random()*600;
 	chunk->avelocity[2] = random()*600;
 	chunk->think = G_FreeEdict;
-	chunk->nextthink = level.time + (5 + random()*5) * (1 / FRAMETIME);
+	chunk->nextthink = level.time + (5 + random()*5) * (1 * SERVER_FPS);
 	chunk->s.frame = 0;
 	chunk->flags = 0;
 	chunk->classname = "debris";
@@ -565,7 +565,7 @@ void SP_func_object (edict_t *self)
 		self->solid = SOLID_BSP;
 		self->movetype = MOVETYPE_PUSH;
 		self->think = func_object_release;
-		self->nextthink = level.time + (2 * FRAMETIME) * (1 / FRAMETIME);
+		self->nextthink = level.time + (2 * FRAMETIME) * (1 * SERVER_FPS);
 	}
 	else
 	{
@@ -743,11 +743,11 @@ void misc_blackhole_use (edict_t *ent, edict_t *other, edict_t *activator)
 void misc_blackhole_think (edict_t *self)
 {
 	if (++self->s.frame < 19)
-		self->nextthink = level.time + 0.1f / FRAMETIME;
+		self->nextthink = level.time + 0.1f * SERVER_FPS;
 	else
 	{		
 		self->s.frame = 0;
-		self->nextthink = level.time + 0.1f / FRAMETIME;
+		self->nextthink = level.time + 0.1f * SERVER_FPS;
 	}
 }
 
@@ -771,11 +771,11 @@ void SP_misc_blackhole (edict_t *ent)
 void misc_eastertank_think (edict_t *self)
 {
 	if (++self->s.frame < 293)
-		self->nextthink = level.time + 0.1f / FRAMETIME;
+		self->nextthink = level.time + 0.1f * SERVER_FPS;
 	else
 	{		
 		self->s.frame = 254;
-		self->nextthink = level.time + 0.1f / FRAMETIME;
+		self->nextthink = level.time + 0.1f * SERVER_FPS;
 	}
 }
 
@@ -788,7 +788,7 @@ void SP_misc_eastertank (edict_t *ent)
 	ent->s.modelindex = gi.modelindex ("models/monsters/tank/tris.md2");
 	ent->s.frame = 254;
 	ent->think = misc_eastertank_think;
-	ent->nextthink = level.time + 2 * (0.1f / FRAMETIME);
+	ent->nextthink = level.time + 2 * (0.1f * SERVER_FPS);
 	gi.linkentity (ent);
 }
 
@@ -896,7 +896,7 @@ void SP_monster_commander_body (edict_t *self)
 	gi.soundindex ("tank/pain.wav");
 
 	self->think = commander_body_drop;
-	self->nextthink = level.time + 5 * (1 / FRAMETIME);
+	self->nextthink = level.time + 5 * (1 * SERVER_FPS);
 }
 
 
@@ -1104,14 +1104,14 @@ void misc_satellite_dish_think (edict_t *self)
 {
 	self->s.frame++;
 	if (self->s.frame < 38)
-		self->nextthink = level.time + 0.1f / FRAMETIME;
+		self->nextthink = level.time + 0.1f * SERVER_FPS;
 }
 
 void misc_satellite_dish_use (edict_t *self, edict_t *other, edict_t *activator)
 {
 	self->s.frame = 0;
 	self->think = misc_satellite_dish_think;
-	self->nextthink = level.time + 0.1f / FRAMETIME;
+	self->nextthink = level.time + 0.1f * SERVER_FPS;
 }
 
 void SP_misc_satellite_dish (edict_t *ent)
@@ -1165,7 +1165,7 @@ void SP_misc_gib_arm (edict_t *ent)
 	ent->avelocity[1] = random()*200;
 	ent->avelocity[2] = random()*200;
 	ent->think = G_FreeEdict;
-	ent->nextthink = level.time + 30 * (1 / FRAMETIME);
+	ent->nextthink = level.time + 30 * (1 * SERVER_FPS);
 	gi.linkentity (ent);
 }
 
@@ -1186,7 +1186,7 @@ void SP_misc_gib_leg (edict_t *ent)
 	ent->avelocity[1] = random()*200;
 	ent->avelocity[2] = random()*200;
 	ent->think = G_FreeEdict;
-	ent->nextthink = level.time + 30 * (1 / FRAMETIME);
+	ent->nextthink = level.time + 30 * (1 * SERVER_FPS);
 	gi.linkentity (ent);
 }
 
@@ -1207,7 +1207,7 @@ void SP_misc_gib_head (edict_t *ent)
 	ent->avelocity[1] = random()*200;
 	ent->avelocity[2] = random()*200;
 	ent->think = G_FreeEdict;
-	ent->nextthink = level.time + 30 * (1 / FRAMETIME);
+	ent->nextthink = level.time + 30 * (1 * SERVER_FPS);
 	gi.linkentity (ent);
 }
 
@@ -1392,7 +1392,7 @@ void func_clock_think (edict_t *self)
 			return;
 	}
 
-	self->nextthink = level.time + 1 * (1 / FRAMETIME);
+	self->nextthink = level.time + 1 * (1 * SERVER_FPS);
 }
 
 void func_clock_use (edict_t *self, edict_t *other, edict_t *activator)
@@ -1433,7 +1433,7 @@ void SP_func_clock (edict_t *self)
 	if (self->spawnflags & 4)
 		self->use = func_clock_use;
 	else
-		self->nextthink = level.time + 1 * (1 / FRAMETIME);
+		self->nextthink = level.time + 1 * (1 * SERVER_FPS);
 }
 
 //=================================================================================

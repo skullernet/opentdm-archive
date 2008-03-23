@@ -173,8 +173,8 @@ void PMenu_Select(edict_t *ent);
 //==================================================================
 
 // view pitching times
-#define DAMAGE_TIME		(0.5f * (1 / FRAMETIME))
-#define	FALL_TIME		(0.3f * (1 / FRAMETIME))
+#define DAMAGE_TIME		(0.5f * (1 * SERVER_FPS))
+#define	FALL_TIME		(0.3f * (1 * SERVER_FPS))
 
 //#define DAMAGE_TIME		0.5f
 //#define	FALL_TIME		0.3f
@@ -204,11 +204,12 @@ void PMenu_Select(edict_t *ent);
 #define FL_RESPAWN				0x80000000	// used for item respawning
 
 //#define	FRAMETIME		0.05f
-extern float FRAMETIME;
+extern float	FRAMETIME;
+extern int		SERVER_FPS;
 
 //define for variable frametime support
-#define SECS_TO_FRAMES(seconds)	(int)((seconds)/FRAMETIME)
-#define FRAMES_TO_SECS(frames)	(int)((frames)*FRAMETIME)
+#define SECS_TO_FRAMES(seconds)	(int)((seconds)* SERVER_FPS)
+#define FRAMES_TO_SECS(frames)	(int)((frames) * FRAMETIME)
 
 // memory tags to allow dynamic memory to be cleaned up
 #define	TAG_GAME	765		// clear when unloading the dll

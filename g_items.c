@@ -123,7 +123,7 @@ void SetRespawn (edict_t *ent, float delay)
 	ent->flags |= FL_RESPAWN;
 	ent->svflags |= SVF_NOCLIENT;
 	ent->solid = SOLID_NOT;
-	ent->nextthink = level.time + delay * (1 / FRAMETIME);
+	ent->nextthink = level.time + delay * (1 * SERVER_FPS);
 	ent->think = DoRespawn;
 	gi.linkentity (ent);
 }
@@ -492,7 +492,7 @@ void MegaHealth_think (edict_t *self)
 {
 	if (self->owner->health > self->owner->max_health)
 	{
-		self->nextthink = level.time + 1 * (1 / FRAMETIME);
+		self->nextthink = level.time + 1 * (1 * SERVER_FPS);
 		self->owner->health -= 1;
 		return;
 	}
@@ -520,7 +520,7 @@ qboolean Pickup_Health (edict_t *ent, edict_t *other)
 	if (ent->style & HEALTH_TIMED)
 	{
 		ent->think = MegaHealth_think;
-		ent->nextthink = level.time + 5 * (1 / FRAMETIME);
+		ent->nextthink = level.time + 5 * (1 * SERVER_FPS);
 		ent->owner = other;
 		ent->flags |= FL_RESPAWN;
 		ent->svflags |= SVF_NOCLIENT;
@@ -729,7 +729,7 @@ void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf
 		// show icon and name on status bar
 		other->client->ps.stats[STAT_PICKUP_ICON] = gi.imageindex(ent->item->icon);
 		other->client->ps.stats[STAT_PICKUP_STRING] = CS_ITEMS+ITEM_INDEX(ent->item);
-		other->client->pickup_msg_time = level.time + 3.0f * (1 / FRAMETIME);
+		other->client->pickup_msg_time = level.time + 3 * (1 * SERVER_FPS);
 
 		// change selected item
 
@@ -784,7 +784,7 @@ static void drop_temp_touch (edict_t *ent, edict_t *other, cplane_t *plane, csur
 static void drop_make_touchable (edict_t *ent)
 {
 	ent->touch = Touch_Item;
-	ent->nextthink = level.time + 29 * (1 / FRAMETIME);
+	ent->nextthink = level.time + 29 * (1 * SERVER_FPS);
 	ent->think = G_FreeEdict;
 }
 
@@ -830,7 +830,7 @@ edict_t *Drop_Item (edict_t *ent, const gitem_t *item)
 	dropped->velocity[2] = 300;
 
 	dropped->think = drop_make_touchable;
-	dropped->nextthink = level.time + 1 * (1 / FRAMETIME);
+	dropped->nextthink = level.time + 1 * (1 * SERVER_FPS);
 
 	gi.linkentity (dropped);
 

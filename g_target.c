@@ -182,7 +182,7 @@ void use_target_explosion (edict_t *self, edict_t *other, edict_t *activator)
 	}
 
 	self->think = target_explosion_explode;
-	self->nextthink = level.time + self->delay * (1 / FRAMETIME);
+	self->nextthink = level.time + self->delay * (1 * SERVER_FPS);
 }
 
 void SP_target_explosion (edict_t *ent)
@@ -403,7 +403,7 @@ void SP_target_crosslevel_target (edict_t *self)
 	self->svflags = SVF_NOCLIENT;
 
 	self->think = target_crosslevel_target_think;
-	self->nextthink = level.time + self->delay * (1 / FRAMETIME);
+	self->nextthink = level.time + self->delay * (1 * SERVER_FPS);
 }
 
 //==========================================================
@@ -564,7 +564,7 @@ void SP_target_laser (edict_t *self)
 {
 	// let everything else get spawned before we start firing
 	self->think = target_laser_start;
-	self->nextthink = level.time + 1 * (1 / FRAMETIME);
+	self->nextthink = level.time + 1 * (1 * SERVER_FPS);
 }
 
 //==========================================================
@@ -578,7 +578,7 @@ void target_lightramp_think (edict_t *self)
 {
 	char	style[2];
 
-	style[0] = 'a' + self->movedir[0] + level.time - (self->timestamp) / FRAMETIME * self->movedir[2];
+	style[0] = 'a' + self->movedir[0] + level.time - (self->timestamp) * SERVER_FPS * self->movedir[2];
 	style[1] = 0;
 	gi.configstring (CS_LIGHTS+self->enemy->style, style);
 
@@ -663,7 +663,7 @@ void target_earthquake_think (edict_t *self)
 	if (self->last_move_time < level.time)
 	{
 		gi.positioned_sound (self->s.origin, self, CHAN_AUTO, self->noise_index, 1.0, ATTN_NONE, 0);
-		self->last_move_time = level.time + 0.5 * (1 / FRAMETIME);
+		self->last_move_time = level.time + 0.5 * (1 * SERVER_FPS);
 	}
 
 	for (i=1, e=g_edicts+i; i < globals.num_edicts; i++,e++)

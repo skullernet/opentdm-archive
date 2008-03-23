@@ -350,7 +350,7 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 	bolt->s.sound = gi.soundindex ("misc/lasfly.wav");
 	bolt->owner = self;
 	bolt->touch = blaster_touch;
-	bolt->nextthink = level.time + 2 * (1 / FRAMETIME);
+	bolt->nextthink = level.time + 2 * (1 * SERVER_FPS);
 	bolt->think = G_FreeEdict;
 	bolt->dmg = damage;
 	bolt->classname = "bolt";
@@ -485,7 +485,7 @@ void fire_grenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
 	grenade->s.modelindex = gi.modelindex ("models/objects/grenade/tris.md2");
 	grenade->owner = self;
 	grenade->touch = Grenade_Touch;
-	grenade->nextthink = level.time + timer * (1 / FRAMETIME);
+	grenade->nextthink = level.time + timer * (1 * SERVER_FPS);
 	grenade->think = Grenade_Explode;
 	grenade->dmg = damage;
 	grenade->dmg_radius = damage_radius;
@@ -522,7 +522,7 @@ void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int 
 	grenade->s.modelindex = gi.modelindex ("models/objects/grenade2/tris.md2");
 	grenade->owner = self;
 	grenade->touch = Grenade_Touch;
-	grenade->nextthink = level.time + timer * (1 / FRAMETIME);
+	grenade->nextthink = level.time + timer * (1 * SERVER_FPS);
 	grenade->think = Grenade_Explode;
 	grenade->dmg = damage;
 	grenade->dmg_radius = damage_radius;
@@ -604,7 +604,7 @@ void fire_rocket (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 	rocket->s.modelindex = gi.modelindex ("models/objects/rocket/tris.md2");
 	rocket->owner = self;
 	rocket->touch = rocket_touch;
-	rocket->nextthink = level.time + (8000/speed) * (1 / FRAMETIME);
+	rocket->nextthink = level.time + (8000/speed) * (1 * SERVER_FPS);
 	rocket->think = G_FreeEdict;
 	rocket->dmg = damage;
 	rocket->radius_dmg = radius_damage;
@@ -725,7 +725,7 @@ void bfg_explode (edict_t *self)
 		}
 	}
 
-	self->nextthink = level.time + 0.1 * (1 / FRAMETIME);
+	self->nextthink = level.time + 0.1f * (1 * SERVER_FPS);
 	self->s.frame++;
 	if (self->s.frame == 5)
 		self->think = G_FreeEdict;
@@ -844,7 +844,7 @@ void bfg_think (edict_t *self)
 		gi.multicast (self->s.origin, MULTICAST_PHS);
 	}
 
-	self->nextthink = level.time + 0.1f / FRAMETIME;
+	self->nextthink = level.time + 0.1f * SERVER_FPS;
 }
 
 
@@ -867,7 +867,7 @@ void fire_bfg (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, f
 	bfg->s.modelindex = gi.modelindex ("sprites/s_bfg1.sp2");
 	bfg->owner = self;
 	bfg->touch = bfg_touch;
-	bfg->nextthink = level.time + (8000/speed) * (1 / FRAMETIME);
+	bfg->nextthink = level.time + (8000/speed) * (1 * SERVER_FPS);
 	bfg->think = G_FreeEdict;
 	bfg->radius_dmg = damage;
 	bfg->dmg_radius = damage_radius;
