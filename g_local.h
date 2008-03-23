@@ -1167,6 +1167,7 @@ struct matchinfo_s
 	teamplayer_t	*captains[MAX_TEAMS];
 	int				num_teamplayers;
 	qboolean		is1v1;
+	int				max_players_per_team;
 };
 
 extern matchinfo_t	current_matchinfo;

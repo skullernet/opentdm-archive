@@ -1113,11 +1113,11 @@ void TDM_Invite_f (edict_t *ent)
 		return;
 	}
 
-	/*if (tdm_match_status != MM_WARMUP)
+	if (tdm_match_status != MM_WARMUP && tdm_match_status != MM_PLAYING && tdm_match_status != MM_TIMEOUT)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "You can only invite players during warmup.\n");
+		gi.cprintf (ent, PRINT_HIGH, "You can only invite players during warmup or during the match.\n");
 		return;
-	}*/
+	}
 
 	if (LookupPlayer (gi.args(), &victim, ent))
 	{
@@ -1179,11 +1179,11 @@ void TDM_PickPlayer_f (edict_t *ent)
 		return;
 	}
 
-	/*if (tdm_match_status != MM_WARMUP)
+	if (tdm_match_status != MM_WARMUP && tdm_match_status != MM_PLAYING && tdm_match_status != MM_TIMEOUT)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "You can only pick players during warmup.\n");
+		gi.cprintf (ent, PRINT_HIGH, "You can only pick players during warmup or during the match.\n");
 		return;
-	}*/
+	}
 
 	if (TDM_RateLimited (ent, SECS_TO_FRAMES(1)))
 		return;
@@ -1226,12 +1226,12 @@ void TDM_Accept_f (edict_t *ent)
 		return;
 	}
 
-	/*if (tdm_match_status != MM_WARMUP)
+	if (tdm_match_status != MM_WARMUP && tdm_match_status != MM_PLAYING && tdm_match_status != MM_TIMEOUT)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "The match has already started!\n");
+		gi.cprintf (ent, PRINT_HIGH, "You can only accept an invite during the match or warmup!\n");
 		ent->client->resp.last_invited_by = NULL;
 		return;
-	}*/
+	}
 
 	//holy dereference batman
 	if (!ent->client->resp.last_invited_by->inuse ||
@@ -1243,7 +1243,8 @@ void TDM_Accept_f (edict_t *ent)
 	}
 
 	//prevent invite going over max allowed on a team
-	if (g_max_players_per_team->value && teaminfo[ent->client->resp.last_invited_by->client->resp.team].players >= g_max_players_per_team->value)
+	if ((g_max_players_per_team->value && teaminfo[ent->client->resp.last_invited_by->client->resp.team].players >= g_max_players_per_team->value) ||
+		(tdm_match_status >= MM_PLAYING && teaminfo[ent->client->resp.last_invited_by->client->resp.team].players >= current_matchinfo.max_players_per_team))
 	{
 		gi.cprintf (ent, PRINT_HIGH, "The team is already full.\n");
 		ent->client->resp.last_invited_by = NULL;

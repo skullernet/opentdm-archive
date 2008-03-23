@@ -1351,6 +1351,11 @@ void TDM_SetupMatchInfoAndTeamPlayers (void)
 
 	if (teaminfo[TEAM_B].captain)
 		current_matchinfo.captains[TEAM_B] = teaminfo[TEAM_B].captain->client->resp.teamplayerinfo;
+
+	if (teaminfo[TEAM_A].players > teaminfo[TEAM_B].players)
+		current_matchinfo.max_players_per_team = teaminfo[TEAM_A].players;
+	else
+		current_matchinfo.max_players_per_team = teaminfo[TEAM_B].players;
 }
 
 /*
