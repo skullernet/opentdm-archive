@@ -633,6 +633,14 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTwoClosest (void)
 	int		i;
 	float	range, range1, range2;
 
+	// wision: on maps with small number of spawns use just random spawn
+	if (level.numspawns < 6)
+	{
+		selection = genrand_int32() % level.numspawns;
+		spot = level.spawns[selection];
+		return spot;
+	}
+	
 	spot = NULL;
 	range1 = range2 = 99999;
 	spot1 = spot2 = NULL;
@@ -1045,6 +1053,11 @@ void PutClientInServer (edict_t *ent)
 		ent->svflags |= SVF_NOCLIENT;
 		ent->client->ps.gunindex = 0;
 		gi.linkentity (ent);
+
+		// wision: move to intermission if it's end of the match
+		if (tdm_match_status == MM_SCOREBOARD)
+			MoveClientToIntermission (ent);
+
 		return;
 	}
 

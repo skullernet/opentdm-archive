@@ -716,6 +716,16 @@ qboolean TDM_VotePowerups (edict_t *ent)
 		if (!value[0])
 			break;
 
+		// wision: consider 1 as +all and 0 as -all
+		if (!Q_stricmp (value, "1"))
+		{
+			value = "+all";
+		}
+		else if (!Q_stricmp (value, "0"))
+		{
+			value = "-all";
+		}
+		
 		modifier = value[0];
 		if (modifier == '+' || modifier == '-')
 			value++;
@@ -1086,6 +1096,7 @@ qboolean TDM_VoteConfig (edict_t *ent)
 	size_t			len;
 	size_t			i;
 	tdm_config_t	config;
+	qboolean		hasExtension;
 
 	value = gi.argv(2);
 	if (!value[0])
@@ -1102,6 +1113,14 @@ qboolean TDM_VoteConfig (edict_t *ent)
 		return false;
 	}
 
+	if (!Q_stricmp (value + len - 4, ".cfg"))
+	{
+		hasExtension = true;
+		len -= 4;
+	}
+	else
+		hasExtension = false;
+
 	for (i = 0; i < len; i++)
 	{
 		if (!isalnum (value[i]) && value[i] != '_' && value[i] != '-')
@@ -1111,7 +1130,10 @@ qboolean TDM_VoteConfig (edict_t *ent)
 		}
 	}
 
-	Com_sprintf (path, sizeof(path), "./%s/configs/%s.cfg", game.gamedir, value);
+	if (hasExtension)
+		Com_sprintf (path, sizeof(path), "./%s/configs/%s", game.gamedir, value);
+	else
+		Com_sprintf (path, sizeof(path), "./%s/configs/%s.cfg", game.gamedir, value);
 
 	confFile = fopen (path, "rb");
 	if (!confFile)

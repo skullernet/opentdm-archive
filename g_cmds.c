@@ -457,10 +457,9 @@ void Cmd_Drop_f (edict_t *ent)
 	char			*s;
 
 	//wision: drop item during warmup (instagib) is soooo ugly
-	if (tdm_match_status == MM_WARMUP || tdm_match_status == MM_TIMEOUT ||
-			 tdm_match_status == MM_COUNTDOWN || ((int)g_gamemode->value == GAMEMODE_ITDM))
+	if ((tdm_match_status < MM_PLAYING || tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD) ||
+		(int)g_gamemode->value == GAMEMODE_ITDM)
 	{
-//		gi.cprintf (ent, PRINT_HIGH, "Can't drop items during warmup.\n");
 		return;
 	}
 
@@ -695,8 +694,12 @@ void Cmd_InvDrop_f (edict_t *ent)
 {
 	const gitem_t		*it;
 
-	if (tdm_match_status == MM_TIMEOUT)
+	//wision: drop item during warmup (instagib) is soooo ugly
+	if ((tdm_match_status < MM_PLAYING || tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD) ||
+		(int)g_gamemode->value == GAMEMODE_ITDM)
+	{
 		return;
+	}
 
 	ValidateSelectedItem (ent);
 
@@ -712,6 +715,7 @@ void Cmd_InvDrop_f (edict_t *ent)
 		gi.cprintf (ent, PRINT_HIGH, "Item is not dropable.\n");
 		return;
 	}
+
 	it->drop (ent, it);
 }
 
@@ -1014,31 +1018,49 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	}
 }
 
-void Cmd_PlayerList_f(edict_t *ent)
+void Cmd_PlayerList_f (edict_t *ent)
 {
-	int		i;
 	char	st[128];
 	char	text[1024];
+	char	ip[32];
 	edict_t	*e2;
 
-	// connect time, ping, score, name
-	*text = 0;
+	// show players' ips for admin
+	if (ent->client->pers.admin)
+		strcpy (text, "id  time    ping   score                ip  name          team\n");
+	else
+		strcpy (text, "id  time    ping   score  name          team\n");
 
-	//wision: better output with id
-	strcat(text, "id  time    ping   score  name          team\n");
-	strcat(text, "----------------------------------------------\n");
+	strcat (text, "----------------------------------------------\n");
 
-	for (i = 0, e2 = g_edicts + 1; i < game.maxclients; i++, e2++)
+	ip[0] = '[';
+
+	for (e2 = g_edicts + 1; e2 <= g_edicts + game.maxclients; e2++)
 	{
 		if (!e2->inuse)
 			continue;
 
-		Com_sprintf (st, sizeof(st), "%2d  %02d:%02d   %4d     %3d  %-12s  %s%s\n",
-			i,
+		if (ent->client->pers.admin)
+		{
+			char	*p;
+
+			strcpy (ip + 1, ent->client->pers.ip);
+
+			p = strchr (ip, ':');
+			if (p)
+			{
+				p[0] = ']';
+				p[1] = '\0';
+			}
+		}
+
+		Com_sprintf (st, sizeof(st), "%2d  %02d:%02d   %4d     %3d %s %-12s  %s%s\n",
+			e2 - g_edicts - 1,
 			(level.framenum - e2->client->resp.enterframe) / 600,
 			((level.framenum - e2->client->resp.enterframe) % 600)/10,
 			e2->client->ping,
 			e2->client->resp.score,
+			ent->client->pers.admin ? va ("%17s ", ip) : "",
 			e2->client->pers.netname,
 			teaminfo[e2->client->resp.team].name,
 			e2->client->resp.team == TEAM_SPEC && e2->client->chase_target ? 
@@ -1046,14 +1068,14 @@ void Cmd_PlayerList_f(edict_t *ent)
 
 		if (strlen(text) > 800)
 		{
-			gi.cprintf(ent, PRINT_HIGH, "%s", text);
+			gi.cprintf (ent, PRINT_HIGH, "%s", text);
 			text[0] = 0;
 		}
 
-		strcat(text, st);
+		strcat (text, st);
 	}
 
-	gi.cprintf(ent, PRINT_HIGH, "%s", text);
+	gi.cprintf (ent, PRINT_HIGH, "%s", text);
 }
 
 /*

@@ -90,6 +90,7 @@ cvar_t	*g_match_countdown;
 cvar_t	*g_vote_time;
 cvar_t	*g_intermission_time;
 cvar_t	*g_force_screenshot;
+cvar_t	*g_force_record;
 
 cvar_t	*g_tdmflags;
 cvar_t	*g_itdmflags;

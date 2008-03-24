@@ -872,12 +872,79 @@ qboolean TDM_Is1V1 (void)
 
 /*
 ==============
+TDM_MakeDemoName
+==============
+All players are ready so start the countdown
+*/
+const char *TDM_MakeDemoName (edict_t *ent)
+{
+	int			i;
+	int			len;
+	struct tm	*ts;
+	time_t		t;
+	cvar_t		*hostname;
+	char		*servername;
+	static char	string[1400];
+
+	hostname = gi.cvar ("hostname", NULL, 0);
+	
+	if (hostname)
+		servername = hostname->string;
+	else
+		servername = "unknown_server";
+
+	t = time (NULL);
+	ts = localtime (&t);
+
+	// current format: playername-team_a-team_b-servername-map-year-mon-day-hour-min-sec
+	sprintf (string, "%s-%s-%s-%s-%s_%d-%02d-%02d_%02d-%02d-%02d",
+			ent->client->pers.netname,
+			teaminfo[ent->client->resp.team].name,
+			teaminfo[(ent->client->resp.team%2)+1].name,
+			servername,
+			level.mapname,
+			ts->tm_year + 1900,
+			ts->tm_mon + 1,
+			ts->tm_mday,
+			ts->tm_hour,
+			ts->tm_min,
+			ts->tm_sec
+			);
+
+	// filter not allowed characters
+	len = strlen(string);
+
+	for (i = 0; i < len; i++)
+	{
+		if ((string[i] < '!' && string[i] > '~') || string[i] == '\\' || string[i] == '\"' || 
+				string[i] == ':' || string[i] == '*' || string[i] == '/' || string[i] == '?' ||
+				string[i] == '>' || string[i] == '<' || string[i] == '|' || string[i] == ' ')
+			string[i] = '_';
+	}
+
+	return string;
+}
+
+/*
+==============
 TDM_BeginCountdown
 ==============
 All players are ready so start the countdown
 */
 void TDM_BeginCountdown (void)
 {
+	// wision: force players to record
+	if (g_force_record->value == 1)
+	{
+		edict_t *client;
+
+		for (client = g_edicts + 1; client <= g_edicts + game.maxclients; client++)
+		{
+			if (client->inuse && client->client->resp.team)
+				G_StuffCmd (client, "record \"%s\"\n", TDM_MakeDemoName (client));
+		}
+	}
+	
 	gi.bprintf (PRINT_HIGH, "Match Settings:\n%s", TDM_SettingsString ());
 
 	gi.bprintf (PRINT_CHAT, "All players ready! Starting countdown (%g secs)...\n", g_match_countdown->value);

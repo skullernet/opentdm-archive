@@ -176,8 +176,8 @@ void InitGame (void)
 	bob_roll = gi.cvar ("bob_roll", "0.002", 0);
 
 	// flood control
-	flood_msgs = gi.cvar ("flood_msgs", "4", 0);
-	flood_persecond = gi.cvar ("flood_persecond", "4", 0);
+	flood_msgs = gi.cvar ("flood_msgs", "8", 0);
+	flood_persecond = gi.cvar ("flood_persecond", "8", 0);
 	flood_waitdelay = gi.cvar ("flood_waitdelay", "10", 0);
 
 	// dm map list
@@ -206,6 +206,7 @@ void InitGame (void)
 	g_vote_time = gi.cvar ("g_vote_time", "30", 0);
 	g_intermission_time = gi.cvar ("g_intermission_time", "5", 0);
 	g_force_screenshot = gi.cvar ("g_force_screenshot", "0", 0);
+	g_force_record = gi.cvar ("g_force_record", "0", 0);
 
 	g_tdmflags = gi.cvar ("g_tdmflags", "1040", 0);
 	g_itdmflags = gi.cvar ("g_itdmflags", "142427", 0);

@@ -752,6 +752,7 @@ extern	cvar_t	*g_match_countdown;
 extern	cvar_t	*g_vote_time;
 extern	cvar_t	*g_intermission_time;
 extern	cvar_t	*g_force_screenshot;
+extern	cvar_t	*g_force_record;
 
 extern	cvar_t	*g_tdmflags;
 extern	cvar_t	*g_itdmflags;

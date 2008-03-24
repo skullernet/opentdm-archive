@@ -199,8 +199,8 @@ void TDM_Damage (edict_t *ent, edict_t *victim, edict_t *inflictor, int damage)
 	if (ent->client->resp.team == victim->client->resp.team)
 		return;
 
-	//Only count one hit, eg shotgun or rocket radius damage
-	if (weapon_hit)
+	//Only count one hit, eg shotgun or rocket radius damage. apparently railgun should ignore this rule.
+	if (weapon_hit && weapon != TDMG_RAILGUN)
 		return;
 
 	//Add stats
@@ -264,7 +264,10 @@ char *TDM_BuildAccuracyString (edict_t *ent, teamplayer_t *info)
 		}
 	}
 
-	strcat (stats, va("Overall accuracy: %.1f%%\n", ((float)total_hit / (float)total_shot) * 100));
+	if (total_shot)
+		strcat (stats, va("Overall accuracy: %.1f%%\n", ((float)total_hit / (float)total_shot) * 100));
+	else
+		strcat (stats, "Overall accuracy: 0%%\n");
 
 	return stats;
 }
@@ -335,7 +338,10 @@ char *TDM_BuildTeamAccuracyString (edict_t *ent, matchinfo_t *info, unsigned tea
 		}
 	}
 
-	strcat (stats, va("Overall accuracy: %.1f%%\n", ((float)total_hit / (float)total_shot) * 100));
+	if (total_shot)
+		strcat (stats, va("Overall accuracy: %.1f%%\n", ((float)total_hit / (float)total_shot) * 100));
+	else
+		strcat (stats, "Overall accuracy: 0%%\n");
 
 	return stats;
 }

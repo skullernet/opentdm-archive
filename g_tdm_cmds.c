@@ -1261,6 +1261,40 @@ void TDM_Accept_f (edict_t *ent)
 
 /*
 ==============
+TDM_PrintPlayers
+==============
+Prints the list of current players and their ID.
+*/
+void TDM_PrintPlayers (edict_t *ent)
+{
+	char	st[128];
+	char	text[1024];
+	edict_t	*e2;
+
+	strcpy (text, "  id  name\n");
+	strcat (text, "  --------\n");
+
+	for (e2 = g_edicts + 1; e2 <= g_edicts + game.maxclients; e2++)
+	{
+		if (!e2->inuse)
+			continue;
+
+		Com_sprintf (st, sizeof(st), "  %2d  %s\n", e2 - g_edicts - 1, e2->client->pers.netname);
+
+		if (strlen(text) > 900)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "%s", text);
+			text[0] = 0;
+		}
+
+		strcat (text, st);
+	}
+
+	gi.cprintf (ent, PRINT_HIGH, "%s", text);
+}
+
+/*
+==============
 TDM_Talk_f
 ==============
 Talk to a player.
@@ -1272,6 +1306,7 @@ void TDM_Talk_f (edict_t *ent)
 	if (gi.argc() < 3)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Usage: %s <name/id> message\n", gi.argv(0));
+		TDM_PrintPlayers (ent);
 		return;
 	}
 
