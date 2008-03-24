@@ -636,6 +636,7 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTwoClosest (void)
 	spot = NULL;
 	range1 = range2 = 99999;
 	spot1 = spot2 = NULL;
+	player1 = player2 = NULL;
 
 	for (i = 0; i < level.numspawns; i++)
 	{

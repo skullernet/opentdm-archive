@@ -217,7 +217,7 @@ void TDM_Powerups_f (edict_t *ent)
 		flags = 0;
 	else
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: powerups 1/0.\n", settings);
+		gi.cprintf (ent, PRINT_HIGH, "Usage: powerups 1/0.\n");
 		return;
 	}
 
@@ -456,7 +456,7 @@ Set overtime.
 void TDM_Overtime_f (edict_t *ent)
 {
 	int		tiemode;
-	unsigned	overtimemins;
+	unsigned	overtimemins = 0;
 	const char	*input;
 	const char	*time;
 	char		value[16];
