@@ -1680,11 +1680,9 @@ void TDM_Ready_f (edict_t *ent)
 	if (tdm_match_status >= MM_PLAYING)
 		return;
 
+	//apparently this should not toggle
 	if (ent->client->resp.ready)
-	{
-		TDM_NotReady_f(ent);
 		return;
-	}
 
 	if (TDM_RateLimited (ent, SECS_TO_FRAMES(1)))
 		return;
