@@ -754,6 +754,7 @@ Cmd_PutAway_f
 */
 void Cmd_PutAway_f (edict_t *ent)
 {
+	ent->client->showmotd = false;
 	ent->client->showscores = false;
 	ent->client->showoldscores = false;
 
@@ -856,8 +857,8 @@ void Cmd_Wave_f (edict_t *ent)
 
 		if (level.framenum < cl->resp.flood_waves_locktill)
 		{
-			gi.cprintf(ent, PRINT_HIGH, "You can't use waves for %d more minutes\n",
-				(int)((cl->resp.flood_waves_locktill - level.framenum)/(60 * SERVER_FPS)));
+//			gi.cprintf(ent, PRINT_HIGH, "You can't use waves for %d more minutes\n",
+//				(int)((cl->resp.flood_waves_locktill - level.framenum)/(60 * SERVER_FPS)));
 			return;
 		}
 		i = cl->resp.flood_waves_whenhead - flood_waves->value + 1;
@@ -928,10 +929,11 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 		return;
 
 	// wision: don't allow spectators to talk during shutup mode
-	if (g_chat_mode->value == 2 && !ent->client->resp.team)
+	if (g_chat_mode->value == 2 && !ent->client->resp.team && !ent->client->pers.admin)
 		return;
 	
-	if (tdm_match_status > MM_COUNTDOWN && tdm_match_status < MM_SCOREBOARD && !ent->client->resp.team && g_chat_mode->value == 1)
+	if (tdm_match_status > MM_COUNTDOWN && tdm_match_status < MM_SCOREBOARD &&
+			!ent->client->resp.team && !ent->client->pers.admin && g_chat_mode->value == 1)
 	{
 		//Observers can talk only to each other during the match.
 		team = true;
@@ -1119,12 +1121,25 @@ void ClientCommand (edict_t *ent)
 		Cmd_Help_f (ent);
 		return;
 	}
+	if (Q_stricmp(cmd, "playerlist") == 0 || Q_stricmp (cmd, "players") == 0 || Q_stricmp (cmd, "details") == 0)
+	{
+		Cmd_PlayerList_f(ent);
+		return;
+	}
 
 	if (level.intermissionframe)
 		return;
 
 	if (TDM_Command (cmd, ent))
 		return;
+
+	if (tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
+	{
+		// ppl usually spam these binds.. so don't print them
+		if (Q_stricmp (cmd, "use") && Q_stricmp (cmd, "invuse") && Q_stricmp (cmd, "drop") && Q_stricmp (cmd, "wave"))
+			Cmd_Say_f (ent, false, true);
+		return;
+	}
 
 	if (Q_stricmp (cmd, "use") == 0)
 		Cmd_Use_f (ent);
@@ -1168,8 +1183,6 @@ void ClientCommand (edict_t *ent)
 		Cmd_PutAway_f (ent);
 	else if (Q_stricmp (cmd, "wave") == 0)
 		Cmd_Wave_f (ent);
-	else if (Q_stricmp(cmd, "playerlist") == 0 || Q_stricmp (cmd, "players") == 0 || Q_stricmp (cmd, "details") == 0)
-		Cmd_PlayerList_f(ent);
 	else	// anything that doesn't match a command will be a chat
 		Cmd_Say_f (ent, false, true);
 }

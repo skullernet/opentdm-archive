@@ -122,10 +122,13 @@ cvar_t	*g_debug_spawns;
 cvar_t	*g_max_players_per_team;
 
 cvar_t	*g_maplistfile;
+cvar_t	*g_motd_message;
 
 cvar_t	*g_bugs;
 
 cvar_t	*g_allow_name_change_during_match;
+
+cvar_t	*g_allow_vote_config;
 
 void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint);
 void ClientThink (edict_t *ent, usercmd_t *cmd);
@@ -523,15 +526,3 @@ void G_RunFrame (void)
 		level.time = level.framenum;// * FRAMETIME;
 	}
 }
-
-#ifdef _WIN32
-void Sys_DebugBreak (void)
-{
-	__asm int 3;
-}
-#else
-void Sys_DebugBreak (void)
-{
-	asm ("int $3");
-}
-#endif

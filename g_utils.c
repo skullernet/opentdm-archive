@@ -601,38 +601,41 @@ qboolean KillBox (edict_t *ent)
 	int		count;
 	int		i;
 
-	//r1: much more vicious telefrag code, nukes anything that isn't ent
-	count = gi.BoxEdicts (ent->absmin, ent->absmax, touch, MAX_EDICTS, AREA_SOLID);
-	for (i = 0; i < count; i++)
+	if (g_bugs->value < 2)
 	{
-		if (touch[i] == ent)
-			continue;
+		//r1: much more vicious telefrag code, nukes anything that isn't ent
+		count = gi.BoxEdicts (ent->absmin, ent->absmax, touch, MAX_EDICTS, AREA_SOLID);
+		for (i = 0; i < count; i++)
+		{
+			if (touch[i] == ent)
+				continue;
 
-		//no point killing anything that won't clip (eg corpses)
-		if (touch[i]->solid == SOLID_NOT || touch[i]->enttype == ENT_BODYQUE)
-			continue;
+			//no point killing anything that won't clip (eg corpses)
+			if (touch[i]->solid == SOLID_NOT || touch[i]->enttype == ENT_BODYQUE)
+				continue;
 
-		if (touch[i]->inuse)
-			T_Damage (touch[i], ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+			if (touch[i]->inuse)
+				T_Damage (touch[i], ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+		}
 	}
-		
-	/*trace_t		tr;
-
-	while (1)
+	else
 	{
-		tr = gi.trace (ent->s.origin, ent->mins, ent->maxs, ent->s.origin, NULL, MASK_PLAYERSOLID);
-		if (!tr.ent)
-			break;
+		trace_t		tr;
 
-		// nail it
-		T_Damage (tr.ent, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+		while (1)
+		{
+			tr = gi.trace (ent->s.origin, ent->mins, ent->maxs, ent->s.origin, NULL, MASK_PLAYERSOLID);
+			if (!tr.ent)
+				break;
 
-		// if we didn't kill it, fail
-		if (tr.ent->solid)
-			return false;
-	}*/
+			// nail it
+			T_Damage (tr.ent, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
 
-
+			// if we didn't kill it, fail
+			if (tr.ent->solid)
+				return false;
+		}
+	}
 
 	return true;		// all clear
 }

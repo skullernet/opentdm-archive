@@ -1,7 +1,7 @@
 /*===============
 Core Stuff
 ===============*/
-void JoinedTeam (edict_t *ent);
+void JoinedTeam (edict_t *ent, qboolean reconnected);
 void droptofloor (edict_t *ent);
 void JoinTeam1 (edict_t *ent);
 void JoinTeam2 (edict_t *ent);

@@ -248,10 +248,12 @@ void InitGame (void)
 	g_max_players_per_team = gi.cvar ("g_max_players_per_team", "6", 0);
 
 	g_maplistfile = gi.cvar ("g_maplistfile", "", 0);
+	g_motd_message = gi.cvar ("g_motd_message", "==========================\n|    Quake 2 OpenTDM!    |\n|------------------------|\n|   http://opentdm.net   |\n==========================" , 0);
 
 	g_bugs = gi.cvar ("g_bugs", "0", 0);
 	g_allow_name_change_during_match = gi.cvar ("g_allow_name_change_during_match", "1", 0);
 
+	g_allow_vote_config = gi.cvar ("g_allow_vote_config", "1", 0);
 	
 #ifdef _DEBUG
 	g_http_baseurl = gi.cvar ("g_http_baseurl", "http://localhost/api/", CVAR_NOSET);

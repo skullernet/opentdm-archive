@@ -675,45 +675,45 @@ const char *dm_statusbar =
 "	pic	11 "
 "endif "
 
-// Team A name
+// First team name
 "xr -250 "
-"yt 36 "
+"yb -96 "
 "stat_string 18 "
 
-// Team A score / status
-"xr -122 "
-"yt 44 "
-"stat_string 20 "
+// First team score / status
+"xr -66 "
+"yb -120 "
+"num 4 23 "
 
-// Team B name
+// Second team name
 "xr -250 "
-"yt 60 "
+"yb -48 "
 "stat_string 19 "
 
-// Team B score / status
-"xr -122 "
-"yt 68 "
-"stat_string 21 "
+// Second team score / status
+"xr -66 "
+"yb -72 "
+"num 4 24 "
 
 // Time
-"xr -34 "
-"yt 84 "
-"string \"Time\" "
+"xv 175 "
+"yb -48 "
+"stat_string 26 "
 
 // Time value
-"xr -42 "
-"yt 92 "
+"xv 175 "
+"yb -39 "
 "stat_string 22 "
 
 // Timeout message
 "if 25 "
-	"xr -138 "
-	"yt 108 "
-	"string \"Timeout Remaining\" "
+	"xr -58 "
+	"yt 50 "
+	"string \"Timeout\" "
 
 	// Timeout value
 	"xr -42 "
-	"yt 116 "
+	"yt 58 "
 	"stat_string 25 "
 "endif "
 
@@ -721,6 +721,13 @@ const char *dm_statusbar =
 "xr	-50 "
 "yt 2 "
 "num 3 14 "
+
+// ID
+/*"if 28 "
+  "xv 100 "
+  "yb -64 "
+  "stat_string 28 "
+"endif "*/
 
 // spectator
 "if 17 "

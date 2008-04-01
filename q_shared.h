@@ -495,7 +495,7 @@ SYSTEM SPECIFIC
 ==============================================================
 */
 
-extern	unsigned int	curtime;		// time returned by last Sys_Milliseconds
+/*extern	unsigned int	curtime;		// time returned by last Sys_Milliseconds
 
 unsigned int		Sys_Milliseconds (void);
 void	Sys_Mkdir (char *path);
@@ -512,17 +512,17 @@ int		Hunk_End (void);
 #define SFF_HIDDEN  0x02
 #define SFF_RDONLY  0x04
 #define SFF_SUBDIR  0x08
-#define SFF_SYSTEM  0x10
+#define SFF_SYSTEM  0x10*/
 
 /*
 ** pass in an attribute mask of things you wish to REJECT
 */
-char	*Sys_FindFirst (char *path, uint32 musthave, uint32 canthave );
+/*char	*Sys_FindFirst (char *path, uint32 musthave, uint32 canthave );
 char	*Sys_FindNext ( uint32 musthave, uint32 canthave );
 void	Sys_FindClose (void);
 
 
-void Sys_Sleep (int msec);
+void Sys_Sleep (int msec);*/
 
 #define	LOG_GENERAL		0x0
 #define LOG_CLIENT		0x1
@@ -1562,3 +1562,5 @@ extern int vidref_val;
 #define _QSHARED_H
 
 #endif
+
+#include "q_platform.h"

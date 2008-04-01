@@ -12,6 +12,7 @@ void PMenu_Open(edict_t *ent, pmenu_t *entries, int cur, int num, qboolean dynam
 	//opening menu forces scoreboards down
 	ent->client->showoldscores = false;
 	ent->client->showscores = false;
+	ent->client->showmotd = false;
 
 	if (ent->client->menu.active)
 	{

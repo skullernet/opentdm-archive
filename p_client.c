@@ -1157,10 +1157,12 @@ The game can override any of the settings in place
 */
 void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 {
+	int			i;
 	const char	*s;
 	const char	*old_name;
 	int			playernum;
 	qboolean	name_changed;
+	teamplayer_t	*tmpl;
 
 	//new connection, server is calling us. just save userinfo for later.
 	if (!ent->inuse)
@@ -1187,7 +1189,6 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	
 	if (strcmp (old_name, s))
 	{
-		// wision: enable this one maybe?
 		if (old_name[0] && tdm_match_status > MM_COUNTDOWN && !g_allow_name_change_during_match->value)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "You cannot change your name in the middle of the match!\n");
@@ -1197,6 +1198,19 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 		else
 		{
 			strncpy (ent->client->pers.netname, s, sizeof(ent->client->pers.netname)-1);
+
+			// wision: update current_matchinfo structure during the match, so the scoreboard is correct
+			if (current_matchinfo.teamplayers)
+			{
+				for (i = 0; i < current_matchinfo.num_teamplayers; i++)
+				{
+					tmpl = &current_matchinfo.teamplayers[i];
+
+					if (tmpl->client == ent)
+						strncpy (tmpl->name, s, sizeof(tmpl->name)-1);
+				}
+			}
+
 			gi.configstring (CS_PLAYERSKINS + playernum, va ("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->resp.team].skin));
 
 			//this handles updating team names and configstrings
@@ -1555,21 +1569,32 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 
 	if (client->resp.team == TEAM_SPEC)
 	{
+		// +moveup goes to next chase target
 		if (ucmd->upmove >= 10)
 		{
 			if (!(client->ps.pmove.pm_flags & PMF_JUMP_HELD))
 			{
 				client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
 
-				// wision: use +moveup for changing the pov while chasing only
 				if (client->chase_target)
 					ChaseNext (ent);
-//				else
-//					GetChaseTarget(ent);
 			}
 		}
 		else
 			client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
+
+		// +movedown goes to previous chase target
+		// maybe there's better way to do this?
+		if (ucmd->upmove <= -10)
+		{
+			if (client->latched_buttons & BUTTON_ANY)
+			{
+				client->latched_buttons |= BUTTON_ANY;
+
+				if (client->chase_target)
+					ChasePrev (ent);
+			}
+		}
 	}
 
 	// update chase cam if being followed

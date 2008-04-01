@@ -67,18 +67,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STAT_CHASE				16
 #define STAT_SPECTATOR			17
 
-#define STAT_TEAM_A_NAME_INDEX		18
-#define STAT_TEAM_B_NAME_INDEX		19
+#define STAT_FIRST_TEAM_NAME_INDEX		18
+#define STAT_SECOND_TEAM_NAME_INDEX		19
 
-#define STAT_TEAM_A_STATUS_INDEX		20
-#define STAT_TEAM_B_STATUS_INDEX		21
+#define STAT_FIRST_TEAM_STATUS_INDEX	20
+#define STAT_SECOND_TEAM_STATUS_INDEX	21
 
 #define STAT_TIME_REMAINING				22
 
-#define STAT_TEAM_A_SCORE				23
-#define STAT_TEAM_B_SCORE				24
+#define STAT_FIRST_TEAM_SCORE			23
+#define STAT_SECOND_TEAM_SCORE			24
 
 #define	STAT_TIMEOUT_STRING_INDEX		25
+
+#define	STAT_GAME_STATUS_STRING_INDEX	26
+// maximum 31!
 
 // dmflags->value flags
 #define	DF_NO_HEALTH		0x00000001	// 1
@@ -115,7 +118,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	CS_TDM_TIMELIMIT_STRING	(CS_GENERAL + 4)
 
-#define CS_TDM_TIMEOUT_STIRNG	(CS_GENERAL + 5)
+#define CS_TDM_TIMEOUT_STRING	(CS_GENERAL + 5)
+
+#define CS_TDM_GAME_STATUS		(CS_GENERAL + 6)
 
 //#define CS_TDM_TEAM_A_PIC		(CS_GENERAL + 5)
 //#define CS_TDM_TEAM_B_PIC		(CS_GENERAL + 6)
@@ -783,12 +788,15 @@ extern	cvar_t	*g_http_baseurl;
 extern	cvar_t	*g_debug_spawns;
 
 extern	cvar_t	*g_maplistfile;
+extern	cvar_t	*g_motd_message;
 
 extern	cvar_t	*g_max_players_per_team;
 
 extern	cvar_t	*g_bugs;
 
 extern	cvar_t	*g_allow_name_change_during_match;
+
+extern	cvar_t	*g_allow_vote_config;
 
 #define world	(&g_edicts[0])
 
@@ -1199,6 +1207,7 @@ typedef struct vote_s
 	int				tiemode;
 	int				gamemode;
 	int				newchatmode;
+	int				bugs;
 	unsigned		overtimemins;
 	char			configname[32];
 } vote_t;
@@ -1326,6 +1335,7 @@ struct gclient_s
 
 	qboolean	showscores;			// set layout stat
 	qboolean	showoldscores;			// set layout stat
+	qboolean	showmotd;			// set layout stat
 
 	int			ammo_index;
 

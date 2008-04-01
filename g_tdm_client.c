@@ -77,15 +77,12 @@ JoinedTeam
 ==============
 A player just joined a team, so do things.
 */
-void JoinedTeam (edict_t *ent)
+void JoinedTeam (edict_t *ent, qboolean reconnected)
 {
 	if (g_gamemode->value != GAMEMODE_1V1)
-	{
-		//FIXME: show rejoined for ghost code, joined for picked players
-		gi.bprintf (PRINT_HIGH, "%s joined team '%s'\n", ent->client->pers.netname, teaminfo[ent->client->resp.team].name);
-	}
+		gi.bprintf (PRINT_HIGH, "%s %sjoined team '%s'\n", ent->client->pers.netname, reconnected ? "re" : "", teaminfo[ent->client->resp.team].name);
 	else
-		gi.bprintf (PRINT_HIGH, "%s %sjoined the game.\n", ent->client->pers.netname, tdm_match_status >= MM_PLAYING ? "re" : "");
+		gi.bprintf (PRINT_HIGH, "%s %sjoined the game.\n", ent->client->pers.netname, reconnected ? "re" : "");
 
 	ent->client->resp.ready = false;
 
@@ -98,7 +95,8 @@ void JoinedTeam (edict_t *ent)
 	TDM_UpdateTeamNames ();
 
 	//if we were invited mid-game, reallocate and insert into teamplayers
-	if (tdm_match_status != MM_WARMUP)
+	// wision: do not add if a player reconnected and used his joincode
+	if (tdm_match_status != MM_WARMUP && !reconnected)
 		TDM_AddPlayerToMatchinfo (ent);
 
 	//wision: set skin for new player
@@ -204,7 +202,7 @@ void JoinTeam1 (edict_t *ent)
 		TDM_LeftTeam (ent);
 
 	ent->client->resp.team = TEAM_A;
-	JoinedTeam (ent);
+	JoinedTeam (ent, false);
 }
 //merge those together?
 /*
@@ -222,7 +220,7 @@ void JoinTeam2 (edict_t *ent)
 		TDM_LeftTeam (ent);
 
 	ent->client->resp.team = TEAM_B;
-	JoinedTeam (ent);
+	JoinedTeam (ent, false);
 }
 
 /*
@@ -476,7 +474,7 @@ qboolean TDM_ProcessJoinCode (edict_t *ent, unsigned value)
 	gi.unlinkentity (ent);
 
 	ent->client->resp.team = t->team;
-	JoinedTeam (ent);
+	JoinedTeam (ent, true);
 
 	//we only preserve the whole client state in 1v1 mode, in TDM we simply respawn the player
 	if (TDM_Is1V1())
@@ -549,6 +547,8 @@ qboolean TDM_ProcessJoinCode (edict_t *ent, unsigned value)
 	t->saved_entity = NULL;
 	t->saved_client = NULL;
 
+	// wision: restore player's name
+	G_StuffCmd (ent, "set name \"%s\"\n", t->name);
 	//restore teamplayer links
 	ent->client->resp.teamplayerinfo = t;
 	t->client = ent;
@@ -648,8 +648,6 @@ void TDM_Disconnected (edict_t *ent)
 	{
 		if (vote.active)
 			TDM_RemoveVote ();
-			
-		TDM_ResetVotableVariables ();
 	}
 	else
 		TDM_CheckVote ();

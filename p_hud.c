@@ -36,6 +36,7 @@ void MoveClientToIntermission (edict_t *ent)
 	//MM_SCOREBOARD will set the layout
 	ent->client->showoldscores = false;
 	ent->client->showscores = false;
+	ent->client->showmotd = false;
 
 	VectorCopy (level.intermission_origin, ent->s.origin);
 
@@ -267,6 +268,8 @@ void Cmd_Score_f (edict_t *ent)
 		return;
 	}
 
+	ent->client->showmotd = false;
+
 	// wision: switch between showing oldscore and current score during warmup
 	if (ent->client->showoldscores)
 	{
@@ -316,6 +319,7 @@ void G_SetStats (edict_t *ent)
 	const gitem_t	*item;
 	int				index, cells;
 	int				power_armor_type;
+	int				first_team;
 
 	cells = 0;
 	
@@ -426,38 +430,50 @@ void G_SetStats (edict_t *ent)
 	//
 	ent->client->ps.stats[STAT_LAYOUTS] = 0;
 
-	if (ent->health <= 0 || tdm_match_status == MM_SCOREBOARD || ent->client->showscores || ent->client->menu.active || ent->client->showoldscores)
+	if (ent->health <= 0 || tdm_match_status == MM_SCOREBOARD || ent->client->showscores ||
+			ent->client->menu.active || ent->client->showoldscores || ent->client->showmotd)
 		ent->client->ps.stats[STAT_LAYOUTS] |= 1;
 
+	ent->client->ps.stats[STAT_GAME_STATUS_STRING_INDEX] = CS_TDM_GAME_STATUS;
 	//if (ent->client->showinventory && ent->health > 0)
 	//	ent->client->ps.stats[STAT_LAYOUTS] |= 2;
 
 	//
 	// frags
 	//
-	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
-
-	ent->client->ps.stats[STAT_TEAM_A_NAME_INDEX] = CS_TDM_TEAM_A_NAME;
-	ent->client->ps.stats[STAT_TEAM_B_NAME_INDEX] = CS_TDM_TEAM_B_NAME;
-
-	ent->client->ps.stats[STAT_TEAM_A_STATUS_INDEX] = CS_TDM_TEAM_A_STATUS;
-	ent->client->ps.stats[STAT_TEAM_B_STATUS_INDEX] = CS_TDM_TEAM_B_STATUS;
-
 	if (ent->client->showoldscores)
 	{
-		ent->client->ps.stats[STAT_TEAM_A_SCORE] = old_matchinfo.scores[TEAM_A];
-		ent->client->ps.stats[STAT_TEAM_B_SCORE] = old_matchinfo.scores[TEAM_B];
+		if (old_matchinfo.scores[TEAM_A] < old_matchinfo.scores[TEAM_B])
+			first_team = TEAM_B;
+		else
+			first_team = TEAM_A;
+
+		ent->client->ps.stats[STAT_FIRST_TEAM_SCORE] = old_matchinfo.scores[first_team];
+		ent->client->ps.stats[STAT_SECOND_TEAM_SCORE] = old_matchinfo.scores[(first_team % 2) + 1];
 	}
 	else
 	{
-		ent->client->ps.stats[STAT_TEAM_A_SCORE] = teaminfo[TEAM_A].score;
-		ent->client->ps.stats[STAT_TEAM_B_SCORE] = teaminfo[TEAM_B].score;
+		if (teaminfo[TEAM_A].score < teaminfo[TEAM_B].score)
+			first_team = TEAM_B;
+		else
+			first_team = TEAM_A;
+
+		ent->client->ps.stats[STAT_FIRST_TEAM_SCORE] = teaminfo[first_team].score;
+		ent->client->ps.stats[STAT_SECOND_TEAM_SCORE] = teaminfo[(first_team % 2) + 1].score;
 	}
+
+	ent->client->ps.stats[STAT_FIRST_TEAM_NAME_INDEX] = CS_TDM_TEAM_A_NAME + first_team - 1;
+	ent->client->ps.stats[STAT_SECOND_TEAM_NAME_INDEX] = CS_TDM_TEAM_A_NAME + (first_team % 2);
+
+	ent->client->ps.stats[STAT_FIRST_TEAM_STATUS_INDEX] = CS_TDM_TEAM_A_STATUS + first_team - 1;
+	ent->client->ps.stats[STAT_SECOND_TEAM_STATUS_INDEX] = CS_TDM_TEAM_A_STATUS + (first_team % 2);
+	
+	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 
 	ent->client->ps.stats[STAT_TIME_REMAINING] = CS_TDM_TIMELIMIT_STRING;
 
 	if (tdm_match_status == MM_TIMEOUT)
-		ent->client->ps.stats[STAT_TIMEOUT_STRING_INDEX] = CS_TDM_TIMEOUT_STIRNG;
+		ent->client->ps.stats[STAT_TIMEOUT_STRING_INDEX] = CS_TDM_TIMEOUT_STRING;
 	else
 		ent->client->ps.stats[STAT_TIMEOUT_STRING_INDEX] = 0;
 
@@ -505,7 +521,8 @@ void G_SetSpectatorStats (edict_t *ent)
 	// layouts are independant in spectator
 	cl->ps.stats[STAT_LAYOUTS] = 0;
 
-	if (tdm_match_status == MM_SCOREBOARD || cl->menu.active || ent->client->showscores || ent->client->showoldscores)
+	if (tdm_match_status == MM_SCOREBOARD || cl->menu.active || ent->client->showscores ||
+			ent->client->showoldscores || ent->client->showmotd)
 		cl->ps.stats[STAT_LAYOUTS] |= 1;
 
 	//if (cl->showinventory && ent->health > 0)

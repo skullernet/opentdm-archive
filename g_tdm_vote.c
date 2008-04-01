@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "g_local.h"
 #include "g_tdm.h"
+// wision: for config listing
+//#include <dirent.h>
 
 #define VOTE_TIMELIMIT	0x1
 #define VOTE_MAP		0x2
@@ -43,6 +45,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	VOTE_CHAT		0x2000
 
 #define	VOTE_RESTART	0x4000
+
+#define	VOTE_BUGS		0x8000
 
 //the ordering of weapons must match ITEM_ defines too!
 const weaponinfo_t	weaponvotes[WEAPON_MAX] = 
@@ -200,6 +204,12 @@ static void TDM_ApplyVote (void)
 		current_matchinfo.teamplayers = NULL;
 		
 		TDM_BeginCountdown ();
+	}
+
+	if (vote.flags & VOTE_BUGS)
+	{
+		sprintf (value, "%d", vote.bugs);
+		g_bugs = gi.cvar_set ("g_bugs", value);
 	}
 }
 
@@ -367,6 +377,19 @@ static void TDM_AnnounceVote (void)
 	if (vote.flags & VOTE_RESTART)
 		strcat (what, "restart the match");
 
+	if (vote.flags & VOTE_BUGS)
+	{
+		if (what[0])
+			strcat (what, ", ");
+
+		if (vote.bugs == 0)
+			strcat (what, "all q2 gameplay bugs fixed");
+		else if (vote.bugs == 1)
+			strcat (what, "serious q2 gameplay bugs fixed");
+		else if (vote.bugs == 2)
+			strcat (what, "no q2 gameplay bugs fixed");
+	}
+
 	gi.bprintf (PRINT_HIGH, "%s%s\n", message, what);
 }
 
@@ -460,7 +483,20 @@ qboolean TDM_VoteMap (edict_t *ent)
 
 	if (!value[0])
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: vote map <mapname>\n");
+		const char	*maplist;
+
+		maplist = TDM_MaplistString ();
+
+		if (maplist != NULL)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Allowed maplist:\n"
+					"----------------\n\n"
+					"%s\n"
+					"Usage: vote map <mapname>\n", maplist);
+		}
+		else
+			gi.cprintf (ent, PRINT_HIGH, "Usage: vote map <mapname>\n");
+
 		return false;
 	}
 
@@ -641,6 +677,7 @@ qboolean TDM_VoteKick (edict_t *ent)
 	if (!value[0])
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Usage: vote kick <name/id>\n");
+		TDM_PrintPlayers (ent);
 		return false;
 	}
 
@@ -866,7 +903,7 @@ qboolean TDM_VoteTieMode (edict_t *ent)
 
 	if (!value[0])
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: vote tiemode <none/ot/sd>\nnone: game ties after timelimit\not: overtime added until a winner\nsd: sudden death, first frag wins\n");
+		gi.cprintf (ent, PRINT_HIGH, "Usage: vote tiemode <none/ot/sd>\n  none: game ties after timelimit\n  ot: overtime added until a winner\n  sd: sudden death, first frag wins\n");
 		return false;
 	}
 
@@ -924,7 +961,7 @@ qboolean TDM_VoteTeleMode (edict_t *ent)
 
 	if (!value[0])
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: vote telemode <normal/nofreeze>\nnormal: teleporters act like regular Q2, you freeze briefly on exit\nnofreeze: teleporters act like Q3, your velocity is maintained on exit\n");
+		gi.cprintf (ent, PRINT_HIGH, "Usage: vote telemode <normal/nofreeze>\n  normal: teleporters act like regular Q2, you freeze briefly on exit\n  nofreeze: teleporters act like Q3, your velocity is maintained on exit\n");
 		return false;
 	}
 
@@ -980,7 +1017,7 @@ qboolean TDM_VoteSwitchMode (edict_t *ent)
 
 	if (!value[0])
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: vote switchmode <normal/fast/instant/insane/extreme>\nnormal: regular Q2 weapon switch speed\nfast: weapon dropping animation is skipped\ninstant: weapon dropping / ready animations are skipped\ninsane: all non-firing animations are skipped\nextreme: same as insane, but allow switch during firing\n");
+		gi.cprintf (ent, PRINT_HIGH, "Usage: vote switchmode <normal/fast/instant/insane/extreme>\n  normal: regular Q2 weapon switch speed\n  fast: weapon dropping animation is skipped\n  instant: weapon dropping / ready animations are skipped\n  insane: all non-firing animations are skipped\n  extreme: same as insane, but allow switch during firing\n");
 		return false;
 	}
 
@@ -1082,6 +1119,72 @@ qboolean TDM_VoteOverTimeLimit (edict_t *ent)
 
 /*
 ==============
+TDM_ConfiglistString
+==============
+Return string for currently available configs.
+*/
+char *TDM_ConfiglistString (void)
+{
+	int				i;
+	int				len;
+	cvar_t			*gamedir;
+	qboolean		valid;
+	char			path[MAX_QPATH + 1];
+	static char		configlist[2048];
+	const char		*filename;
+	const char		*configname;
+
+	configlist[0] = '\0';
+
+	gamedir = gi.cvar ("gamedir", NULL, 0);
+
+	snprintf (path, sizeof(path)-1, "./%s/configs/*.cfg", gamedir->string);
+	path[sizeof(path)-1] = '\0';
+
+	filename = Sys_FindFirst (path);
+
+	while (filename)
+	{
+		valid = true;
+
+		configname = strrchr (filename, '/');
+		if (!configname)
+			configname = filename;
+		else
+			configname++;
+
+		len = strlen (configname);
+
+		if (Q_stricmp (configname + len - 4, ".cfg"))
+			continue;
+
+		for (i = 0; i < len; i++)
+		{
+			if (!isalnum (configname[i]) && configname[i] != '_' && configname[i] != '-' && configname[i] != '.')
+			{
+				valid = false;
+				break;
+			}
+		}
+
+		if (!valid)
+			continue;
+				
+		sprintf (configlist + strlen(configlist), "%s\n", configname);
+
+		filename = Sys_FindNext ();
+	}
+
+	if (!configlist[0])
+		return NULL;
+
+	Sys_FindClose ();
+
+	return configlist;
+}
+
+/*
+==============
 TDM_VoteConfig
 ==============
 Vote a config file. A config file is essentially a set of votables set to certain values that all
@@ -1098,10 +1201,30 @@ qboolean TDM_VoteConfig (edict_t *ent)
 	tdm_config_t	config;
 	qboolean		hasExtension;
 
+	if (!g_allow_vote_config->value)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting config is disabled.\n");
+		return false;
+	}
+
 	value = gi.argv(2);
 	if (!value[0])
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: vote config <configname>\n");
+		const char	*configlist;
+
+		configlist = TDM_ConfiglistString ();
+
+		if (configlist != NULL)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Available configs:\n"
+				"------------------\n"
+				"%s\n"
+				"Usage: vote config <configname>\n", configlist);
+		}
+		else
+			gi.cprintf (ent, PRINT_HIGH, "No configs are available.\n");
+//			gi.cprintf (ent, PRINT_HIGH, "Usage: vote config <configname>\n");
+
 		return false;
 	}
 
@@ -1411,6 +1534,63 @@ qboolean TDM_VoteRestart (edict_t *ent)
 
 /*
 ==============
+TDM_VoteBugs
+==============
+Vote to change g_bugs settings.
+*/
+qboolean TDM_VoteBugs (edict_t *ent)
+{
+	int			bugs;
+	const char	*value;
+
+	value = gi.argv(2);
+	if (!value[0])
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: vote %s <0/1/2>\n", gi.argv(1));
+		return false;
+	}
+
+	if (!Q_stricmp (value, "0"))
+		bugs = 0;
+	else if(!Q_stricmp (value, "1"))
+		bugs = 1;
+	else if (!Q_stricmp (value, "2"))
+		bugs = 2;
+	else
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Unknown gameplay bugs settings: %s\n", value);
+		return false;
+	}
+
+	if ((int)g_bugs->value == bugs)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "That gameplay bugs settings is already set!\n");
+		return false;
+	}
+
+	if (vote.active)
+	{
+		if (vote.bugs == bugs)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You've already started a vote for that gameplay bugs settings.\n");
+			return false;
+		}
+		
+		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
+			return false;	
+		
+		gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+		TDM_RemoveVote ();
+	}
+
+	vote.flags |= VOTE_BUGS;
+	vote.bugs = bugs;
+
+	return true;
+}
+
+/*
+==============
 TDM_Vote_X
 ==============
 Vote yes or no.
@@ -1496,7 +1676,11 @@ void TDM_Vote_f (edict_t *ent)
 				"  switchmode <normal/fast/faster/insane/extreme>\n"
 				"  overtime <minutes>\n"
 				"  config <configname>\n"
-				"  webconfig <configname>\n");
+				"  webconfig <configname>\n"
+				"  chat <all/players>\n"
+				"  restart\n"
+				"  bugs <0/1/2>\n"
+				);
 			return;
 		}
 
@@ -1564,6 +1748,8 @@ void TDM_Vote_f (edict_t *ent)
 		started_new_vote = TDM_VoteChat (ent);
 	else if (!Q_stricmp (cmd, "restart"))
 		started_new_vote = TDM_VoteRestart (ent);
+	else if (!Q_stricmp (cmd, "bugs"))
+		started_new_vote = TDM_VoteBugs (ent);
 	else if (!Q_stricmp (cmd, "yes"))
 		TDM_Vote_X (ent, VOTE_YES, "YES");
 	else if (!Q_stricmp (cmd, "no"))

@@ -177,6 +177,13 @@ void TDM_Timelimit_f (edict_t *ent)
 	limit = strtoul (input, NULL, 10);
 	sprintf (seconds, "%d", limit * 60);
 	g_match_time = gi.cvar_set ("g_match_time", seconds);
+
+	if (tdm_match_status >= MM_PLAYING && tdm_match_status < MM_SCOREBOARD)
+	{
+		current_matchinfo.timelimit = g_match_time->value / 60;
+		level.match_end_framenum = level.match_start_framenum + (int)(g_match_time->value * SERVER_FPS);
+	}
+
 	gi.bprintf (PRINT_HIGH, "Timelimit set to %s.\n", input);
 }
 
@@ -211,7 +218,14 @@ void TDM_Powerups_f (edict_t *ent)
 		gi.cprintf (ent, PRINT_HIGH, "Removed powerups: %s\n", settings[0] == '\0' ? "none" : settings);
 		return;
 	}
-	else if (!Q_stricmp (input, "0"))
+
+	if (tdm_match_status > MM_COUNTDOWN && tdm_match_status < MM_SCOREBOARD)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "You cannot change powerups during the match.\n");
+		return;
+	}
+
+	if (!Q_stricmp (input, "0"))
 		flags = 0xFFFFFFFFU;
 	else if (!Q_stricmp (input, "1"))
 		flags = 0;
@@ -254,7 +268,14 @@ void TDM_Bfg_f (edict_t *ent)
 		gi.cprintf (ent, PRINT_HIGH, "Bfg is set to %d.\n", (unsigned)g_itemflags->value & WEAPON_BFG10K ? 0 : 1);
 		return;
 	}
-	else if (!Q_stricmp (input, "0"))
+
+	if (tdm_match_status > MM_COUNTDOWN && tdm_match_status < MM_SCOREBOARD)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "You cannot change bfg settings during the match.\n");
+		return;
+	}
+
+	if (!Q_stricmp (input, "0"))
 		flags |= WEAPON_BFG10K;
 	else if (!Q_stricmp (input, "1"))
 		flags &= ~WEAPON_BFG10K;
@@ -281,6 +302,7 @@ void TDM_Bfg_f (edict_t *ent)
 TDM_CheckMap_FileExists
 ==============
 Check map name.
+Not used since we don't check if file exists.
 */
 qboolean TDM_CheckMapExists (const char *mapname)
 {
@@ -326,6 +348,85 @@ qboolean TDM_CheckMapExists (const char *mapname)
 
 /*
 ==============
+TDM_MaplistString
+==============
+Return string for currently allowed maps in maplist.
+*/
+char *TDM_MaplistString (void)
+{
+	qboolean	start = true;
+	int			i;
+	int			len;
+	cvar_t		*gamedir;
+	char		*entry;
+	FILE		*maplst;
+	char		buffer[MAX_QPATH + 1];
+	static char	string[2048];
+
+	*string = 0;
+
+	// maplist is not in use
+	if (!g_maplistfile || !g_maplistfile->string[0])
+		return NULL;
+
+	// created by engine, we need to expose it for mod
+	gamedir = gi.cvar ("gamedir", NULL, 0); 
+
+	// Make sure we can find the game directory.
+	if (!gamedir || !gamedir->string[0])
+		return NULL;
+	
+	buffer[sizeof(buffer)-1] = '\0';
+
+	if (gamedir)
+	{
+		snprintf (buffer, sizeof(buffer)-1, "./%s/%s", gamedir->string, g_maplistfile->string);
+		maplst = fopen (buffer, "r");
+		if (maplst == NULL)
+			return NULL;
+	}
+	else
+		return NULL;
+
+	for (;;)
+	{
+		entry = fgets (buffer, sizeof (buffer), maplst);
+
+		if (entry == NULL)
+			break;
+
+		len = strlen (buffer);
+		// cut only first column from the line
+		for (i = 0; i < len; i++)
+		{
+			if (buffer[i] == ' ' || (!isalnum (buffer[i]) && buffer[i] != '_' && buffer[i] != '-'))
+			{
+				buffer[i] = '\0';
+
+				if (start)
+					entry++;
+			}
+			else
+				start = false;
+		}
+
+		if (!entry[0])
+			continue;
+
+		if ((strlen(string) + strlen(entry)) > 2047)
+			break;
+
+		sprintf(string + strlen(string), "%s\n", entry);
+	}
+
+	if (maplst != NULL)
+		fclose (maplst);
+
+	return string;
+}
+
+/*
+==============
 TDM_CheckMap
 ==============
 Check map name.
@@ -333,11 +434,10 @@ Modified code from QwazyWabbit. http://www.clanwos.org/forums/viewtopic.php?t=39
 */
 qboolean TDM_Checkmap (edict_t *ent, const char *mapname)
 {
-	cvar_t	*gamedir;      // our mod dir
 	int		i;
+	int		offset = 0;
 	size_t	len;
-	FILE	*maplst;
-	char	*entry;
+	char	*maplist;
 	char	buffer[MAX_QPATH + 1];
 
 	len = strlen (mapname);
@@ -356,66 +456,28 @@ qboolean TDM_Checkmap (edict_t *ent, const char *mapname)
 			return false;
 		}
 	}
-	
-	// maplist is not in use
-	if (!g_maplistfile || !g_maplistfile->string[0])
+
+	maplist = TDM_MaplistString ();
+
+	// allow map on maplist failure
+	if (maplist == NULL)
 		return true;
 
-	// created by engine, we need to expose it for mod
-	gamedir = gi.cvar ("gamedir", NULL, 0); 
-
-	// Make sure we can find the game directory.
-	if (!gamedir || !gamedir->string[0])
+	i = 0;
+	while (maplist[i] != '\0')
 	{
-//		gi.dprintf ("No maplist -- can't find gamedir\n");
-		return true;
-	}
-	
-	buffer[sizeof(buffer)-1] = '\0';
+		if (maplist[i] == '\n')
+			maplist[i] = '\0';
 
-	if (gamedir)
-	{
-		snprintf (buffer, sizeof(buffer)-1, "./%s/%s", gamedir->string, g_maplistfile->string);
-		maplst = fopen (buffer, "r");
-		if (maplst == NULL)
-		{
-	//		gi.dprintf ("No maplist -- can't open ./%s/%s\n", gamedir->string, g_maplistfile->string);
+		strcpy (buffer, maplist + offset);
+		
+		if (!Q_stricmp (buffer, mapname) /* && TDM_CheckMapExists (buffer)) */)
 			return true;
-		}
-	}
-	else
-		return true;
 
-	for (;;)
-	{
-		entry = fgets (buffer, sizeof (buffer), maplst);
-
-		if (entry == NULL)
-			break;
-		
-		// Trim any newline(s) or spaces from the end of the string.
-		entry = buffer + strlen (buffer) - 1;
-		while (entry >= buffer && (*entry == 10 || *entry == 13 || *entry == ' '))
-		{
-			*entry = 0;
-			entry--;
-		}
-		
-//		if (!buffer[0] || !Q_stricmp(buffer, level.mapname))
-		if (!buffer[0])
-			continue;
-		
-		if (!Q_stricmp (buffer, mapname) && TDM_CheckMapExists (buffer))
-		{
-			if (maplst != NULL)
-				fclose (maplst);
-			return true;
-		}
+		i++;
+		offset = i;
 	}
 
-	if (maplst != NULL)
-		fclose (maplst);
-	
 	gi.cprintf (ent, PRINT_HIGH, "Map '%s' was not found\n", mapname);
 	return false;
 }
@@ -433,7 +495,20 @@ void TDM_Changemap_f (edict_t *ent)
 	mapname = gi.argv(1);
 	if (!mapname[0])
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: changemap <mapname>\n");
+		const char	*maplist;
+
+		maplist = TDM_MaplistString ();
+
+		if (maplist != NULL)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Allowed maplist:\n"
+					"----------------\n\n"
+					"%s\n"
+					"Usage: changemap <mapname>\n", maplist);
+		}
+		else
+			gi.cprintf (ent, PRINT_HIGH, "Usage: changemap <mapname>\n");
+
 		return;
 	}
 
@@ -534,10 +609,8 @@ Show scoreboard and end the match.
 void TDM_Break_f (edict_t *ent)
 {
 	if (tdm_match_status < MM_PLAYING || tdm_match_status == MM_SCOREBOARD)
-	{
-//		gi.cprintf (ent, PRINT_HIGH, "Cannot break the match during warmup.\n");
 		return;
-	}
+
 	gi.bprintf (PRINT_HIGH, "%s has ended the match.\n", ent->client->pers.netname);
 	TDM_EndMatch();
 }
@@ -851,6 +924,7 @@ char *TDM_SettingsString (void)
 	static const char *gamemode_text[] = {"Team Deathmatch", "Instagib Team Deathmatch", "1 vs 1 duel"};
 	static const char *switchmode_text[] = {"normal", "faster", "instant", "insane", "extreme"};
 	static const char *telemode_text[] = {"normal", "no freeze"};
+	static const char *bugs_text[] = {"all bugs fixed", "serious bugs fixed", "default q2 behavior"};
 
 	settings[0] = 0;
 
@@ -914,6 +988,9 @@ char *TDM_SettingsString (void)
 
 	strcat (settings, "Teleporter mode: ");
 	strcat (settings, TDM_SetColorText(va("%s\n", telemode_text[(int)g_teleporter_nofreeze->value])));
+
+	strcat (settings, "Gameplay bugs: ");
+	strcat (settings, TDM_SetColorText(va("%s\n", bugs_text[(int)g_bugs->value])));
 
 	return settings;
 }
@@ -1208,7 +1285,7 @@ void TDM_PickPlayer_f (edict_t *ent)
 			TDM_LeftTeam (victim);
 
 		victim->client->resp.team = ent->client->resp.team;
-		JoinedTeam (victim);
+		JoinedTeam (victim, false);
 	}
 }
 
@@ -1256,7 +1333,7 @@ void TDM_Accept_f (edict_t *ent)
 
 	ent->client->resp.team = ent->client->resp.last_invited_by->client->resp.team;
 
-	JoinedTeam (ent);
+	JoinedTeam (ent, false);
 }
 
 /*
@@ -1271,15 +1348,15 @@ void TDM_PrintPlayers (edict_t *ent)
 	char	text[1024];
 	edict_t	*e2;
 
-	strcpy (text, "  id  name\n");
-	strcat (text, "  --------\n");
+	strcpy (text, "   id  name\n");
+	strcat (text, "  ---------\n");
 
 	for (e2 = g_edicts + 1; e2 <= g_edicts + game.maxclients; e2++)
 	{
 		if (!e2->inuse)
 			continue;
 
-		Com_sprintf (st, sizeof(st), "  %2d  %s\n", e2 - g_edicts - 1, e2->client->pers.netname);
+		Com_sprintf (st, sizeof(st), "  %3d  %s\n", e2 - g_edicts - 1, e2->client->pers.netname);
 
 		if (strlen(text) > 900)
 		{
@@ -1301,6 +1378,8 @@ Talk to a player.
 */
 void TDM_Talk_f (edict_t *ent)
 {
+	char	*p;
+	char	text[2048] = { 0 };
 	edict_t	*victim;
 
 	if (gi.argc() < 3)
@@ -1330,8 +1409,32 @@ void TDM_Talk_f (edict_t *ent)
 			gi.cprintf (ent, PRINT_HIGH, "Spectators cannot talk during shutup mode.");
 			return;
 		}
-		gi.cprintf (ent, PRINT_CHAT, "{%s}: %s\n", ent->client->pers.netname, gi.argv(2));
-		gi.cprintf (victim, PRINT_CHAT, "{%s}: %s\n", ent->client->pers.netname, gi.argv(2));
+
+		p = gi.args();
+
+		// skip first argument (victims name/id)
+		while (*p != ' ')
+			p++;
+
+		// skip the spaces after the name/id
+		while (*p == ' ')
+			p++;
+
+		if (*p == '"')
+		{
+			p++;
+			p[strlen(p)-1] = '\0';
+		}
+
+		strcpy(text, p);
+
+		if (!text[0])
+			return;
+		
+		text[256] = '\0';
+		
+		gi.cprintf (ent, PRINT_CHAT, "{%s}: %s\n", ent->client->pers.netname, text);
+		gi.cprintf (victim, PRINT_CHAT, "{%s}: %s\n", ent->client->pers.netname, text);
 	}
 }
 
@@ -1731,6 +1834,58 @@ void TDM_Ready_f (edict_t *ent)
 
 /*
 ==============
+TDM_Motd_f
+==============
+Show/hide motd message defined in g_motd_message.
+*/
+void TDM_Motd_f (edict_t *ent)
+{
+	static char	string[1400];
+	char		message[512];
+	int			msg_offset = 0;
+	int			offset = 0;
+	int			len;
+	int			i;
+
+	if (!g_motd_message || !g_motd_message->string[0] || ent->client->showmotd)
+	{
+		ent->client->showmotd = false;
+		return;
+	}
+
+	if (ent->client->menu.active)
+		PMenu_Close (ent);
+
+	ent->client->showscores = false;
+	ent->client->showoldscores = false;
+
+	*string = 0;
+
+	strncpy (message, g_motd_message->string, 511);
+	len = strlen(message);
+
+	for (i = 0; i <= len; i++)
+	{
+		if (message[i] == '\n' || i == len)
+		{
+			if ((strlen(string) + strlen(message+msg_offset)) > 1400)
+				break;
+
+			message[i] = '\0';
+			sprintf(string + strlen(string), "xl 8 yb %d string \"%s\" ", offset-160, message+msg_offset);
+			offset += 8;
+			msg_offset = i + 1;
+		}
+	}
+
+	ent->client->showmotd = true;
+	gi.WriteByte (svc_layout);
+	gi.WriteString (string);
+	gi.unicast (ent, true);
+}
+
+/*
+==============
 TDM_Changeteamstatus_f
 ==============
 Set ready/notready status for whole team
@@ -1791,6 +1946,7 @@ void TDM_OldScores_f (edict_t *ent)
 
 	PMenu_Close (ent);
 
+	ent->client->showmotd = false;
 	ent->client->showscores = false;
 	ent->client->showoldscores = true;
 
@@ -1954,8 +2110,9 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Admin_f (ent);
 		else if (!Q_stricmp (cmd, "stopsound"))
 			return true;	//prevent chat from our stuffcmds on people who have no sound
+		else
+			return false;	//print everything else as a text
 
-		//return true to cover all other commands (this prevents using console for chat but meh :/)
 		return true;
 	}
 	else
@@ -2056,6 +2213,8 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Overtime_f (ent);
 		else if (!Q_stricmp (cmd, "obsmode"))
 			TDM_Obsmode_f (ent);
+		else if (!Q_stricmp (cmd, "motd"))
+			TDM_Motd_f (ent);
 		else if (!Q_stricmp (cmd, "stopsound"))
 			return true;	//prevent chat from our stuffcmds on people who have no sound
 		else

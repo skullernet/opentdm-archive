@@ -107,6 +107,28 @@ char		old_scoreboard_string[1400];
 
 //static char	last_player_model[MAX_TEAMS][32];
 
+pmenu_t votemenu[] =
+{
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Use [ and ] to move cursor",	PMENU_ALIGN_CENTER, NULL, NULL },
+	{ "ENTER select, ESC exit",	PMENU_ALIGN_CENTER, NULL, NULL },
+	{ "*" OPENTDM_VERSION,	PMENU_ALIGN_RIGHT, NULL, NULL },
+};
+
 pmenu_t joinmenu[] =
 {
 	{ NULL,					PMENU_ALIGN_CENTER, NULL, NULL },
@@ -121,11 +143,11 @@ pmenu_t joinmenu[] =
 	{ "*Spectate",			PMENU_ALIGN_LEFT, NULL, ToggleChaseCam },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Voting Menu",		PMENU_ALIGN_LEFT, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ "Use [ and ] to move cursor",	PMENU_ALIGN_LEFT, NULL, NULL },
-	{ "ENTER to select",	PMENU_ALIGN_LEFT, NULL, NULL },
-	{ "ESC to Exit Menu",	PMENU_ALIGN_LEFT, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "Use [ and ] to move cursor",	PMENU_ALIGN_CENTER, NULL, NULL },
+	{ "ENTER select, ESC exit",	PMENU_ALIGN_CENTER, NULL, NULL },
 	{ "*" OPENTDM_VERSION,	PMENU_ALIGN_RIGHT, NULL, NULL },
 };
 
@@ -420,6 +442,10 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	int			maxplayers;
 	int			offset, offsetfix[2];
 	int			firstteam, secondteam;
+	cvar_t		*hostname;
+	char		serverinfo[60];
+	struct tm	*ts;
+	time_t		t;
 	qboolean	drawn_header;
 
 	gclient_t		*cl;
@@ -427,7 +453,17 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	edict_t			*cl_ent;
 	int				team;
 	const int		maxsize = 1300;
-	
+
+	t = time (NULL);
+	ts = localtime (&t);
+
+	hostname = gi.cvar ("hostname", NULL, 0);
+
+	if (hostname)
+		strncpy(serverinfo, hostname->string, 50);
+	else
+		sprintf(serverinfo, "unnamed server");
+
 	// sort the clients by team and score
 	total[0] = total[1] = 0;
 	last[0] = last[1] = 0;
@@ -524,30 +560,40 @@ char *TDM_ScoreBoardString (edict_t *ent)
 
 		// team info bars
 		sprintf (string,
-			"xv 0 yv 0 string2 \"        Team           Frags\" "
-			"xv 0 yv 8 string \"       %-16.16s %4d\" "
-			"xv 0 yv 16 string \"       %-16.16s %4d\" ",
+			"xv 80 yv 0 string2 \"Team            Frags\" "
+			"xv 72 yv 8 string \"%-17.17s %4d\" "
+			"xv 72 yv 16 string \"%-17.17s %4d\" ",
 			teaminfo[firstteam].name,
 			teaminfo[firstteam].score,
 			teaminfo[secondteam].name,
 			teaminfo[secondteam].score
 			);
 
+		// time info
+		sprintf (string + strlen(string),
+			"xv 56 yv 32 string \"OpenTDM [%d-%02d-%02d %02d:%02d]\" ",
+			ts->tm_year + 1900,
+			ts->tm_mon + 1,
+			ts->tm_mday,
+			ts->tm_hour,
+			ts->tm_min
+			);
+
 		// headers
 		sprintf (tmpstr, "%s:%.f(%s)", teaminfo[firstteam].name, averageping[firstteam-1], teaminfo[firstteam].skin);
 		sprintf (string + strlen(string),
-			"xv %d yv 32 string \"%s\" "
-			"xv 8 yv 40 string2 \"Name          Frags Deaths Net Ping\" ",
-			((35-strlen(tmpstr))/2)*8,
+			"xv %d yv 48 string \"%s\" "
+			"xv 8 yv 56 string2 \"Name              Frags Deaths Net Ping\" ",
+			((40-strlen(tmpstr))/2)*8,
 			tmpstr
 			);
 
 		sprintf (tmpstr, "%s:%.f(%s)", teaminfo[secondteam].name, averageping[secondteam-1], teaminfo[secondteam].skin);
 		sprintf (string + strlen(string),
 			"xv %d yv %d string \"%s\" "
-			"xv 8 yv %d string2 \"Name          Frags Deaths Net Ping\" ",
-			((35-strlen(tmpstr))/2)*8, offset + 32,
-			tmpstr, offset + 40
+			"xv 8 yv %d string2 \"Name              Frags Deaths Net Ping\" ",
+			((40-strlen(tmpstr))/2)*8, offset + 48,
+			tmpstr, offset + 56
 			);
 
 		len = strlen(string);
@@ -567,14 +613,16 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				if (tdm_match_status != MM_SCOREBOARD && tmpl->client == NULL)
 				{
 					offsetfix[firstteam-1] += 8;
+					// count the player as drawn!
+					last[firstteam-1] = i;
 					continue;
 				}
 
 				// calculate player's score
 				j = tmpl->enemy_kills - tmpl->team_kills - tmpl->suicides;
 				sprintf (entry,
-					"xv 0 yv %d string%s \"%s\" xv 120 string \" %4d    %3d %3d  %3d\" ",
-					i * 8 + 40 + 8 - offsetfix[firstteam-1],
+					"xv 0 yv %d string%s \"%s\" xv 160 string \"%4d    %3d %3d  %3d\" ",
+					i * 8 + 64 - offsetfix[firstteam-1],
 					(tmpl->client == ent) ? "2" : "",
 					tmpl->name,
 					j, 
@@ -599,14 +647,16 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				if (tdm_match_status != MM_SCOREBOARD && tmpl->client == NULL)
 				{
 					offsetfix[secondteam-1] += 8;
+					// count the player as drawn!
+					last[secondteam-1] = i;
 					continue;
 				}
 
 				// calculate player's score
 				j = tmpl->enemy_kills - tmpl->team_kills - tmpl->suicides;
 				sprintf (entry,
-					"xv 0 yv %d string%s \"%s\" xv 120 string \" %4d    %3d %3d  %3d\" ",
-					i * 8 + 40 + 8 + offset - offsetfix[secondteam-1],
+					"xv 0 yv %d string%s \"%s\" xv 160 string \"%4d    %3d %3d  %3d\" ",
+					i * 8 + 64 + offset - offsetfix[secondteam-1],
 					(tmpl->client == ent) ? "2" : "",
 					tmpl->name,
 					j, 
@@ -711,13 +761,23 @@ char *TDM_ScoreBoardString (edict_t *ent)
 
 		// team info bars
 		sprintf (string,
-			"xv 0 yv 0 string2 \"        Team           Frags\" "
-			"xv 0 yv 8 string \"       %-16.16s %4d\" "
-			"xv 0 yv 16 string \"       %-16.16s %4d\" ",
+			"xv 80 yv 0 string2 \"Team            Frags\" "
+			"xv 72 yv 8 string \"%-17.17s %4d\" "
+			"xv 72 yv 16 string \"%-17.17s %4d\" ",
 			teaminfo[firstteam].name,
 			teaminfo[firstteam].score,
 			teaminfo[secondteam].name,
 			teaminfo[secondteam].score
+			);
+
+		// time info
+		sprintf (string + strlen(string),
+			"xv 56 yv 32 string \"OpenTDM [%d-%02d-%02d %02d:%02d]\" ",
+			ts->tm_year + 1900,
+			ts->tm_mon + 1,
+			ts->tm_mday,
+			ts->tm_hour,
+			ts->tm_min
 			);
 
 		// headers
@@ -725,9 +785,9 @@ char *TDM_ScoreBoardString (edict_t *ent)
 		{
 			sprintf (tmpstr, "%s:%.f(%s)", teaminfo[firstteam].name, averageping[firstteam-1], teaminfo[firstteam].skin);
 			sprintf (string + strlen(string),
-				"xv %d yv 32 string \"%s\" "
-				"xv 8 yv 40 string2 \"Name                           Ping\" ",
-				((35-strlen(tmpstr))/2)*8,
+				"xv %d yv 48 string \"%s\" "
+				"xv 8 yv 56 string2 \"Name\" xv 288 string2 \"Ping\" ",
+				((40-strlen(tmpstr))/2)*8,
 				tmpstr
 				);
 		}
@@ -736,9 +796,9 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			sprintf (tmpstr, "%s:%.f(%s)", teaminfo[secondteam].name, averageping[secondteam-1], teaminfo[secondteam].skin);
 			sprintf (string + strlen(string),
 				"xv %d yv %d string \"%s\" "
-				"xv 8 yv %d string2 \"Name                           Ping\" ",
-				((35-strlen(tmpstr))/2)*8, offset + 32,
-				tmpstr,	offset + 40
+				"xv 8 yv %d string2 \"Name\" xv 288 string2 \"Ping\" ",
+				((40-strlen(tmpstr))/2)*8, offset + 48,
+				tmpstr,	offset + 56
 				);
 		}
 
@@ -757,11 +817,11 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				cl_ent = g_edicts + 1 + sorted[firstteam-1][i];
 
 				sprintf (entry,
-					"xv 0 yv %d string%s \"%s\" xv 120 string \" %s      %3d\" ",
-					i * 8 + 40 + 8,
+					"xv 0 yv %d string%s \"%s\" xv 136 %s xv 296 string \"%3d\" ",
+					i * 8 + 64,
 					(cl_ent == ent) ? "2" : "",
 					cl->pers.netname,
-					cl->resp.ready ? "  [READY]  " : "[NOT READY]",
+					cl->resp.ready ? "string2 \"  [READY]\"" : "string \"[NOT READY]\"",
 					(cl->ping > 999) ? 999 : cl->ping
 					);
 
@@ -780,11 +840,11 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				cl_ent = g_edicts + 1 + sorted[secondteam-1][i];
 
 				sprintf (entry,
-					"xv 0 yv %d string%s \"%s\" xv 120 string \" %s      %3d\" ",
-					i * 8 + 40 + 8 + offset,
+					"xv 0 yv %d string%s \"%s\" xv 136 %s xv 296 string \"%3d\" ",
+					i * 8 + 64 + offset,
 					(cl_ent == ent) ? "2" : "",
 					cl->pers.netname,
-					cl->resp.ready ? "  [READY]  " : "[NOT READY]",
+					cl->resp.ready ? "string2 \"  [READY]\"" : "string \"[NOT READY]\"",
 					(cl->ping > 999) ? 999 : cl->ping
 					);
 
@@ -798,11 +858,18 @@ char *TDM_ScoreBoardString (edict_t *ent)
 		}
 	}
 
+	// put server info on the bottom of screen
+	if (maxsize - len > 70)
+	{
+		sprintf (string + strlen(string), "xl 8 yb -37 string2 \"%s\" ", serverinfo);
+	}
+
 	// put in spectators if we have enough room
 	j = 0;
-	j = total[0] * 8 + total[1] * 8 + 80;
+	j = total[0] * 8 + total[1] * 8 + 96;
 	
 	drawn_header = false;
+	
 	if (maxsize - len > 50)
 	{
 		for (i = 0; i < game.maxclients; i++)
@@ -891,7 +958,7 @@ const char *TDM_MakeDemoName (edict_t *ent)
 	if (hostname)
 		servername = hostname->string;
 	else
-		servername = "unknown_server";
+		servername = "unnamed_server";
 
 	t = time (NULL);
 	ts = localtime (&t);
@@ -933,18 +1000,6 @@ All players are ready so start the countdown
 */
 void TDM_BeginCountdown (void)
 {
-	// wision: force players to record
-	if (g_force_record->value == 1)
-	{
-		edict_t *client;
-
-		for (client = g_edicts + 1; client <= g_edicts + game.maxclients; client++)
-		{
-			if (client->inuse && client->client->resp.team)
-				G_StuffCmd (client, "record \"%s\"\n", TDM_MakeDemoName (client));
-		}
-	}
-	
 	gi.bprintf (PRINT_HIGH, "Match Settings:\n%s", TDM_SettingsString ());
 
 	gi.bprintf (PRINT_CHAT, "All players ready! Starting countdown (%g secs)...\n", g_match_countdown->value);
@@ -962,8 +1017,20 @@ void TDM_BeginCountdown (void)
 
 	//called to apply a temporary hack for people who do 1v1 on tdm mode
 	TDM_UpdateTeamNames ();
-
+	
 	level.match_start_framenum = level.framenum + (int)(g_match_countdown->value * SERVER_FPS);
+
+	// wision: force players to record
+	if (g_force_record->value == 1)
+	{
+		edict_t *client;
+
+		for (client = g_edicts + 1; client <= g_edicts + game.maxclients; client++)
+		{
+			if (client->inuse && client->client->resp.team)
+				G_StuffCmd (client, "record \"%s\"\n", TDM_MakeDemoName (client));
+		}
+	}
 }
 
 /*
@@ -978,6 +1045,21 @@ void TDM_EndIntermission (void)
 
 	//for test server
 	gi.bprintf (PRINT_CHAT, "Please report any bugs at www.opentdm.net.\n");
+
+	// wision: stop demo recording if we enforce it
+	if (g_force_record->value == 1)
+	{
+		edict_t		*client;
+
+		for (client = g_edicts + 1; client <= g_edicts + game.maxclients; client++)
+		{
+			if (!client->inuse)
+				continue;
+
+			if (client->client->resp.team)
+				G_StuffCmd (client, "stop\n");
+		}
+	}
 
 	//shuffle current stats to old and cleanup any players who never reconnected
 	if (current_matchinfo.teamplayers)
@@ -1090,7 +1172,6 @@ void TDM_BeginIntermission (void)
 		if (client->client->chase_target)
 			DisableChaseCam (client);
 
-		// wision: is this correct place to have this?
 		if (client->client->resp.team && g_force_screenshot->value == 1)
 			G_StuffCmd (client, "screenshot\n");
 	}
@@ -1292,6 +1373,8 @@ Check miscellaneous timers, eg match start countdown
 */
 void TDM_CheckTimes (void)
 {
+	edict_t		*ent;
+
 	if (tdm_match_status < MM_PLAYING && level.match_start_framenum)
 	{
 		int		remaining;
@@ -1425,7 +1508,6 @@ void TDM_CheckTimes (void)
 		int	vote_hold = 0;
 		int	vote_yes = 0;
 		int	vote_no = 0;
-		edict_t	*ent;
 
 		for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 		{
@@ -1454,14 +1536,14 @@ void TDM_CheckTimes (void)
 				vote_yes, vote_no, vote_total, vote_total == 1 ? "" : "s");
 	}
 	
-	if (tdm_match_status == MM_WARMUP && tdm_settings_not_default && teaminfo[TEAM_A].players == 0 && teaminfo[TEAM_B].players == 0)
+	if (tdm_match_status == MM_WARMUP && tdm_settings_not_default && level.framenum >= SECS_TO_FRAMES(300) &&
+		teaminfo[TEAM_A].players == 0 && teaminfo[TEAM_B].players == 0)
 	{
 		qboolean	reset = true;
-		edict_t		*ent;
 
 		for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 		{
-			if (!ent->inuse)
+			if (!ent->client)
 				continue;
 
 			if (FRAMES_TO_SECS (level.framenum - ent->client->last_activity_frame) < 300)
@@ -1473,8 +1555,24 @@ void TDM_CheckTimes (void)
 
 		if (reset)
 		{
-			gi.bprintf (PRINT_HIGH, "No players for five minutes, restoring default match settings.\n");
+			gi.bprintf (PRINT_HIGH, "No active players for five minutes, restoring default match settings.\n");
 			TDM_ResetVotableVariables ();
+		}
+	}
+
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+	{
+		if (!ent->inuse)
+			continue;
+
+		if ((level.framenum - ent->client->resp.enterframe == 100) && !ent->client->showmotd)
+		{
+			if (ent->client->menu.active)
+			{
+				PMenu_Close (ent);
+			}
+
+			TDM_Motd_f (ent);
 		}
 	}
 #ifdef _DEBUG
@@ -2061,6 +2159,7 @@ void TDM_ResetGameState (void)
 			ent->client->resp.score = 0;
 			ent->client->resp.teamplayerinfo = NULL;
 
+			ent->client->showmotd = false;
 			ent->client->showscores = false;
 			ent->client->showoldscores = false;
 
@@ -2284,12 +2383,17 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 		{
 			//force scores to update
 			case MM_PLAYING:
+				gi.configstring (CS_TDM_GAME_STATUS, "Match");
 				last_scores[TEAM_A] = last_scores[TEAM_B] = -9999;
 				break;
 
 			//note, we shouldn't need to do anything when we are mm_countdown, but fall through just to be safe
 			case MM_COUNTDOWN:
+				gi.configstring (CS_TDM_GAME_STATUS, "Countdown");
 			case MM_WARMUP:
+				if (tdm_match_status == MM_WARMUP)
+					gi.configstring (CS_TDM_GAME_STATUS, "Warmup");
+
 				if (teaminfo[TEAM_A].ready != last_ready_status[TEAM_A] || forceUpdate)
 				{
 					last_ready_status[TEAM_A] = teaminfo[TEAM_A].ready;
@@ -2319,7 +2423,16 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 				gi.configstring (CS_TDM_TIMELIMIT_STRING, "Sudden Death");
 				break;
 
+			case MM_OVERTIME:
+				gi.configstring (CS_TDM_GAME_STATUS, "Overtime");
+				break;
+
+			case MM_SCOREBOARD:
+				gi.configstring (CS_TDM_GAME_STATUS, "Match End");
+				break;
+
 			default:
+				gi.configstring (CS_TDM_GAME_STATUS, "Match");
 				//nothing to do!
 				break;
 		}
@@ -2429,7 +2542,7 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 			if (last_secs < 60)
 				TDM_SetColorText (time_buffer);
 
-			gi.configstring (CS_TDM_TIMEOUT_STIRNG, time_buffer);
+			gi.configstring (CS_TDM_TIMEOUT_STRING, time_buffer);
 		}
 	}
 
