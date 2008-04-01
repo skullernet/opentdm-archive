@@ -435,9 +435,9 @@ Modified code from QwazyWabbit. http://www.clanwos.org/forums/viewtopic.php?t=39
 qboolean TDM_Checkmap (edict_t *ent, const char *mapname)
 {
 	int		i;
-	int		offset = 0;
 	size_t	len;
 	char	*maplist;
+	char	*p;
 	char	buffer[MAX_QPATH + 1];
 
 	len = strlen (mapname);
@@ -464,18 +464,23 @@ qboolean TDM_Checkmap (edict_t *ent, const char *mapname)
 		return true;
 
 	i = 0;
-	while (maplist[i] != '\0')
+	p = maplist;
+	buffer[sizeof(buffer)-1] = '\0';
+
+	while (maplist[0])
 	{
-		if (maplist[i] == '\n')
-			maplist[i] = '\0';
+		if (maplist[0] == '\n')
+		{
+			maplist[0] = '\0';
 
-		strcpy (buffer, maplist + offset);
+			strncpy (buffer, p, sizeof(buffer)-1);
 		
-		if (!Q_stricmp (buffer, mapname) /* && TDM_CheckMapExists (buffer)) */)
-			return true;
+			if (!Q_stricmp (buffer, mapname) /* && TDM_CheckMapExists (buffer)) */)
+				return true;
 
-		i++;
-		offset = i;
+			p = maplist + 1;
+		}
+		maplist++;
 	}
 
 	gi.cprintf (ent, PRINT_HIGH, "Map '%s' was not found\n", mapname);

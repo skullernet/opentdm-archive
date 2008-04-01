@@ -490,7 +490,7 @@ qboolean TDM_VoteMap (edict_t *ent)
 		if (maplist != NULL)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "Allowed maplist:\n"
-					"----------------\n\n"
+					"----------------\n"
 					"%s\n"
 					"Usage: vote map <mapname>\n", maplist);
 		}
