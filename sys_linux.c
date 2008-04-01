@@ -7,6 +7,8 @@ static	char	findpath[MAX_OSPATH];
 static	char	findpattern[MAX_OSPATH];
 static	DIR		*fdir;
 
+int glob_match(char *pattern, char *text);
+
 /* Like glob_match, but match PATTERN against any final segment of TEXT.  */
 static int glob_match_after_star(char *pattern, char *text)
 {
@@ -138,7 +140,7 @@ int glob_match(char *pattern, char *text)
 	return *t == '\0';
 }
 
-const char *Sys_FindFirst (char *filespec)
+const char *Sys_FindFirst (const char *filespec)
 {
 	struct dirent *d;
 	char *p;
