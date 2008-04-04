@@ -519,6 +519,10 @@ void G_SetSpectatorStats (edict_t *ent)
 			//copy kickangles so hits/etc look realistic
 			VectorCopy (cl->chase_target->client->ps.kick_angles, cl->ps.kick_angles);
 		}
+
+		//if our target player has the id stat up, we need to set configstrings for ourself.
+		if (cl->ps.stats[STAT_ID_VIEW_INDEX])
+			TDM_GetPlayerIdView (ent);
 	}
 
 	cl->ps.stats[STAT_SPECTATOR] = 1;

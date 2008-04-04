@@ -722,13 +722,6 @@ const char *dm_statusbar =
 "yt 2 "
 "num 3 14 "
 
-// ID
-/*"if 28 "
-  "xv 100 "
-  "yb -64 "
-  "stat_string 28 "
-"endif "*/
-
 // spectator
 "if 17 "
   "xv 0 "
@@ -747,8 +740,8 @@ const char *dm_statusbar =
 
 // player id view
 "if 27 "
-  "xv 20 "
-  "yb -384 "
+  "xv -100 "
+  "yb -80 "
   "stat_string 27 "
 "endif "
 ;

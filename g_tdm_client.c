@@ -855,91 +855,100 @@ int TDM_GetPlayerIdView (edict_t *ent)
 	vec3_t		maxs = {4,4,4};
 	qboolean	ignoreConfigStringUpdate;
 	int			i;
+	qboolean	show_health_info;
 
-	VectorCopy (ent->s.origin, start);
-	start[2] += ent->viewheight;
-
-	AngleVectors (ent->client->v_angle, forward, NULL, NULL);
-
-	VectorScale (forward, 4096, forward);
-	VectorAdd (ent->s.origin, forward, forward);
-
-	ignore = ent;
-
-	target = NULL;
-	ignoreConfigStringUpdate = false;
-
-	//find best player through tracing
-	for (i = 0; i < 10; i++)
+	if (ent->client->chase_target)
 	{
-		tr = gi.trace (start, mins, maxs, forward, ignore, CONTENTS_SOLID|CONTENTS_MONSTER|CONTENTS_DEADMONSTER);
-
-		if (tr.ent == world || tr.fraction == 1.0f)
-			break;
-
-		//we hit something that's a player and it's alive and on our team!
-		if (tr.ent && tr.ent->client && tr.ent->health > 0 &&
-			(ent->client->pers.team == TEAM_SPEC || tr.ent->client->pers.team == ent->client->pers.team))
-		{
-			target = tr.ent;
-			break;
-		}
-		else
-		{
-			VectorCopy (tr.endpos, start);
-			ignore = tr.ent;
-		}
+		target = ent->client->resp.last_id_client;
 	}
-
-	//if trace was unsuccessful, try guessing based on angles
-	if (!target)
+	else
 	{
-		edict_t		*who, *best;
-		vec3_t		dir;
-		float		distance, bdistance;
-		float		bd = 0, d;
+		VectorCopy (ent->s.origin, start);
+		start[2] += ent->viewheight;
 
 		AngleVectors (ent->client->v_angle, forward, NULL, NULL);
-		best = NULL;
 
-		for (who = g_edicts + 1; who <= g_edicts + game.maxclients; who++)
+		VectorScale (forward, 4096, forward);
+		VectorAdd (ent->s.origin, forward, forward);
+
+		ignore = ent;
+
+		target = NULL;
+		ignoreConfigStringUpdate = false;
+
+		//find best player through tracing
+		for (i = 0; i < 10; i++)
 		{
-			if (!who->inuse)
-				continue;
+			tr = gi.trace (start, mins, maxs, forward, ignore, CONTENTS_SOLID|CONTENTS_MONSTER|CONTENTS_DEADMONSTER);
 
-			if (ent->client->pers.team != TEAM_SPEC && who->client->pers.team != ent->client->pers.team)
-				continue;
+			if (tr.ent == world || tr.fraction == 1.0f)
+				break;
 
-			if (who->health <= 0)
-				continue;
-
-			if (who == ent)
-				continue;
-
-			VectorSubtract (who->s.origin, ent->s.origin, dir);
-			distance = VectorLength (dir);
-
-			VectorNormalize (dir);
-			d = DotProduct (forward, dir);
-
-			if (d > bd && visible (ent, who))
+			//we hit something that's a player and it's alive and on our team!
+			if (tr.ent && tr.ent->client && tr.ent->health > 0)
 			{
-				bdistance = distance;
-				bd = d;
-				best = who;
+				target = tr.ent;
+				break;
+			}
+			else
+			{
+				VectorCopy (tr.endpos, start);
+				ignore = tr.ent;
 			}
 		}
 
-		if (best)
+		//if trace was unsuccessful, try guessing based on angles
+		if (!target)
 		{
-			//allow variable slop based on proximity
-			if ((bdistance < 150 && bd > 0.50f) || (bdistance < 250 && bd > 0.90f) || (bdistance < 600 && bd > 0.96f) || bd > 0.98f)
-				target = best;
+			edict_t		*who, *best;
+			vec3_t		dir;
+			float		distance, bdistance = 0.0f;
+			float		bd = 0.0f, d;
+
+			AngleVectors (ent->client->v_angle, forward, NULL, NULL);
+			best = NULL;
+
+			for (who = g_edicts + 1; who <= g_edicts + game.maxclients; who++)
+			{
+				if (!who->inuse)
+					continue;
+
+				if (who->health <= 0)
+					continue;
+
+				if (who == ent)
+					continue;
+
+				VectorSubtract (who->s.origin, ent->s.origin, dir);
+				distance = VectorLength (dir);
+
+				VectorNormalize (dir);
+				d = DotProduct (forward, dir);
+
+				if (d > bd && visible (ent, who))
+				{
+					bdistance = distance;
+					bd = d;
+					best = who;
+				}
+			}
+
+			if (best)
+			{
+				//allow variable slop based on proximity
+				if ((bdistance < 150 && bd > 0.50f) || (bdistance < 250 && bd > 0.90f) || (bdistance < 600 && bd > 0.96f) || bd > 0.98f)
+					target = best;
+			}
 		}
 	}
 
 	if (!target)
 		return 0;
+
+	if (ent->client->pers.team == TEAM_SPEC || ent->client->pers.team == target->client->pers.team)
+		show_health_info = true;
+	else
+		show_health_info = false;
 
 	//don't spam configstring if they haven't changed since last time
 	if (ent->client->resp.last_id_client == target &&
@@ -953,9 +962,17 @@ int TDM_GetPlayerIdView (edict_t *ent)
 
 	if (!ignoreConfigStringUpdate)
 	{
+		char	*string;
+
+		if (show_health_info)
+			string = va ("%16s H:%d A:%d", target->client->pers.netname, target->health, TDM_GetArmorValue (target));
+		else
+			string = va ("%16s", target->client->pers.netname);
+
 		gi.WriteByte (svc_configstring);
 		gi.WriteShort (CS_TDM_ID_VIEW);
-		gi.WriteString (va ("%16s H:%d A:%d", target->client->pers.netname, target->health, TDM_GetArmorValue (target)));
+		gi.WriteString (string);
+		gi.WriteString (va ("%16s", target->client->pers.netname));
 		gi.unicast (ent, false);
 	}
 

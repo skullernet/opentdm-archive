@@ -471,6 +471,32 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	totalscore[0] = totalscore[1] = 0;
 	averageping[0] = averageping[1] = 0.0;
 
+	//init string
+	*string = 0;
+	len = 0;
+
+	// team info bars
+	sprintf (string,
+		"xv 72 yv 0 string2 \" Team          Frags\" "
+		"yv 8 string \"%-15.15s %4d\" "
+		"yv 16 string \"%-15.15s %4d\" ",
+		teaminfo[firstteam].name,
+		teaminfo[firstteam].score,
+		teaminfo[secondteam].name,
+		teaminfo[secondteam].score
+		);
+
+	// time info
+	sprintf (string + strlen(string),
+		"yv 32 string \" [%d-%02d-%02d %02d:%02d]\" ",
+		ts->tm_year + 1900,
+		ts->tm_mon + 1,
+		ts->tm_mday,
+		ts->tm_hour,
+		ts->tm_min
+		);
+
+
 	// wision: match scoreboard
 	if (current_matchinfo.teamplayers)
 	{
@@ -551,50 +577,32 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				width[i]++;
 		}
 
-		//init string
-		*string = 0;
-		len = 0;
-
 		//figure out how far the other team needs to be drawn below
 		offset = maxplayers * 8 + 24;
 		offsetfix[0] = offsetfix[1] = 0;
 
-		// team info bars
-		sprintf (string,
-			"xv 80 yv 0 string2 \"Team            Frags\" "
-			"xv 72 yv 8 string \"%-17.17s %4d\" "
-			"xv 72 yv 16 string \"%-17.17s %4d\" ",
-			teaminfo[firstteam].name,
-			teaminfo[firstteam].score,
-			teaminfo[secondteam].name,
-			teaminfo[secondteam].score
-			);
-
-		// time info
-		sprintf (string + strlen(string),
-			"xv 56 yv 32 string \"OpenTDM [%d-%02d-%02d %02d:%02d]\" ",
-			ts->tm_year + 1900,
-			ts->tm_mon + 1,
-			ts->tm_mday,
-			ts->tm_hour,
-			ts->tm_min
-			);
-
 		// headers
 		sprintf (tmpstr, "%s:%.f(%s)", teaminfo[firstteam].name, averageping[firstteam-1], teaminfo[firstteam].skin);
 		sprintf (string + strlen(string),
-			"xv %d yv 48 string \"%s\" "
-			"xv 8 yv 56 string2 \"Name              Frags Deaths Net Ping\" ",
-			((40-strlen(tmpstr))/2)*8,
+			"xv %d yv 40 string \"%s\" ",
+			((36-strlen(tmpstr))/2)*8 + 8,
 			tmpstr
+ 			);
+ 
+		sprintf (tmpstr, "%s:%.f(%s)", teaminfo[secondteam].name, averageping[secondteam-1], teaminfo[secondteam].skin);
+ 		sprintf (string + strlen(string),
+			"xv %d yv %d string \"%s\" ",
+			((36-strlen(tmpstr))/2)*8 + 8,
+			offset + 40, tmpstr
 			);
 
-		sprintf (tmpstr, "%s:%.f(%s)", teaminfo[secondteam].name, averageping[secondteam-1], teaminfo[secondteam].skin);
 		sprintf (string + strlen(string),
-			"xv %d yv %d string \"%s\" "
-			"xv 8 yv %d string2 \"Name              Frags Deaths Net Ping\" ",
-			((40-strlen(tmpstr))/2)*8, offset + 48,
-			tmpstr, offset + 56
+			"xv 8 yv 48 string2 \" Name            Frags Dths Net Ping\" "
+ 			);
+ 
+ 		sprintf (string + strlen(string),
+			"yv %d string2 \" Name            Frags Dths Net Ping\" ",
+			offset + 48
 			);
 
 		len = strlen(string);
@@ -622,9 +630,8 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				// calculate player's score
 				j = tmpl->enemy_kills - tmpl->team_kills - tmpl->suicides;
 				sprintf (entry,
-					"xv 0 yv %d string%s \"%s\" xv 160 string \"%4d    %3d %3d  %3d\" ",
-					i * 8 + 64 - offsetfix[firstteam-1],
-					(tmpl->client == ent) ? "2" : "",
+					"yv %d string \"%-15.15s   %4d  %3d %3d  %3d\" ",
+					i * 8 + 58 - offsetfix[firstteam-1],
 					tmpl->name,
 					j, 
 					tmpl->deaths,
@@ -656,9 +663,8 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				// calculate player's score
 				j = tmpl->enemy_kills - tmpl->team_kills - tmpl->suicides;
 				sprintf (entry,
-					"xv 0 yv %d string%s \"%s\" xv 160 string \"%4d    %3d %3d  %3d\" ",
-					i * 8 + 64 + offset - offsetfix[secondteam-1],
-					(tmpl->client == ent) ? "2" : "",
+					"yv %d string \"%-15.15s   %4d  %3d %3d  %3d\" ",
+					i * 8 + 58 + offset - offsetfix[secondteam-1],
 					tmpl->name,
 					j, 
 					tmpl->deaths,
@@ -753,42 +759,18 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				width[i]++;
 		}
 
-		//init string
-		*string = 0;
-		len = 0;
-
 		//figure out how far the other team needs to be drawn below
 		offset = maxplayers * 8 + 24;
-
-		// team info bars
-		sprintf (string,
-			"xv 80 yv 0 string2 \"Team            Frags\" "
-			"xv 72 yv 8 string \"%-17.17s %4d\" "
-			"xv 72 yv 16 string \"%-17.17s %4d\" ",
-			teaminfo[firstteam].name,
-			teaminfo[firstteam].score,
-			teaminfo[secondteam].name,
-			teaminfo[secondteam].score
-			);
-
-		// time info
-		sprintf (string + strlen(string),
-			"xv 56 yv 32 string \"OpenTDM [%d-%02d-%02d %02d:%02d]\" ",
-			ts->tm_year + 1900,
-			ts->tm_mon + 1,
-			ts->tm_mday,
-			ts->tm_hour,
-			ts->tm_min
-			);
 
 		// headers
 		if (total[firstteam-1] > 0)
 		{
 			sprintf (tmpstr, "%s:%.f(%s)", teaminfo[firstteam].name, averageping[firstteam-1], teaminfo[firstteam].skin);
 			sprintf (string + strlen(string),
-				"xv %d yv 48 string \"%s\" "
-				"xv 8 yv 56 string2 \"Name\" xv 288 string2 \"Ping\" ",
-				((40-strlen(tmpstr))/2)*8,
+				"xv %d yv 40 string \"%s\" "
+				// draw name on X=0 later, so we don't have to set it for all the players below
+				"xv 264 yv 48 string2 \"Ping\" xv 8 string2 \" Name\" ",
+				((36-strlen(tmpstr))/2)*8 + 8,
 				tmpstr
 				);
 		}
@@ -797,9 +779,10 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			sprintf (tmpstr, "%s:%.f(%s)", teaminfo[secondteam].name, averageping[secondteam-1], teaminfo[secondteam].skin);
 			sprintf (string + strlen(string),
 				"xv %d yv %d string \"%s\" "
-				"xv 8 yv %d string2 \"Name\" xv 288 string2 \"Ping\" ",
-				((40-strlen(tmpstr))/2)*8, offset + 48,
-				tmpstr,	offset + 56
+				// draw name on X=0 later, so we don't have to set it for all the players below
+				"xv 264 yv %d string2 \"Ping\" xv 8 string2 \" Name\" ",
+				((36-strlen(tmpstr))/2)*8, offset + 40,
+				tmpstr,	offset + 48
 				);
 		}
 
@@ -818,11 +801,10 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				cl_ent = g_edicts + 1 + sorted[firstteam-1][i];
 
 				sprintf (entry,
-					"xv 0 yv %d string%s \"%s\" xv 136 %s xv 296 string \"%3d\" ",
-					i * 8 + 64,
-					(cl_ent == ent) ? "2" : "",
-					cl->pers.netname,
-					cl->resp.ready ? "string2 \"  [READY]\"" : "string \"[NOT READY]\"",
+					"yv %d string \"%-15.15s   %13.13s  %3d\" ",
+					i * 8 + 56,
+ 					cl->pers.netname,
+					cl->resp.ready ? "[READY]    " : "",
 					(cl->ping > 999) ? 999 : cl->ping
 					);
 
@@ -841,11 +823,10 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				cl_ent = g_edicts + 1 + sorted[secondteam-1][i];
 
 				sprintf (entry,
-					"xv 0 yv %d string%s \"%s\" xv 136 %s xv 296 string \"%3d\" ",
-					i * 8 + 64 + offset,
-					(cl_ent == ent) ? "2" : "",
-					cl->pers.netname,
-					cl->resp.ready ? "string2 \"  [READY]\"" : "string \"[NOT READY]\"",
+					"yv %d string \"%-15.15s   %13.13s  %3d\" ",
+					i * 8 + 56 + offset,
+ 					cl->pers.netname,
+					cl->resp.ready ? "[READY]    " : "",
 					(cl->ping > 999) ? 999 : cl->ping
 					);
 
@@ -860,14 +841,13 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	}
 
 	// put server info on the bottom of screen
-	if (maxsize - len > 70)
+	if (maxsize - len > (strlen(serverinfo) + 25))
 	{
 		sprintf (string + strlen(string), "xl 8 yb -37 string2 \"%s\" ", serverinfo);
 	}
 
 	// put in spectators if we have enough room
-	j = 0;
-	j = total[0] * 8 + total[1] * 8 + 96;
+	j = total[0] * 8 + total[1] * 8 + 88;
 	
 	drawn_header = false;
 	
@@ -885,19 +865,19 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			if (!drawn_header)
 			{
 				drawn_header = true;
-				sprintf (entry, "xv 24 yv %d string2 \"          Spectators\" ", j);
+				sprintf (entry, "xv 64 yv %d string2 \" Spectators\" ", j);
 				strcat (string, entry);
 				len = strlen(string);
 				j += 8;
 			}
 
 			sprintf (entry,
-				"xv 64 yv %d string \"%s:%d%s\" ",
+				"yv %d string \"%s:%d%s\" ",
 				//0, // x
 				j+8, // y
 				cl->pers.netname,
 				cl->ping > 999 ? 999 : cl->ping,
-				cl->chase_target ? va("-> %-12.12s", cl->chase_target->client->pers.netname) : "");
+				cl->chase_target ? va("->%-12.12s", cl->chase_target->client->pers.netname) : "");
 
 			if (maxsize - len > strlen(entry))
 			{
@@ -2198,9 +2178,9 @@ Single time initialization stuff.
 */
 void TDM_Init (void)
 {
-	cvar_t	*var;
-	char	*p;
-	int		revision;
+	cvar_t		*var;
+	const char	*p;
+	int			revision;
 
 	HTTP_Init ();
 
