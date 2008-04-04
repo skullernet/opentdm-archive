@@ -1125,9 +1125,17 @@ void ClientBeginDeathmatch (edict_t *ent)
 		client->pers.joinstate = JS_FIRST_JOIN;
 
 		gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
+	}
 
-	
-		// locate ent at a spawn point
+	//spawn the client
+	if (ent->client->pers.team)
+	{
+		//rejoin a team if we were on one last map
+		JoinedTeam (ent, false);
+	}
+	else
+	{
+		//spawn a spectator
 		PutClientInServer (ent);
 
 		// send effect (only to local client)
@@ -1136,13 +1144,7 @@ void ClientBeginDeathmatch (edict_t *ent)
 		gi.WriteByte (MZ_LOGIN);
 		gi.unicast (ent, false);
 	}
-	else
-	{
-		//if this player was on a map previously, rejoin the team
-		if (ent->client->pers.team)
-			JoinedTeam (ent, false);
-	}
-	
+
 	// make sure all view stuff is valid
 	ClientEndServerFrame (ent);
 }
