@@ -42,12 +42,12 @@ void ChaseEyeHack (edict_t *ent, edict_t *newplayer, edict_t *oldplayer)
 	{
 		gi.WriteByte (svc_configstring);
 		gi.WriteShort (CS_PLAYERSKINS + (oldplayer - g_edicts) - 1);
-		gi.WriteString (va ("%s\\%s", oldplayer->client->pers.netname, teaminfo[oldplayer->client->resp.team].skin));
+		gi.WriteString (va ("%s\\%s", oldplayer->client->pers.netname, teaminfo[oldplayer->client->pers.team].skin));
 		gi.unicast (ent, true);
 
 		gi.WriteByte (svc_configstring);
 		gi.WriteShort (CS_PLAYERSKINS + (oldplayer - g_edicts) - 1);
-		gi.WriteString (va ("%s\\%s", oldplayer->client->pers.netname, teaminfo[oldplayer->client->resp.team].skin));
+		gi.WriteString (va ("%s\\%s", oldplayer->client->pers.netname, teaminfo[oldplayer->client->pers.team].skin));
 		gi.unicast (ent, false);
 	}
 }
@@ -97,7 +97,7 @@ void UpdateChaseCam(edict_t *ent)
 	vec3_t angles;
 
 	// is our chase target gone?
-	if (!ent->client->chase_target->inuse || !ent->client->chase_target->client->resp.team)
+	if (!ent->client->chase_target->inuse || !ent->client->chase_target->client->pers.team)
 	{
 		edict_t *old = ent->client->chase_target;
 		ChaseNext(ent);
@@ -205,7 +205,7 @@ void ChaseNext(edict_t *ent)
 		if (!e->inuse)
 			continue;
 
-		if (e->client->resp.team)
+		if (e->client->pers.team)
 			break;
 	} while (e != ent->client->chase_target);
 
@@ -237,7 +237,7 @@ void ChasePrev(edict_t *ent)
 		if (!e->inuse)
 			continue;
 
-		if (e->client->resp.team)
+		if (e->client->pers.team)
 			break;
 	} while (e != ent->client->chase_target);
 
@@ -258,7 +258,7 @@ void GetChaseTarget(edict_t *ent)
 	for (i = 1; i <= game.maxclients; i++)
 	{
 		other = g_edicts + i;
-		if (other->inuse && other->client->resp.team)
+		if (other->inuse && other->client->pers.team)
 		{
 			ent->client->chase_mode = CHASE_EYES;
 			ChaseEyeHack (ent, other, ent->client->chase_target);

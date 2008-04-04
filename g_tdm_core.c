@@ -410,7 +410,7 @@ void TDM_BeginMatch (void)
 		//reset invites on players who were invite during warmup, to prevent them joining mid-game
 		ent->client->resp.last_invited_by = NULL;
 
-		if (ent->client->resp.team)
+		if (ent->client->pers.team)
 		{
 			respawn (ent);
 		}
@@ -683,9 +683,9 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			if (!cl_ent->inuse)
 				continue;
 
-			if (game.clients[i].resp.team == TEAM_A)
+			if (game.clients[i].pers.team == TEAM_A)
 				team = 0;
-			else if (game.clients[i].resp.team == TEAM_B)
+			else if (game.clients[i].pers.team == TEAM_B)
 				team = 1;
 			else
 				continue; // unknown team?
@@ -878,7 +878,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			cl = &game.clients[i];
 			if (!cl_ent->inuse ||
 				cl_ent->solid != SOLID_NOT ||
-				cl_ent->client->resp.team != TEAM_SPEC)
+				cl_ent->client->pers.team != TEAM_SPEC)
 				continue;
 
 			if (!drawn_header)
@@ -966,8 +966,8 @@ const char *TDM_MakeDemoName (edict_t *ent)
 	// current format: playername-team_a-team_b-servername-map-year-mon-day-hour-min-sec
 	sprintf (string, "%s-%s-%s-%s-%s_%d-%02d-%02d_%02d-%02d-%02d",
 			ent->client->pers.netname,
-			teaminfo[ent->client->resp.team].name,
-			teaminfo[(ent->client->resp.team%2)+1].name,
+			teaminfo[ent->client->pers.team].name,
+			teaminfo[(ent->client->pers.team%2)+1].name,
 			servername,
 			level.mapname,
 			ts->tm_year + 1900,
@@ -1027,7 +1027,7 @@ void TDM_BeginCountdown (void)
 
 		for (client = g_edicts + 1; client <= g_edicts + game.maxclients; client++)
 		{
-			if (client->inuse && client->client->resp.team)
+			if (client->inuse && client->client->pers.team)
 				G_StuffCmd (client, "record \"%s\"\n", TDM_MakeDemoName (client));
 		}
 	}
@@ -1056,7 +1056,7 @@ void TDM_EndIntermission (void)
 			if (!client->inuse)
 				continue;
 
-			if (client->client->resp.team)
+			if (client->client->pers.team)
 				G_StuffCmd (client, "stop\n");
 		}
 	}
@@ -1172,7 +1172,7 @@ void TDM_BeginIntermission (void)
 		if (client->client->chase_target)
 			DisableChaseCam (client);
 
-		if (client->client->resp.team && g_force_screenshot->value == 1)
+		if (client->client->pers.team && g_force_screenshot->value == 1)
 			G_StuffCmd (client, "screenshot\n");
 	}
 }
@@ -1196,7 +1196,7 @@ void TDM_EndMatch (void)
 	//show stats
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
-		if (ent->inuse && ent->client->resp.team)
+		if (ent->inuse && ent->client->pers.team)
 		{
 			if (!ent->client->resp.teamplayerinfo)
 				TDM_Error ("TDM_EndMatch: Missing teamplayerinfo for client %d", ent - g_edicts);
@@ -1297,7 +1297,7 @@ void TDM_NagUnreadyPlayers (void)
 		if (!ent->inuse)
 			continue;
 
-		if (ent->client->resp.team == TEAM_SPEC)
+		if (ent->client->pers.team == TEAM_SPEC)
 			continue;
 
 		if (ent->client->resp.ready)
@@ -1514,7 +1514,7 @@ void TDM_CheckTimes (void)
 			if (!ent->inuse)
 				continue;
 
-			if (!ent->client->resp.team)
+			if (!ent->client->pers.team)
 				continue;
 
 			if (ent->client->resp.vote == VOTE_YES)
@@ -1575,6 +1575,7 @@ void TDM_CheckTimes (void)
 			TDM_Motd_f (ent);
 		}
 	}
+
 #ifdef _DEBUG
 	TDM_SetFrameTime ();
 #endif
@@ -1603,13 +1604,13 @@ void TDM_CheckMatchStart (void)
 		if (!ent->inuse)
 			continue;
 
-		if (ent->client->resp.team == TEAM_SPEC)
+		if (ent->client->pers.team == TEAM_SPEC)
 			continue;
 
 		if (ent->client->resp.ready)
 		{
 			total_ready++;
-			ready[ent->client->resp.team]++;
+			ready[ent->client->pers.team]++;
 		}
 
 		total_players++;
@@ -1857,14 +1858,14 @@ void TDM_UpdateTeamNames (void)
 		if (!ent->inuse)
 			continue;
 
-		if (ent->client->resp.team == TEAM_A && g_team_a_name->modified)
+		if (ent->client->pers.team == TEAM_A && g_team_a_name->modified)
 		{
 			if (TDM_Is1V1())
 				gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, ent->client->pers.netname);
 			else
 				gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, va("%s (%s)", ent->client->pers.netname, teaminfo[TEAM_A].name));
 		}
-		else if (ent->client->resp.team == TEAM_B && g_team_b_name->modified)
+		else if (ent->client->pers.team == TEAM_B && g_team_b_name->modified)
 		{
 			if (TDM_Is1V1())
 				gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, ent->client->pers.netname);
@@ -1978,7 +1979,7 @@ void CountPlayers (void)
 	{
 		if (ent->inuse)
 		{
-			teaminfo[ent->client->resp.team].players++;
+			teaminfo[ent->client->pers.team].players++;
 			total++;
 		}
 	}
@@ -2144,9 +2145,11 @@ void TDM_ResetGameState (void)
 	//don't memset, since we have info we do actually want to preserve
 	teaminfo[TEAM_A].score = teaminfo[TEAM_B].score = 0;
 	teaminfo[TEAM_A].players = teaminfo[TEAM_B].players = 0;
-	teaminfo[TEAM_A].captain = teaminfo[TEAM_B].captain = NULL;
 	teaminfo[TEAM_A].locked = teaminfo[TEAM_B].locked = false;
 	teaminfo[TEAM_A].ready = teaminfo[TEAM_B].ready = false;
+
+	//preserve captains as per bug #0000001
+	//teaminfo[TEAM_A].captain = teaminfo[TEAM_B].captain = NULL;
 
 	TDM_UpdateTeamNames ();
 
@@ -2158,18 +2161,26 @@ void TDM_ResetGameState (void)
 			ent->client->resp.last_invited_by = NULL;
 			ent->client->resp.score = 0;
 			ent->client->resp.teamplayerinfo = NULL;
+			ent->client->resp.ready = false;
 
 			ent->client->showmotd = false;
 			ent->client->showscores = false;
 			ent->client->showoldscores = false;
 
-			if (ent->client->resp.team != TEAM_SPEC)
-			{
-				ent->client->resp.team = TEAM_SPEC;
-				PutClientInServer (ent);
-			}
-
 			ent->viewheight = 0;
+
+			if (ent->client->pers.team != TEAM_SPEC)
+			{
+				//preserve teams as per bug #0000001
+				//ent->client->pers.team = TEAM_SPEC;
+				PutClientInServer (ent);
+
+				//make it look convincing
+				gi.WriteByte (svc_muzzleflash);
+				gi.WriteShort (ent - g_edicts);
+				gi.WriteByte (MZ_LOGIN);
+				gi.unicast (ent, false);
+			}
 		}
 	}
 
@@ -2177,9 +2188,10 @@ void TDM_ResetGameState (void)
 	CountPlayers ();
 	UpdateTeamMenu ();
 
+	//show menu for players in spec
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
-		if (ent->inuse)
+		if (ent->inuse && !ent->client->pers.team)
 			TDM_ShowTeamMenu (ent);
 	}
 }
@@ -2295,7 +2307,7 @@ void TDM_SetSkins (void)
 			if (!ent->inuse)
 				continue;
 
-			if (ent->client->resp.team == i)
+			if (ent->client->pers.team == i)
 			{
 				gi.configstring (CS_PLAYERSKINS + (ent - g_edicts) - 1, va("%s\\%s", ent->client->pers.netname, teaminfo[i].skin));
 			}	
@@ -2581,7 +2593,7 @@ void TDM_Error (const char *fmt, ...)
 		if (!ent->inuse)
 			continue;
 
-		gi.dprintf ("%d: %s, connected %d, team %d, info %p\n", ent - g_edicts, ent->client->pers.netname, ent->client->pers.connected, ent->client->resp.team, ent->client->resp.teamplayerinfo);
+		gi.dprintf ("%d: %s, connected %d, team %d, info %p\n", ent - g_edicts, ent->client->pers.netname, ent->client->pers.connected, ent->client->pers.team, ent->client->resp.teamplayerinfo);
 	}
 
 	gi.error (text);

@@ -1429,7 +1429,7 @@ void TDM_VoteWebConfigResult (edict_t *ent, int code, void *param)
 		return;
 	}
 
-	if (!ent->client->resp.team)
+	if (!ent->client->pers.team)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Web config '%s' was found, but you are no longer on a team!\n", tdm_download.name);
 		return;
@@ -1521,7 +1521,7 @@ qboolean TDM_VoteRestart (edict_t *ent)
 		return false;
 	}
 
-	if (!ent->client->resp.team && !ent->client->pers.admin)
+	if (!ent->client->pers.team && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only players in the match can vote for a restart.\n");
 		return false;
@@ -1648,7 +1648,7 @@ void TDM_Vote_f (edict_t *ent)
 	const char	*cmd;
 	qboolean	started_new_vote;
 
-	if ((!vote.active || !ent->client->resp.team) && (!Q_stricmp (gi.argv(0), "yes") || !Q_stricmp (gi.argv(0), "no")))
+	if ((!vote.active || !ent->client->pers.team) && (!Q_stricmp (gi.argv(0), "yes") || !Q_stricmp (gi.argv(0), "no")))
 	{
 		Cmd_Say_f (ent, false, true);
 		return;
@@ -1705,7 +1705,7 @@ void TDM_Vote_f (edict_t *ent)
 		}
 	}
 
-	if (!ent->client->resp.team && !ent->client->pers.admin)
+	if (!ent->client->pers.team && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You must be on a team to vote or propose new settings.\n");
 		return;
@@ -1794,7 +1794,7 @@ void TDM_CheckVote (void)
 		if (!ent->inuse)
 			continue;
 
-		if (!ent->client->resp.team)
+		if (!ent->client->pers.team)
 			continue;
 
 		if (ent->client->resp.vote == VOTE_YES)

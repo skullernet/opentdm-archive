@@ -50,7 +50,7 @@ qboolean OnSameTeam (edict_t *ent1, edict_t *ent2)
 {
 	if (ent1->client && ent2->client)
 	{
-		return (ent1->client->resp.team == ent2->client->resp.team);
+		return (ent1->client->pers.team == ent2->client->pers.team);
 	}
 	else
 	{
@@ -514,7 +514,7 @@ Cmd_Inven_f
 		PMenu_Close (ent);
 		return;
 	}
-	else if (cl->resp.team == TEAM_SPEC)
+	else if (cl->pers.team == TEAM_SPEC)
 	{
 		TDM_ShowTeamMenu (ent);
 		return;
@@ -549,7 +549,7 @@ void Cmd_InvUse_f (edict_t *ent)
 		return;
 
 	//spectators can swap chase mode only
-	if (!ent->client->resp.team)
+	if (!ent->client->pers.team)
 	{
 		if (ent->client->chase_target)
 			NextChaseMode (ent);
@@ -726,7 +726,7 @@ Cmd_Kill_f
 */
 void Cmd_Kill_f (edict_t *ent)
 {
-	if (!ent->client->resp.team)
+	if (!ent->client->pers.team)
 		return;
 
 	if((level.framenum - ent->client->respawn_framenum) < 5 * (1 * SERVER_FPS))
@@ -929,11 +929,11 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 		return;
 
 	// wision: don't allow spectators to talk during shutup mode
-	if (g_chat_mode->value == 2 && !ent->client->resp.team && !ent->client->pers.admin)
+	if (g_chat_mode->value == 2 && !ent->client->pers.team && !ent->client->pers.admin)
 		return;
 	
 	if (tdm_match_status > MM_COUNTDOWN && tdm_match_status < MM_SCOREBOARD &&
-			!ent->client->resp.team && !ent->client->pers.admin && g_chat_mode->value == 1)
+			!ent->client->pers.team && !ent->client->pers.admin && g_chat_mode->value == 1)
 	{
 		//Observers can talk only to each other during the match.
 		team = true;
@@ -970,7 +970,7 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 
 	strcat(text, "\n");
 
-	if (ent->client->resp.team)
+	if (ent->client->pers.team)
 		TDM_MacroExpand (ent, text + expandpoint, sizeof(text) - expandpoint - 1);
 
 	//wision: fixed.. but still dunno how it does work :x
@@ -1064,8 +1064,8 @@ void Cmd_PlayerList_f (edict_t *ent)
 			e2->client->resp.score,
 			ent->client->pers.admin ? va ("%17s ", ip) : "",
 			e2->client->pers.netname,
-			teaminfo[e2->client->resp.team].name,
-			e2->client->resp.team == TEAM_SPEC && e2->client->chase_target ? 
+			teaminfo[e2->client->pers.team].name,
+			e2->client->pers.team == TEAM_SPEC && e2->client->chase_target ? 
 				va ("->%s", e2->client->chase_target->client->pers.netname) : "");
 
 		if (strlen(text) > 800)

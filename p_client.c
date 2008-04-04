@@ -79,7 +79,7 @@ qboolean IsFemale (edict_t *ent)
 		return true;*/
 
 	//ugly skin checks instead :(
-	if (!Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "female/", 7) || !Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "crakhor/", 8))
+	if (!Q_strncasecmp (teaminfo[ent->client->pers.team].skin, "female/", 7) || !Q_strncasecmp (teaminfo[ent->client->pers.team].skin, "crakhor/", 8))
 		return true;
 
 	return false;
@@ -96,8 +96,8 @@ qboolean IsNeutral (edict_t *ent)
 		return true;*/
 
 	//ugly skin checks instead :(
-	if (!Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "male/", 5) || !Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "cyborg/", 7) ||
-		!Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "female/", 7) || !Q_strncasecmp (teaminfo[ent->client->resp.team].skin, "crakhor/", 8))
+	if (!Q_strncasecmp (teaminfo[ent->client->pers.team].skin, "male/", 5) || !Q_strncasecmp (teaminfo[ent->client->pers.team].skin, "cyborg/", 7) ||
+		!Q_strncasecmp (teaminfo[ent->client->pers.team].skin, "female/", 7) || !Q_strncasecmp (teaminfo[ent->client->pers.team].skin, "crakhor/", 8))
 		return false;
 
 	return true;
@@ -203,7 +203,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 		if (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD)
 		{
 			self->client->resp.score--;
-			teaminfo[self->client->resp.team].score--;
+			teaminfo[self->client->pers.team].score--;
 			self->client->resp.teamplayerinfo->deaths++;
 			self->client->resp.teamplayerinfo->suicides++;
 		}
@@ -301,7 +301,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				if (ff)
 				{
 					attacker->client->resp.score--;
-					teaminfo[attacker->client->resp.team].score--;
+					teaminfo[attacker->client->pers.team].score--;
 
 					self->client->resp.teamplayerinfo->deaths++;
 					attacker->client->resp.teamplayerinfo->team_kills++;
@@ -309,7 +309,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				else
 				{
 					attacker->client->resp.score++;
-					teaminfo[attacker->client->resp.team].score++;
+					teaminfo[attacker->client->pers.team].score++;
 
 					self->client->resp.teamplayerinfo->deaths++;
 					attacker->client->resp.teamplayerinfo->enemy_kills++;
@@ -325,7 +325,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 	if (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD)
 	{
 		self->client->resp.score--;
-		teaminfo[self->client->resp.team].score--;
+		teaminfo[self->client->pers.team].score--;
 		self->client->resp.teamplayerinfo->deaths++;
 	}
 }
@@ -459,7 +459,7 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 		self->client->ps.pmove.pm_type = PM_DEAD;
 		ClientObituary (self, inflictor, attacker);
 
-		self->client->resp.last_weapon = self->client->weapon;
+		self->client->pers.last_weapon = self->client->weapon;
 
 		TossClientWeapon (self);
 
@@ -569,7 +569,7 @@ float	PlayersRangeFromSpot (edict_t *spot, edict_t **closest_player)
 		if (player->health <= 0)
 			continue;
 
-		if (!player->client->resp.team)
+		if (!player->client->pers.team)
 			continue;
 
 		VectorSubtract (spot->s.origin, player->s.origin, v);
@@ -775,7 +775,7 @@ void	SelectSpawnPoint (edict_t *ent, vec3_t origin, vec3_t angles)
 {
 	edict_t	*spot = NULL;
 
-	if (ent->client->resp.team)
+	if (ent->client->pers.team)
 	{
 		spot = SelectDeathmatchSpawnPoint ();
 	}
@@ -986,7 +986,7 @@ void PutClientInServer (edict_t *ent)
 	// clear playerstate values
 	memset (&ent->client->ps, 0, sizeof(client->ps));
 
-	if (ent->client->resp.team)
+	if (ent->client->pers.team)
 		TDM_SetInitialItems (ent);
 
 	client->ps.pmove.origin[0] = spawn_origin[0]*8;
@@ -1037,14 +1037,14 @@ void PutClientInServer (edict_t *ent)
 
 	ent->client->last_activity_frame = level.framenum;
 
-	if (ent->client->resp.joinstate == JS_FIRST_JOIN)
+	if (ent->client->pers.joinstate == JS_FIRST_JOIN)
 	{
-		ent->client->resp.joinstate = JS_JOINED;
+		ent->client->pers.joinstate = JS_JOINED;
 		rejoined = TDM_SetupClient (ent);
 	}
 
 	// spawn a spectator
-	if (!client->resp.team)
+	if (!client->pers.team)
 	{
 		client->chase_target = NULL;
 
@@ -1088,6 +1088,8 @@ ClientBeginDeathmatch
 
 A client has just connected to the server in 
 deathmatch mode, so clear everything out before starting them.
+
+Called on every level change also.
 =====================
 */
 void ClientBeginDeathmatch (edict_t *ent)
@@ -1100,24 +1102,30 @@ void ClientBeginDeathmatch (edict_t *ent)
 
 	client = ent->client;
 
-	strcpy (userinfo, ent->client->pers.userinfo);
-	strcpy (saved_ip, ent->client->pers.ip);
-
 	//init here on rather than on clientconnect, clientconnect doesn't always
 	//guarantee a client is actually making it all the way into the game.
-	memset (&client->pers, 0, sizeof(client->pers));
 	memset (&client->resp, 0, sizeof(client->resp));
 
-	strcpy (ent->client->pers.ip, saved_ip);
+	//only run this the very first time they join the server, so pers is really persistent
+	//even across map changes
+	if (ent->client->pers.joinstate != JS_JOINED)
+	{
+		strcpy (userinfo, ent->client->pers.userinfo);
+		strcpy (saved_ip, ent->client->pers.ip);
+
+		memset (&client->pers, 0, sizeof(client->pers));
+
+		strcpy (ent->client->pers.ip, saved_ip);
+		ClientUserinfoChanged (ent, userinfo);
+
+		client->resp.enterframe = level.framenum;
+		client->pers.joinstate = JS_FIRST_JOIN;
+
+		gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
+	}
 
 	client->pers.connected = true;
-	ClientUserinfoChanged (ent, userinfo);
-
-	client->resp.enterframe = level.framenum;
-	client->resp.joinstate = JS_FIRST_JOIN;
-
-	gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
-
+	
 	// locate ent at a spawn point
 	PutClientInServer (ent);
 
@@ -1212,7 +1220,7 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 				}
 			}
 
-			gi.configstring (CS_PLAYERSKINS + playernum, va ("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->resp.team].skin));
+			gi.configstring (CS_PLAYERSKINS + playernum, va ("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->pers.team].skin));
 
 			//this handles updating team names and configstrings
 			TDM_PlayerNameChanged (ent);
@@ -1325,7 +1333,7 @@ void ClientDisconnect (edict_t *ent)
 		return;
 
 	// send effect (only if they were in game)
-	if (ent->client->resp.team)
+	if (ent->client->pers.team)
 	{
 		gi.WriteByte (svc_muzzleflash);
 		gi.WriteShort (ent-g_edicts);
@@ -1353,6 +1361,9 @@ void ClientDisconnect (edict_t *ent)
 	gi.bprintf (PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
 
 	playernum = ent-g_edicts-1;
+
+	//zero pers in preparation for new client
+	memset (&ent->client->pers, 0, sizeof(ent->client->pers));
 
 	//is this really needed? it breaks all bodies left by the player.
 	//gi.configstring (CS_PLAYERSKINS+playernum, "");
@@ -1409,7 +1420,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	client = ent->client;
 
 	//no movement during map or match intermission
-	if (tdm_match_status == MM_SCOREBOARD || (tdm_match_status == MM_TIMEOUT && ent->client->resp.team))
+	if (tdm_match_status == MM_SCOREBOARD || (tdm_match_status == MM_TIMEOUT && ent->client->pers.team))
 	{
 		client->resp.cmd_angles[0] = SHORT2ANGLE(ucmd->angles[0]);
 		client->resp.cmd_angles[1] = SHORT2ANGLE(ucmd->angles[1]);
@@ -1539,7 +1550,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	// fire weapon from final position if needed
 	if (client->latched_buttons & BUTTON_ATTACK)
 	{
-		if (client->resp.team == TEAM_SPEC)
+		if (client->pers.team == TEAM_SPEC)
 		{
 			// wision: toggle chase when specing
 			if (!client->chase_target)
@@ -1568,7 +1579,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		}
 	}
 
-	if (client->resp.team == TEAM_SPEC)
+	if (client->pers.team == TEAM_SPEC)
 	{
 		// +moveup goes to next chase target
 		if (ucmd->upmove >= 10)
@@ -1628,7 +1639,7 @@ void ClientBeginServerFrame (edict_t *ent)
 	// run weapon animations if it hasn't been done by a ucmd_t, only run at 10hz since gun
 	// animations aren't designed for anything higher and it screws up reload times. the client
 	// does the work of interpolating the frame across multiple server frames.
-	if (!client->weapon_thunk && client->resp.team)
+	if (!client->weapon_thunk && client->pers.team)
 		Think_Weapon (ent);
 	else
 		client->weapon_thunk = false;
@@ -1648,9 +1659,9 @@ void ClientBeginServerFrame (edict_t *ent)
 		return;
 	}
 
-	if (ent->client->resp.team && FRAMES_TO_SECS(level.framenum - ent->client->last_activity_frame) > g_idle_time->value)
+	if (ent->client->pers.team && FRAMES_TO_SECS(level.framenum - ent->client->last_activity_frame) > g_idle_time->value)
 	{
-		gi.bprintf (PRINT_HIGH, "Removing %s from team '%s' due to inactivity.\n", ent->client->pers.netname, teaminfo[ent->client->resp.team].name);
+		gi.bprintf (PRINT_HIGH, "Removing %s from team '%s' due to inactivity.\n", ent->client->pers.netname, teaminfo[ent->client->pers.team].name);
 		ToggleChaseCam (ent);
 	}
 

@@ -55,7 +55,7 @@ static void TDM_ForceReady_f (qboolean status)
 		if (!ent->inuse)
 			continue;
 
-		if (!ent->client->resp.team)
+		if (!ent->client->pers.team)
 			continue;
 
 		ent->client->resp.ready = status;
@@ -755,13 +755,13 @@ void TDM_Team_f (edict_t *ent)
 
 	if (gi.argc () < 2)
 	{
-		if (!ent->client->resp.team)
+		if (!ent->client->pers.team)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "You are not on a team. Use %s 1 or %s 2 to join a team.\n", gi.argv(0), gi.argv(0));
 			return;
 		}
 
-		gi.cprintf (ent, PRINT_HIGH, "You are on the '%s' team.\n", teaminfo[ent->client->resp.team].name);
+		gi.cprintf (ent, PRINT_HIGH, "You are on the '%s' team.\n", teaminfo[ent->client->pers.team].name);
 		return;
 	}
 
@@ -778,7 +778,7 @@ void TDM_Team_f (edict_t *ent)
 		return;
 	}
 
-	if ((int)ent->client->resp.team == team)
+	if ((int)ent->client->pers.team == team)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You're already on that team!\n");
 		return;
@@ -814,7 +814,7 @@ Call a timeout.
 */
 void TDM_Timeout_f (edict_t *ent)
 {
-	if (!ent->client->resp.team)
+	if (!ent->client->pers.team)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only players in the match may call a time out.\n");
 		return;
@@ -885,7 +885,7 @@ void TDM_Timeout_f (edict_t *ent)
 	if (TDM_Is1V1 ())
 		gi.bprintf (PRINT_CHAT, "%s called a time out. Match will resume automatically in %s.\n", ent->client->pers.netname, TDM_SecsToString (g_max_timeout->value));
 	else
-		gi.bprintf (PRINT_CHAT, "%s (%s) called a time out. Match will resume automatically in %s.\n", ent->client->pers.netname, teaminfo[ent->client->resp.team].name, TDM_SecsToString (g_max_timeout->value));
+		gi.bprintf (PRINT_CHAT, "%s (%s) called a time out. Match will resume automatically in %s.\n", ent->client->pers.netname, teaminfo[ent->client->pers.team].name, TDM_SecsToString (g_max_timeout->value));
 
 	gi.cprintf (ent, PRINT_HIGH, "Match paused. Use '%s' again to resume play.\n", gi.argv(0));
 }
@@ -1081,7 +1081,7 @@ void TDM_Teamname_f (edict_t *ent)
 		return;
 	}
 
-	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
+	if (teaminfo[ent->client->pers.team].captain != ent && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can change teamname.\n");
 		return;
@@ -1114,7 +1114,7 @@ void TDM_Teamname_f (edict_t *ent)
 		i++;
 	} while (value[i]);
 
-	if (ent->client->resp.team == TEAM_A)
+	if (ent->client->pers.team == TEAM_A)
 	{
 		if (!strcmp (teaminfo[TEAM_A].name, value))
 			return;
@@ -1122,7 +1122,7 @@ void TDM_Teamname_f (edict_t *ent)
 		g_team_a_name = gi.cvar_set ("g_team_a_name", value);
 		g_team_a_name->modified = true;
 	}
-	else if (ent->client->resp.team == TEAM_B)
+	else if (ent->client->pers.team == TEAM_B)
 	{
 		if (!strcmp (teaminfo[TEAM_B].name, value))
 			return;
@@ -1131,7 +1131,7 @@ void TDM_Teamname_f (edict_t *ent)
 		g_team_b_name->modified = true;
 	}
 
-	gi.bprintf (PRINT_HIGH, "Team '%s' renamed to '%s'.\n", teaminfo[ent->client->resp.team].name, value);
+	gi.bprintf (PRINT_HIGH, "Team '%s' renamed to '%s'.\n", teaminfo[ent->client->pers.team].name, value);
 
 	TDM_UpdateTeamNames ();
 
@@ -1152,14 +1152,14 @@ void TDM_Lockteam_f (edict_t *ent, qboolean lock)
 		return;
 	}
 
-	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
+	if (teaminfo[ent->client->pers.team].captain != ent && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can lock/unlock team.\n");
 		return;
 	}
 
-	teaminfo[ent->client->resp.team].locked = lock;
-	gi.cprintf (ent, PRINT_HIGH, "Team '%s' is %slocked.\n", teaminfo[ent->client->resp.team].name, (lock ? "" : "un"));
+	teaminfo[ent->client->pers.team].locked = lock;
+	gi.cprintf (ent, PRINT_HIGH, "Team '%s' is %slocked.\n", teaminfo[ent->client->pers.team].name, (lock ? "" : "un"));
 }
 
 void TDM_Forceteam_f (edict_t *ent)
@@ -1183,7 +1183,7 @@ void TDM_Invite_f (edict_t *ent)
 		return;
 	}
 
-	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
+	if (teaminfo[ent->client->pers.team].captain != ent && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can invite players.\n");
 		return;
@@ -1212,14 +1212,14 @@ void TDM_Invite_f (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
 			return;
 
-		if (victim->client->resp.team)
+		if (victim->client->pers.team)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "%s is already on a team.\n", victim->client->pers.netname);
 			return;
 		}
 
 		victim->client->resp.last_invited_by = ent;
-		gi.centerprintf (victim, "You are invited to '%s'\nby %s. Type ACCEPT in\nthe console to accept.\n", teaminfo[ent->client->resp.team].name, ent->client->pers.netname);
+		gi.centerprintf (victim, "You are invited to '%s'\nby %s. Type ACCEPT in\nthe console to accept.\n", teaminfo[ent->client->pers.team].name, ent->client->pers.netname);
 		gi.cprintf (ent, PRINT_HIGH, "%s was invited to join your team.\n", victim->client->pers.netname);
 	}
 }
@@ -1255,7 +1255,7 @@ void TDM_PickPlayer_f (edict_t *ent)
 		return;
 	}
 
-	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
+	if (teaminfo[ent->client->pers.team].captain != ent && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can pick players.\n");
 		return;
@@ -1278,18 +1278,18 @@ void TDM_PickPlayer_f (edict_t *ent)
 			return;
 		}
 
-		if (victim->client->resp.team)
+		if (victim->client->pers.team)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "%s is already on a team.\n", victim->client->pers.netname);
 			return;
 		}
 
-		gi.bprintf (PRINT_CHAT, "%s picked %s for team '%s'.\n", ent->client->pers.netname, victim->client->pers.netname, teaminfo[ent->client->resp.team].name);
+		gi.bprintf (PRINT_CHAT, "%s picked %s for team '%s'.\n", ent->client->pers.netname, victim->client->pers.netname, teaminfo[ent->client->pers.team].name);
 
-		if (victim->client->resp.team)
+		if (victim->client->pers.team)
 			TDM_LeftTeam (victim);
 
-		victim->client->resp.team = ent->client->resp.team;
+		victim->client->pers.team = ent->client->pers.team;
 		JoinedTeam (victim, false);
 	}
 }
@@ -1317,7 +1317,7 @@ void TDM_Accept_f (edict_t *ent)
 
 	//holy dereference batman
 	if (!ent->client->resp.last_invited_by->inuse ||
-		teaminfo[ent->client->resp.last_invited_by->client->resp.team].captain != ent->client->resp.last_invited_by)
+		teaminfo[ent->client->resp.last_invited_by->client->pers.team].captain != ent->client->resp.last_invited_by)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "The invite is no longer valid.\n");
 		ent->client->resp.last_invited_by = NULL;
@@ -1325,18 +1325,18 @@ void TDM_Accept_f (edict_t *ent)
 	}
 
 	//prevent invite going over max allowed on a team
-	if ((g_max_players_per_team->value && teaminfo[ent->client->resp.last_invited_by->client->resp.team].players >= g_max_players_per_team->value) ||
-		(tdm_match_status >= MM_PLAYING && teaminfo[ent->client->resp.last_invited_by->client->resp.team].players >= current_matchinfo.max_players_per_team))
+	if ((g_max_players_per_team->value && teaminfo[ent->client->resp.last_invited_by->client->pers.team].players >= g_max_players_per_team->value) ||
+		(tdm_match_status >= MM_PLAYING && teaminfo[ent->client->resp.last_invited_by->client->pers.team].players >= current_matchinfo.max_players_per_team))
 	{
 		gi.cprintf (ent, PRINT_HIGH, "The team is already full.\n");
 		ent->client->resp.last_invited_by = NULL;
 		return;
 	}
 
-	if (ent->client->resp.team)
+	if (ent->client->pers.team)
 		TDM_LeftTeam (ent);
 
-	ent->client->resp.team = ent->client->resp.last_invited_by->client->resp.team;
+	ent->client->pers.team = ent->client->resp.last_invited_by->client->pers.team;
 
 	JoinedTeam (ent, false);
 }
@@ -1403,13 +1403,13 @@ void TDM_Talk_f (edict_t *ent)
 		}
 		if (tdm_match_status >= MM_PLAYING)
 		{
-			if (ent->client->resp.team == TEAM_SPEC && victim->client->resp.team != TEAM_SPEC)
+			if (ent->client->pers.team == TEAM_SPEC && victim->client->pers.team != TEAM_SPEC)
 			{
 				gi.cprintf (ent, PRINT_HIGH, "Spectators cannot talk to players during the match.");
 				return;
 			}
 		}
-		if (g_chat_mode->value == 2 && ent->client->resp.team == TEAM_SPEC && !victim->client->pers.admin)
+		if (g_chat_mode->value == 2 && ent->client->pers.team == TEAM_SPEC && !victim->client->pers.admin)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "Spectators cannot talk during shutup mode.");
 			return;
@@ -1465,7 +1465,7 @@ void TDM_KickPlayer_f (edict_t *ent)
 		return;
 	}
 
-	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
+	if (teaminfo[ent->client->pers.team].captain != ent && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can kick players.\n");
 		return;
@@ -1473,13 +1473,13 @@ void TDM_KickPlayer_f (edict_t *ent)
 
 	if (LookupPlayer (gi.args(), &victim, ent))
 	{
-		if (!victim->client->resp.team)
+		if (!victim->client->pers.team)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "%s is not on a team.\n", victim->client->pers.netname);
 			return;
 		}
 
-		if (victim->client->resp.team != ent->client->resp.team)
+		if (victim->client->pers.team != ent->client->pers.team)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "%s is not on your team.\n", victim->client->pers.netname);
 			return;
@@ -1498,7 +1498,7 @@ void TDM_KickPlayer_f (edict_t *ent)
 		}
 
 		//maybe this should broadcast?
-		gi.cprintf (victim, PRINT_HIGH, "You were removed from team '%s' by %s.\n", teaminfo[victim->client->resp.team].name, ent->client->pers.netname);
+		gi.cprintf (victim, PRINT_HIGH, "You were removed from team '%s' by %s.\n", teaminfo[victim->client->pers.team].name, ent->client->pers.netname);
 		ToggleChaseCam (victim);
 	}
 }
@@ -1556,24 +1556,24 @@ void TDM_Captain_f (edict_t *ent)
 	if (gi.argc() < 2)
 	{
 		//checking captain status or assigning from NULL captain
-		if (ent->client->resp.team == TEAM_SPEC)
+		if (ent->client->pers.team == TEAM_SPEC)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "You must join a team to set or become captain.\n");
 			return;
 		}
 
-		if (teaminfo[ent->client->resp.team].captain == ent)
+		if (teaminfo[ent->client->pers.team].captain == ent)
 		{
-			gi.cprintf (ent, PRINT_HIGH, "You are the captain of team '%s'\n", teaminfo[ent->client->resp.team].name);
+			gi.cprintf (ent, PRINT_HIGH, "You are the captain of team '%s'\n", teaminfo[ent->client->pers.team].name);
 		}
-		else if (teaminfo[ent->client->resp.team].captain)
+		else if (teaminfo[ent->client->pers.team].captain)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "%s is the captain of team '%s'\n",
-			(teaminfo[ent->client->resp.team].captain)->client->pers.netname, teaminfo[ent->client->resp.team].name);
+			(teaminfo[ent->client->pers.team].captain)->client->pers.netname, teaminfo[ent->client->pers.team].name);
 		}
 		else
 		{
-			TDM_SetCaptain (ent->client->resp.team, ent);
+			TDM_SetCaptain (ent->client->pers.team, ent);
 		}
 
 	}
@@ -1582,7 +1582,7 @@ void TDM_Captain_f (edict_t *ent)
 		//transferring captain to another player
 		edict_t	*victim;
 
-		if (teaminfo[ent->client->resp.team].captain != ent)
+		if (teaminfo[ent->client->pers.team].captain != ent)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "You must be captain to transfer it to another player!\n");
 			return;
@@ -1596,7 +1596,7 @@ void TDM_Captain_f (edict_t *ent)
 				return;
 			}
 
-			if (victim->client->resp.team != ent->client->resp.team)
+			if (victim->client->pers.team != ent->client->pers.team)
 			{
 				gi.cprintf (ent, PRINT_HIGH, "%s is not on your team.\n", victim->client->pers.netname);
 				return;
@@ -1604,7 +1604,7 @@ void TDM_Captain_f (edict_t *ent)
 
 			//so they don't wonder wtf just happened...
 			gi.cprintf (victim, PRINT_HIGH, "%s transferred captain status to you.\n", ent->client->pers.netname);
-			TDM_SetCaptain (victim->client->resp.team, victim);
+			TDM_SetCaptain (victim->client->pers.team, victim);
 		}
 	}
 }
@@ -1680,7 +1680,7 @@ void TDM_Teamskin_f (edict_t *ent)
 		return;
 	}
 
-	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
+	if (teaminfo[ent->client->pers.team].captain != ent && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can change teamskin.\n");
 		return;
@@ -1757,14 +1757,14 @@ void TDM_Teamskin_f (edict_t *ent)
 
 	//TODO: some check model/skin name, force only female/male models
 
-	if (ent->client->resp.team == TEAM_A)
+	if (ent->client->pers.team == TEAM_A)
 	{
 		if (!strcmp (teaminfo[TEAM_A].skin, value))
 			return;
 		g_team_a_skin = gi.cvar_set ("g_team_a_skin", value);
 		g_team_a_skin->modified = true;
 	}
-	else if (ent->client->resp.team == TEAM_B)
+	else if (ent->client->pers.team == TEAM_B)
 	{
 		if (!strcmp (teaminfo[TEAM_B].skin, value))
 			return;
@@ -1784,7 +1784,7 @@ wision: some ppl actually use this
 */
 void TDM_NotReady_f (edict_t *ent)
 {
-	if (!ent->client->resp.team)
+	if (!ent->client->pers.team)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You must be on a team to be NOT ready.\n");
 		return;
@@ -1814,7 +1814,7 @@ Toggle ready status
 */
 void TDM_Ready_f (edict_t *ent)
 {
-	if (!ent->client->resp.team)
+	if (!ent->client->pers.team)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You must be on a team to be ready.\n");
 		return;
@@ -1866,7 +1866,9 @@ void TDM_Motd_f (edict_t *ent)
 
 	*string = 0;
 
-	strncpy (message, g_motd_message->string, 511);
+	strncpy (message, g_motd_message->string, sizeof(message)-1);
+	message[sizeof(message)-1] = '\0';
+
 	len = strlen(message);
 
 	for (i = 0; i <= len; i++)
@@ -1884,6 +1886,7 @@ void TDM_Motd_f (edict_t *ent)
 	}
 
 	ent->client->showmotd = true;
+
 	gi.WriteByte (svc_layout);
 	gi.WriteString (string);
 	gi.unicast (ent, true);
@@ -1899,10 +1902,10 @@ void TDM_Changeteamstatus_f (edict_t *ent, qboolean ready)
 {
 	edict_t *ent2;
 
-	if (ent->client->resp.team == TEAM_SPEC)
+	if (ent->client->pers.team == TEAM_SPEC)
 		return;
 
-	if (teaminfo[ent->client->resp.team].captain != ent && !ent->client->pers.admin)
+	if (teaminfo[ent->client->pers.team].captain != ent && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can use teamready/teamnotready.\n");
 		return;
@@ -1913,7 +1916,7 @@ void TDM_Changeteamstatus_f (edict_t *ent, qboolean ready)
 		if (!ent2->inuse)
 			continue;
 
-		if (ent->client->resp.team != ent2->client->resp.team)
+		if (ent->client->pers.team != ent2->client->pers.team)
 			continue;
 
 		if (ready && ent2->client->resp.ready)
@@ -1982,7 +1985,7 @@ void TDM_Ghost_f (edict_t *ent)
 		return;
 	}
 
-	if (ent->client->resp.team)
+	if (ent->client->pers.team)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "%s can only be used from spectator mode.\n", gi.argv(0));
 		return;

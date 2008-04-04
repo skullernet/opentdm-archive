@@ -1293,6 +1293,10 @@ typedef struct
 	qboolean	connected;			// a loadgame will leave valid entities that
 									// just don't have a connection yet
 	qboolean	admin;
+
+	unsigned		team;
+	joinstate_t		joinstate;
+	const gitem_t	*last_weapon;
 } client_persistant_t;
 
 typedef struct
@@ -1309,14 +1313,11 @@ typedef struct
 	unsigned	flood_waves_when[10];		// when wave were made
 	int			flood_waves_whenhead;		// head pointer for when made
 
-	unsigned		team;
-	joinstate_t		joinstate;
 	qboolean		ready;
 	unsigned		last_command_frame;
 	edict_t			*last_invited_by;
 	player_vote_t	vote;
 	teamplayer_t	*teamplayerinfo;
-	const gitem_t	*last_weapon;
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),

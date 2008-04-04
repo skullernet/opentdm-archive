@@ -80,7 +80,7 @@ A player just joined a team, so do things.
 void JoinedTeam (edict_t *ent, qboolean reconnected)
 {
 	if (g_gamemode->value != GAMEMODE_1V1)
-		gi.bprintf (PRINT_HIGH, "%s %sjoined team '%s'\n", ent->client->pers.netname, reconnected ? "re" : "", teaminfo[ent->client->resp.team].name);
+		gi.bprintf (PRINT_HIGH, "%s %sjoined team '%s'\n", ent->client->pers.netname, reconnected ? "re" : "", teaminfo[ent->client->pers.team].name);
 	else
 		gi.bprintf (PRINT_HIGH, "%s %sjoined the game.\n", ent->client->pers.netname, reconnected ? "re" : "");
 
@@ -88,8 +88,8 @@ void JoinedTeam (edict_t *ent, qboolean reconnected)
 
 	//joining a team with no captain by default assigns.
 	//FIXME: should this still assign even if the team has existing players?
-	if (!teaminfo[ent->client->resp.team].captain)
-		TDM_SetCaptain (ent->client->resp.team, ent);
+	if (!teaminfo[ent->client->pers.team].captain)
+		TDM_SetCaptain (ent->client->pers.team, ent);
 
 	//nasty hack for setting team names for 1v1 mode
 	TDM_UpdateTeamNames ();
@@ -100,10 +100,10 @@ void JoinedTeam (edict_t *ent, qboolean reconnected)
 		TDM_AddPlayerToMatchinfo (ent);
 
 	//wision: set skin for new player
-	gi.configstring (CS_PLAYERSKINS + (ent - g_edicts) - 1, va("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->resp.team].skin));
+	gi.configstring (CS_PLAYERSKINS + (ent - g_edicts) - 1, va("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->pers.team].skin));
 
 	if (g_gamemode->value != GAMEMODE_1V1)
-		gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, va ("%s (%s)", ent->client->pers.netname, teaminfo[ent->client->resp.team].name));
+		gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, va ("%s (%s)", ent->client->pers.netname, teaminfo[ent->client->pers.team].name));
 	else
 		gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, ent->client->pers.netname);
 
@@ -121,12 +121,12 @@ void TDM_LeftTeam (edict_t *ent)
 {
 	int	oldteam;
 
-	gi.bprintf (PRINT_HIGH, "%s left team '%s'\n", ent->client->pers.netname, teaminfo[ent->client->resp.team].name);
+	gi.bprintf (PRINT_HIGH, "%s left team '%s'\n", ent->client->pers.netname, teaminfo[ent->client->pers.team].name);
 
-	oldteam = ent->client->resp.team;
+	oldteam = ent->client->pers.team;
 
 	//wision: remove player from the team!
-	ent->client->resp.team = TEAM_SPEC;
+	ent->client->pers.team = TEAM_SPEC;
 
 	//assign a new captain
 	if (teaminfo[oldteam].captain == ent)
@@ -158,9 +158,9 @@ qboolean CanJoin (edict_t *ent, unsigned team)
 	}
 
 	//wision: forbid rejoining the team
-	if (ent->client->resp.team == team)
+	if (ent->client->pers.team == team)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "You are already on team '%s'.\n", teaminfo[ent->client->resp.team].name);
+		gi.cprintf (ent, PRINT_HIGH, "You are already on team '%s'.\n", teaminfo[ent->client->pers.team].name);
 		return false;
 	}
 
@@ -169,7 +169,7 @@ qboolean CanJoin (edict_t *ent, unsigned team)
 	{
 		//being invited to a team bypasses a lock
 		if (!(ent->client->resp.last_invited_by && ent->client->resp.last_invited_by->inuse &&
-			teaminfo[ent->client->resp.last_invited_by->client->resp.team].captain == ent->client->resp.last_invited_by))
+			teaminfo[ent->client->resp.last_invited_by->client->pers.team].captain == ent->client->resp.last_invited_by))
 		{
 			gi.cprintf (ent, PRINT_HIGH, "Team '%s' is locked.\n", teaminfo[team].name);
 			return false;
@@ -198,10 +198,10 @@ void JoinTeam1 (edict_t *ent)
 	if (!CanJoin (ent, TEAM_A))
 		return;
 
-	if (ent->client->resp.team)
+	if (ent->client->pers.team)
 		TDM_LeftTeam (ent);
 
-	ent->client->resp.team = TEAM_A;
+	ent->client->pers.team = TEAM_A;
 	JoinedTeam (ent, false);
 }
 //merge those together?
@@ -216,10 +216,10 @@ void JoinTeam2 (edict_t *ent)
 	if (!CanJoin (ent, TEAM_B))
 		return;
 
-	if (ent->client->resp.team)
+	if (ent->client->pers.team)
 		TDM_LeftTeam (ent);
 
-	ent->client->resp.team = TEAM_B;
+	ent->client->pers.team = TEAM_B;
 	JoinedTeam (ent, false);
 }
 
@@ -324,7 +324,7 @@ void TDM_GlobalClientSound (edict_t *ent, int channel, int soundindex, float vol
 		{
 			gi.WriteByte (svc_configstring);
 			gi.WriteShort (CS_PLAYERSKINS + (client->client->chase_target - g_edicts) -1);
-			gi.WriteString (va ("%s\\%s", client->client->chase_target->client->pers.netname, teaminfo[client->client->chase_target->client->resp.team].skin));
+			gi.WriteString (va ("%s\\%s", client->client->chase_target->client->pers.netname, teaminfo[client->client->chase_target->client->pers.team].skin));
 			//gi.unicast (client, false);
 		}
 
@@ -368,7 +368,7 @@ chase command.
 */
 void ToggleChaseCam (edict_t *ent)
 {
-	if (ent->client->resp.team)
+	if (ent->client->pers.team)
 	{
 		TDM_LeftTeam (ent);
 		TDM_TeamsChanged ();
@@ -428,7 +428,7 @@ void TDM_ShowTeamMenu (edict_t *ent)
 	if (ent->client->menu.active)
 		PMenu_Close (ent);
 	else
-		PMenu_Open (ent, joinmenu, teamJoinEntries[ent->client->resp.team], MENUSIZE_JOINMENU, false);
+		PMenu_Open (ent, joinmenu, teamJoinEntries[ent->client->pers.team], MENUSIZE_JOINMENU, false);
 }
 
 /*
@@ -473,7 +473,7 @@ qboolean TDM_ProcessJoinCode (edict_t *ent, unsigned value)
 
 	gi.unlinkentity (ent);
 
-	ent->client->resp.team = t->team;
+	ent->client->pers.team = t->team;
 	JoinedTeam (ent, true);
 
 	//we only preserve the whole client state in 1v1 mode, in TDM we simply respawn the player
@@ -534,9 +534,9 @@ qboolean TDM_ProcessJoinCode (edict_t *ent, unsigned value)
 	{
 		ent->client->resp.score = t->saved_client->resp.score;
 		ent->client->resp.enterframe = t->saved_client->resp.enterframe;
-		ent->client->resp.joinstate = t->saved_client->resp.joinstate;
 		ent->client->resp.ready = t->saved_client->resp.ready;
 
+		ent->client->pers.joinstate = t->saved_client->pers.joinstate;
 		ent->client->pers.admin = t->saved_client->pers.admin;
 	}
 
@@ -579,7 +579,7 @@ void TDM_Disconnected (edict_t *ent)
 	//we remove this up here so TDM_LeftTeam doesn't try to resume if we become implicit timeout caller
 	TDM_RemoveStatsLink (ent);
 
-	if (ent->client->resp.team)
+	if (ent->client->pers.team)
 	{
 		if (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD)
 		{
@@ -666,7 +666,7 @@ a full player, so that PutClientInServer knows about it.
 */
 qboolean TDM_SetupClient (edict_t *ent)
 {
-	ent->client->resp.team = TEAM_SPEC;
+	ent->client->pers.team = TEAM_SPEC;
 	TDM_TeamsChanged ();
 
 	if (!TDM_ProcessJoinCode (ent, 0))
@@ -715,7 +715,7 @@ edict_t *TDM_FindPlayerForTeam (unsigned team)
 		if (!ent->inuse)
 			continue;
 
-		if (ent->client->resp.team == team)
+		if (ent->client->pers.team == team)
 			return ent;
 	}
 
@@ -731,12 +731,12 @@ Someone changed their name, update configstrings for spectators and such.
 */
 void TDM_PlayerNameChanged (edict_t *ent)
 {
-	if (ent->client->resp.team)
+	if (ent->client->pers.team)
 	{
 		if (TDM_Is1V1())
 			gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, ent->client->pers.netname);
 		else
-			gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, va("%s (%s)", ent->client->pers.netname, teaminfo[ent->client->resp.team].name));
+			gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, va("%s (%s)", ent->client->pers.netname, teaminfo[ent->client->pers.team].name));
 
 		TDM_UpdateTeamNames ();
 	}
@@ -791,15 +791,15 @@ void TDM_SetInitialItems (edict_t *ent)
 				}
 
 				//spawn with RL up
-				if (!client->resp.last_weapon || client->inventory[ITEM_INDEX (client->resp.last_weapon)] == 0)
+				if (!client->pers.last_weapon || client->inventory[ITEM_INDEX (client->pers.last_weapon)] == 0)
 				{
 					client->selected_item = ITEM_WEAPON_ROCKETLAUNCHER;
 					client->weapon = GETITEM (ITEM_WEAPON_ROCKETLAUNCHER);
 				}
 				else
 				{
-					client->weapon = client->resp.last_weapon;
-					client->selected_item = ITEM_INDEX (client->resp.last_weapon);
+					client->weapon = client->pers.last_weapon;
+					client->selected_item = ITEM_INDEX (client->pers.last_weapon);
 				}
 			}
 			client->inventory[ITEM_ITEM_ARMOR_BODY] = 100;

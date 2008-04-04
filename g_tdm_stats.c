@@ -196,7 +196,7 @@ void TDM_Damage (edict_t *ent, edict_t *victim, edict_t *inflictor, int damage)
 		return;
 
 	//Shooting teammates is not accurate!
-	if (ent->client->resp.team == victim->client->resp.team)
+	if (ent->client->pers.team == victim->client->pers.team)
 		return;
 
 	//Only count one hit, eg shotgun or rocket radius damage. apparently railgun should ignore this rule.
@@ -227,6 +227,10 @@ Someone was killed. Track weapon used for stats purposes.
 void TDM_Killed (edict_t *attacker, edict_t *victim, int mod)
 {
 	int	tdmg;
+
+	//Ignore warmup
+	if (tdm_match_status < MM_PLAYING || tdm_match_status == MM_SCOREBOARD)
+		return;
 
 	//safety check, T_Damage is a scary mess of attackers and inflictors and im not
 	//100% sure which ones are allowed to be null
@@ -502,7 +506,7 @@ char *TDM_BuildItemsString (edict_t *ent, teamplayer_t *info)
 	qboolean	basic;
 
 	stats[0] = 0;
-	basic = (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD) && ent->client->resp.team;
+	basic = (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD) && ent->client->pers.team;
 
 	if (basic)
 		strcat (stats, TDM_SetColorText (va ("ITEMS\n")));
@@ -572,7 +576,7 @@ char *TDM_BuildTeamItemsString (edict_t *ent, matchinfo_t *info, unsigned team)
 	qboolean	basic;
 
 	stats[0] = 0;
-	basic = (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD) && ent->client->resp.team;
+	basic = (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD) && ent->client->pers.team;
 
 	if (basic)
 		strcat (stats, TDM_SetColorText (va ("TEAM ITEMS\n")));
@@ -1159,7 +1163,7 @@ a message to ent if they are doing such.
 qboolean TDM_StatCheatCheck (edict_t *ent, matchinfo_t *info, unsigned team)
 {
 	if (info != &old_matchinfo && tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD &&
-		ent->client->resp.team && ent->client->resp.team != team)
+		ent->client->pers.team && ent->client->pers.team != team)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You can only see stats for the other team after the match has finished.\n");
 		return true;
@@ -1208,7 +1212,7 @@ void TDM_TeamStats_f (edict_t *ent, matchinfo_t *info)
 	if (TDM_StatCheatCheck (ent, info, team))
 		return;
 
-	if (team != (int)ent->client->resp.team)
+	if (team != (int)ent->client->pers.team)
 		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
 
 	if (info->is1v1)
@@ -1262,7 +1266,7 @@ void TDM_TeamAccuracy_f (edict_t *ent, matchinfo_t *info)
 	if (TDM_StatCheatCheck (ent, info, team))
 		return;
 
-	if (team != (int)ent->client->resp.team)
+	if (team != (int)ent->client->pers.team)
 		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
 
 	if (info->is1v1)
@@ -1317,7 +1321,7 @@ void TDM_TeamDamage_f (edict_t *ent, matchinfo_t *info)
 	if (TDM_StatCheatCheck (ent, info, team))
 		return;
 
-	if (team != (int)ent->client->resp.team)
+	if (team != (int)ent->client->pers.team)
 		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
 
 	if (info->is1v1)
@@ -1384,7 +1388,7 @@ void TDM_TeamItems_f (edict_t *ent, matchinfo_t *info)
 	if (TDM_StatCheatCheck (ent, info, team))
 		return;
 
-	if (team != (int)ent->client->resp.team)
+	if (team != (int)ent->client->pers.team)
 		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
 
 	if (info->is1v1)
@@ -1439,7 +1443,7 @@ void TDM_TeamWeapons_f (edict_t *ent, matchinfo_t *info)
 	if (TDM_StatCheatCheck (ent, info, team))
 		return;
 
-	if (team != (int)ent->client->resp.team)
+	if (team != (int)ent->client->pers.team)
 		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
 
 	if (info->is1v1)
@@ -1477,7 +1481,7 @@ void TDM_SetupTeamInfoForPlayer (edict_t *ent, teamplayer_t *info)
 	
 	info->client = ent;
 	info->ping = ent->client->ping;
-	info->team = ent->client->resp.team;
+	info->team = ent->client->pers.team;
 	info->matchinfo = &current_matchinfo;
 
 	//user has a preferred joincode they want to always use
@@ -1539,7 +1543,7 @@ void TDM_SetupMatchInfoAndTeamPlayers (void)
 
 	for (i = 0, ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
-		if (ent->client->resp.team)
+		if (ent->client->pers.team)
 		{
 			TDM_SetupTeamInfoForPlayer (ent, current_matchinfo.teamplayers + i);
 			i++;
