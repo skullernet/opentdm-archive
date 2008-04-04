@@ -857,12 +857,16 @@ int TDM_GetPlayerIdView (edict_t *ent)
 	int			i;
 	qboolean	show_health_info;
 
+	ignoreConfigStringUpdate = false;
+
 	if (ent->client->chase_target)
 	{
-		target = ent->client->resp.last_id_client;
+		target = ent->client->chase_target->client->resp.last_id_client;
 	}
 	else
 	{
+		int	tracemask;
+
 		VectorCopy (ent->s.origin, start);
 		start[2] += ent->viewheight;
 
@@ -874,18 +878,28 @@ int TDM_GetPlayerIdView (edict_t *ent)
 		ignore = ent;
 
 		target = NULL;
-		ignoreConfigStringUpdate = false;
+
+		tracemask = CONTENTS_SOLID|CONTENTS_MONSTER|MASK_WATER;
 
 		//find best player through tracing
 		for (i = 0; i < 10; i++)
 		{
-			tr = gi.trace (start, mins, maxs, forward, ignore, CONTENTS_SOLID|CONTENTS_MONSTER|CONTENTS_DEADMONSTER);
+			tr = gi.trace (start, mins, maxs, forward, ignore, tracemask);
+
+			//hit transparent water
+			if (tr.ent == world && tr.surface && (tr.surface->flags & (SURF_TRANS33|SURF_TRANS66)))
+			{
+				tracemask &= ~MASK_WATER;
+				VectorCopy (tr.endpos, start);
+				continue;
+			}
 
 			if (tr.ent == world || tr.fraction == 1.0f)
 				break;
 
 			//we hit something that's a player and it's alive and on our team!
-			if (tr.ent && tr.ent->client && tr.ent->health > 0)
+			//note, we trace twice so we hit water planes
+			if (tr.ent && tr.ent->client && tr.ent->health > 0 && visible (tr.ent, ent, CONTENTS_SOLID | MASK_WATER))
 			{
 				target = tr.ent;
 				break;
@@ -925,7 +939,8 @@ int TDM_GetPlayerIdView (edict_t *ent)
 				VectorNormalize (dir);
 				d = DotProduct (forward, dir);
 
-				if (d > bd && visible (ent, who))
+				//note, we trace twice so we hit water planes
+				if (d > bd && visible (ent, who, CONTENTS_SOLID | MASK_WATER) && visible (who, ent, CONTENTS_SOLID | MASK_WATER))
 				{
 					bdistance = distance;
 					bd = d;

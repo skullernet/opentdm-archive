@@ -954,7 +954,7 @@ void ThrowGib (edict_t *self, char *gibname, int damage, int type);
 void BecomeExplosion1(edict_t *self);
 
 qboolean infront (edict_t *self, edict_t *other);
-qboolean visible (edict_t *self, edict_t *other);
+qboolean visible (edict_t *self, edict_t *other, int mask);
 
 //
 // g_weapon.c
