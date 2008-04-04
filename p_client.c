@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 #include "g_local.h"
 #include "m_player.h"
+#include "g_tdm_stats.h"
 
 void ClientUserinfoChanged (edict_t *ent, char *userinfo);
 
@@ -109,7 +110,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 	char		*message2;
 	qboolean	ff;
 
-
+	TDM_Killed (attacker, self, meansOfDeath);
 
 	ff = meansOfDeath & MOD_FRIENDLY_FIRE;
 	mod = meansOfDeath & ~MOD_FRIENDLY_FIRE;

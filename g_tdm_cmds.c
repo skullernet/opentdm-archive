@@ -2179,8 +2179,12 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Damage_f (ent, &current_matchinfo);
 		else if (!Q_stricmp (cmd, "teamdamage"))
 			TDM_TeamDamage_f (ent, &current_matchinfo);
+		else if (!Q_stricmp (cmd, "teamweapons"))
+			TDM_TeamWeapons_f (ent, &current_matchinfo);
 		else if (!Q_stricmp (cmd, "items"))
 			TDM_Items_f (ent, &current_matchinfo);
+		else if (!Q_stricmp (cmd, "weapons"))
+			TDM_Weapons_f (ent, &current_matchinfo);
 		else if (!Q_stricmp (cmd, "teamitems"))
 			TDM_TeamItems_f (ent, &current_matchinfo);
 		else if (!Q_stricmp (cmd, "teamstats"))
@@ -2193,14 +2197,18 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_TeamAccuracy_f (ent, &old_matchinfo);
 		else if (!Q_stricmp (cmd, "olddamage") || !Q_stricmp (cmd, "lastdamage"))
 			TDM_Damage_f (ent, &old_matchinfo);
-		else if (!Q_stricmp (cmd, "oldteamdamage"))
+		else if (!Q_stricmp (cmd, "oldweapons") || !Q_stricmp (cmd, "lastweapons"))
+			TDM_Weapons_f (ent, &old_matchinfo);
+		else if (!Q_stricmp (cmd, "oldteamdamage") || !Q_stricmp (cmd, "lastteamdamage"))
 			TDM_TeamDamage_f (ent, &old_matchinfo);
 		else if (!Q_stricmp (cmd, "olditems") || !Q_stricmp (cmd, "lastitems"))
 			TDM_Items_f (ent, &old_matchinfo);
-		else if (!Q_stricmp (cmd, "oldteamitems"))
+		else if (!Q_stricmp (cmd, "oldteamitems") || !Q_stricmp (cmd, "lastteamitems"))
 			TDM_TeamItems_f (ent, &old_matchinfo);
-		else if (!Q_stricmp (cmd, "oldteamstats"))
+		else if (!Q_stricmp (cmd, "oldteamstats") || !Q_stricmp (cmd, "lastteamstats"))
 			TDM_TeamStats_f (ent, &old_matchinfo);
+		else if (!Q_stricmp (cmd, "oldteamweapons") || !Q_stricmp (cmd, "lastteamweapons"))
+			TDM_TeamWeapons_f (ent, &old_matchinfo);
 		else if (!Q_stricmp (cmd, "oldscores") || !Q_stricmp (cmd, "oldscore") || !Q_stricmp (cmd, "lastscores") || !Q_stricmp (cmd, "lastscore"))
 			TDM_OldScores_f (ent);
 		else if (!Q_stricmp (cmd, "ghost") || !Q_stricmp (cmd, "restore") || !Q_stricmp (cmd, "recover") | !Q_stricmp (cmd, "rejoin"))

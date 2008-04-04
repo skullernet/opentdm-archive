@@ -220,6 +220,35 @@ void TDM_EndDamage (void)
 
 /*
 ==============
+TDM_Killed
+==============
+Someone was killed. Track weapon used for stats purposes.
+*/
+void TDM_Killed (edict_t *attacker, edict_t *victim, int mod)
+{
+	int	tdmg;
+
+	//safety check, T_Damage is a scary mess of attackers and inflictors and im not
+	//100% sure which ones are allowed to be null
+	if (!attacker)
+		return;
+
+	//don't count suicides here
+	if (attacker == victim)
+		return;
+
+	//ignore non-player weapons
+	if (!attacker->client)
+		return;
+
+	tdmg = meansOfDeathToTDMG[mod];
+
+	attacker->client->resp.teamplayerinfo->killweapons[tdmg]++;
+	victim->client->resp.teamplayerinfo->deathweapons[tdmg]++;
+}
+
+/*
+==============
 TDM_BuildAccuracyString
 ==============
 Builds accuracy string - hits / misses per weapon.
@@ -605,6 +634,116 @@ char *TDM_BuildTeamItemsString (edict_t *ent, matchinfo_t *info, unsigned team)
 				strcat (stats, va ("%-16.16s:%3d / %-3d (%.f%%)\n", GETITEM(index)->pickup_name,
 					team_collected[index], info->item_spawn_count[index] - team_collected[index], float_indexes[i].percentage));
 			}
+		}
+	}
+
+	return stats;
+}
+
+/*
+==============
+TDM_BuildWeaponsString
+==============
+Builds weapon stats string - kills given/taken per weapon + percent.
+*/
+char *TDM_BuildWeaponsString (edict_t *ent, teamplayer_t *info)
+{
+	static char stats[1400];
+	unsigned	i;
+	int			damage;
+	int			total_kills[2];
+	intsort_t	int_indexes[TDMG_MAX];
+
+	stats[0] = 0;
+
+	total_kills[0] = total_kills[1] = 0;
+
+	strcat (stats, TDM_SetColorText (va ("WEAPONS (kills / deaths)\n")));
+
+	//0 is invalid, 1 is world, not a weapon :)
+	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
+	{
+		damage = info->killweapons[i];
+
+		int_indexes[i].amount = damage;
+		int_indexes[i].index = i;
+
+		total_kills[0] += info->killweapons[i];
+		total_kills[1] += info->deathweapons[i];
+	}
+
+	qsort (int_indexes + TDMG_BLASTER, TDMG_MAX - TDMG_BLASTER - 1, sizeof(int_indexes[0]), TDM_DamageSort);
+
+	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
+	{
+		int	index = int_indexes[i].index;
+		if (info->killweapons[index] || info->deathweapons[index])
+		{
+			strcat (stats, va ("%-16.16s:%3d (%3.f%%) / %-2d (%.f%%)\n", GETITEM(tdmg_weapons[index])->pickup_name,
+				info->killweapons[index], ((float)info->killweapons[index] / (float)total_kills[0]) * 100.0f,
+				info->deathweapons[index], total_kills[1] ? ((float)info->deathweapons[index] / (float)total_kills[1]) * 100.0f : 0.0f));
+		}
+	}
+
+	return stats;
+}
+
+/*
+==============
+TDM_BuildTeamWeaponsString
+==============
+Builds team weapon stats string - kills given/taken per weapon + percent.
+*/
+char *TDM_BuildTeamWeaponsString (edict_t *ent, matchinfo_t *info, unsigned team)
+{
+	static char stats[1400];
+	unsigned	i, j;
+	int			total_kills[2];
+	intsort_t	int_indexes[TDMG_MAX];
+	unsigned	team_weapons_kills[TDMG_MAX];
+	unsigned	team_weapons_deaths[TDMG_MAX];
+
+	stats[0] = 0;
+
+	strcat (stats, TDM_SetColorText (va ("TEAM WEAPONS (kills / deaths)\n")));
+
+	memset (team_weapons_kills, 0, sizeof(team_weapons_kills));
+	memset (team_weapons_deaths, 0, sizeof(team_weapons_deaths));
+
+	total_kills[0] = total_kills[1] = 0;
+
+	for (j = 0; j < info->num_teamplayers; j++)
+	{
+		if (info->teamplayers[j].team == team)
+		{
+			for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
+			{
+				team_weapons_kills[i] += info->teamplayers[j].killweapons[i];
+				team_weapons_deaths[i] += info->teamplayers[j].deathweapons[i];
+			}
+		}
+	}
+
+	//0 is invalid, 1 is world, not a weapon :)
+	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
+	{
+		int_indexes[i].amount = team_weapons_kills[i];
+		int_indexes[i].index = i;
+
+		total_kills[0] += team_weapons_kills[i];
+		total_kills[1] += team_weapons_deaths[i];
+	}
+
+	qsort (int_indexes + TDMG_BLASTER, TDMG_MAX - TDMG_BLASTER - 1, sizeof(int_indexes[0]), TDM_DamageSort);
+
+	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
+	{
+		int	index = int_indexes[i].index;
+		if (team_weapons_kills[index] || team_weapons_deaths[index])
+		{
+			strcat (stats, va ("%-16.16s:%3d (%3.f%%) / %-2d (%.f%%)\n", GETITEM(tdmg_weapons[index])->pickup_name,
+				team_weapons_kills[index], ((float)team_weapons_kills[index] / (float)total_kills[0]) * 100.0f,
+				team_weapons_deaths[index], total_kills[1] ? ((float)team_weapons_deaths[index] / (float)total_kills[1]) * 100.0f : 0.0f));
 		}
 	}
 
@@ -1252,6 +1391,61 @@ void TDM_TeamItems_f (edict_t *ent, matchinfo_t *info)
 		stats = TDM_BuildItemsString (ent, info->captains[team]);
 	else
 		stats = TDM_BuildTeamItemsString (ent, info, team);
+
+	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+}
+
+/*
+==============
+TDM_Weapons_f
+==============
+Show weapon info.
+*/
+void TDM_Weapons_f (edict_t *ent, matchinfo_t *info)
+{
+	const char		*stats;
+	teamplayer_t	*victim;
+
+	victim = TDM_GetInfoForPlayer (ent, info);
+	if (!victim)
+		return;
+
+	if (TDM_StatCheatCheck (ent, info, victim->team))
+		return;
+
+	if (ent != victim->client)
+		gi.cprintf (ent, PRINT_HIGH, "Weapon stats for %s\n", victim->name);
+
+	stats = TDM_BuildWeaponsString (ent, victim);
+
+	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+}
+
+/*
+==============
+TDM_TeamWeapons_f
+==============
+Show team weapon info.
+*/
+void TDM_TeamWeapons_f (edict_t *ent, matchinfo_t *info)
+{
+	const char		*stats;
+	int				team;
+
+	team = TDM_GetTeamFromMatchInfo (ent, info);
+	if (team == -1)
+		return;
+
+	if (TDM_StatCheatCheck (ent, info, team))
+		return;
+
+	if (team != (int)ent->client->resp.team)
+		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
+
+	if (info->is1v1)
+		stats = TDM_BuildWeaponsString (ent, info->captains[team]);
+	else
+		stats = TDM_BuildTeamWeaponsString (ent, info, team);
 
 	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
 }
