@@ -1121,6 +1121,7 @@ void ClientBeginDeathmatch (edict_t *ent)
 		ClientUserinfoChanged (ent, userinfo);
 
 		client->resp.enterframe = level.framenum;
+		client->pers.connected = true;
 		client->pers.joinstate = JS_FIRST_JOIN;
 
 		gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);

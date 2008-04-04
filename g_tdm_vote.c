@@ -1794,7 +1794,7 @@ void TDM_CheckVote (void)
 		if (!ent->inuse)
 			continue;
 
-		if (!ent->client->pers.team)
+		if (!ent->client->pers.team && !ent->client->pers.admin)
 			continue;
 
 		if (ent->client->resp.vote == VOTE_YES)
