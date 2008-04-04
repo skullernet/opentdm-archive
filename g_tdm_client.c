@@ -972,7 +972,6 @@ int TDM_GetPlayerIdView (edict_t *ent)
 		gi.WriteByte (svc_configstring);
 		gi.WriteShort (CS_TDM_ID_VIEW);
 		gi.WriteString (string);
-		gi.WriteString (va ("%16s", target->client->pers.netname));
 		gi.unicast (ent, false);
 	}
 
