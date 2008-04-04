@@ -744,6 +744,13 @@ const char *dm_statusbar =
   "xv 64 "
   "stat_string 16 "
 "endif "
+
+// player id view
+"if 27 "
+  "xv 20 "
+  "yb -384 "
+  "stat_string 27 "
+"endif "
 ;
 
 

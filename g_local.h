@@ -81,6 +81,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	STAT_TIMEOUT_STRING_INDEX		25
 
 #define	STAT_GAME_STATUS_STRING_INDEX	26
+
+#define	STAT_ID_VIEW_INDEX				27
 // maximum 31!
 
 // dmflags->value flags
@@ -121,6 +123,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define CS_TDM_TIMEOUT_STRING	(CS_GENERAL + 5)
 
 #define CS_TDM_GAME_STATUS		(CS_GENERAL + 6)
+
+//per client!
+#define CS_TDM_ID_VIEW			(CS_GENERAL + 7)
 
 //#define CS_TDM_TEAM_A_PIC		(CS_GENERAL + 5)
 //#define CS_TDM_TEAM_B_PIC		(CS_GENERAL + 6)
@@ -1297,6 +1302,8 @@ typedef struct
 	unsigned		team;
 	joinstate_t		joinstate;
 	const gitem_t	*last_weapon;
+	qboolean		shown_motd;
+	qboolean		disable_id_view;
 } client_persistant_t;
 
 typedef struct
@@ -1318,6 +1325,10 @@ typedef struct
 	edict_t			*last_invited_by;
 	player_vote_t	vote;
 	teamplayer_t	*teamplayerinfo;
+
+	edict_t			*last_id_client;
+	int				last_id_health;
+	int				last_id_armor;
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),

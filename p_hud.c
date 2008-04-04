@@ -18,8 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 #include "g_local.h"
-#include "g_tdm_cmds.h"
-
+#include "g_tdm.h"
 
 /*
 ======================================================================
@@ -319,9 +318,15 @@ void G_SetStats (edict_t *ent)
 	const gitem_t	*item;
 	int				index, cells;
 	int				power_armor_type;
-	int				first_team;
+	static int		first_team = TEAM_A;
 
 	cells = 0;
+
+	ent->client->ps.stats[STAT_ID_VIEW_INDEX] = 0;
+
+	if (!ent->client->pers.disable_id_view)
+		if (TDM_GetPlayerIdView (ent))
+			ent->client->ps.stats[STAT_ID_VIEW_INDEX] = CS_TDM_ID_VIEW;
 	
 	//
 	// health
@@ -445,7 +450,7 @@ void G_SetStats (edict_t *ent)
 	{
 		if (old_matchinfo.scores[TEAM_A] < old_matchinfo.scores[TEAM_B])
 			first_team = TEAM_B;
-		else
+		else if (old_matchinfo.scores[TEAM_A] > old_matchinfo.scores[TEAM_B])
 			first_team = TEAM_A;
 
 		ent->client->ps.stats[STAT_FIRST_TEAM_SCORE] = old_matchinfo.scores[first_team];
@@ -455,7 +460,7 @@ void G_SetStats (edict_t *ent)
 	{
 		if (teaminfo[TEAM_A].score < teaminfo[TEAM_B].score)
 			first_team = TEAM_B;
-		else
+		else if (teaminfo[TEAM_A].score > teaminfo[TEAM_B].score)
 			first_team = TEAM_A;
 
 		ent->client->ps.stats[STAT_FIRST_TEAM_SCORE] = teaminfo[first_team].score;

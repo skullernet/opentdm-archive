@@ -1182,6 +1182,9 @@ void TDM_Stats_f (edict_t *ent, matchinfo_t *info)
 {
 	teamplayer_t	*victim;
 
+	if (tdm_match_status == MM_WARMUP)
+		info = &old_matchinfo;
+
 	victim = TDM_GetInfoForPlayer (ent, info);
 	if (!victim)
 		return;
@@ -1204,6 +1207,9 @@ Show shitloads of useless information.
 void TDM_TeamStats_f (edict_t *ent, matchinfo_t *info)
 {
 	int				team;
+
+	if (tdm_match_status == MM_WARMUP)
+		info = &old_matchinfo;
 
 	team = TDM_GetTeamFromMatchInfo (ent, info);
 	if (team == -1)
@@ -1233,6 +1239,9 @@ void TDM_Accuracy_f (edict_t *ent, matchinfo_t *info)
 	const char		*stats;
 	teamplayer_t	*victim;
 
+	if (tdm_match_status == MM_WARMUP)
+		info = &old_matchinfo;
+
 	victim = TDM_GetInfoForPlayer (ent, info);
 	if (!victim)
 		return;
@@ -1258,6 +1267,9 @@ void TDM_TeamAccuracy_f (edict_t *ent, matchinfo_t *info)
 {
 	const char		*stats;
 	int				team;
+
+	if (tdm_match_status == MM_WARMUP)
+		info = &old_matchinfo;
 
 	team = TDM_GetTeamFromMatchInfo (ent, info);
 	if (team == -1)
@@ -1288,6 +1300,9 @@ void TDM_Damage_f (edict_t *ent, matchinfo_t *info)
 	const char		*stats;
 	teamplayer_t	*victim;
 
+	if (tdm_match_status == MM_WARMUP)
+		info = &old_matchinfo;
+
 	victim = TDM_GetInfoForPlayer (ent, info);
 	if (!victim)
 		return;
@@ -1313,6 +1328,9 @@ void TDM_TeamDamage_f (edict_t *ent, matchinfo_t *info)
 {
 	const char		*stats;
 	int				team;
+
+	if (tdm_match_status == MM_WARMUP)
+		info = &old_matchinfo;
 
 	team = TDM_GetTeamFromMatchInfo (ent, info);
 	if (team == -1)
@@ -1342,6 +1360,9 @@ void TDM_Items_f (edict_t *ent, matchinfo_t *info)
 {
 	const char		*stats;
 	teamplayer_t	*victim;
+
+	if (tdm_match_status == MM_WARMUP)
+		info = &old_matchinfo;
 
 	victim = TDM_GetInfoForPlayer (ent, info);
 	if (!victim)
@@ -1374,6 +1395,9 @@ void TDM_TeamItems_f (edict_t *ent, matchinfo_t *info)
 {
 	const char		*stats;
 	int				team;
+
+	if (tdm_match_status == MM_WARMUP)
+		info = &old_matchinfo;
 
 	team = TDM_GetTeamFromMatchInfo (ent, info);
 	if (team == -1)
@@ -1410,6 +1434,9 @@ void TDM_Weapons_f (edict_t *ent, matchinfo_t *info)
 	const char		*stats;
 	teamplayer_t	*victim;
 
+	if (tdm_match_status == MM_WARMUP)
+		info = &old_matchinfo;
+
 	victim = TDM_GetInfoForPlayer (ent, info);
 	if (!victim)
 		return;
@@ -1435,6 +1462,9 @@ void TDM_TeamWeapons_f (edict_t *ent, matchinfo_t *info)
 {
 	const char		*stats;
 	int				team;
+
+	if (tdm_match_status == MM_WARMUP)
+		info = &old_matchinfo;
 
 	team = TDM_GetTeamFromMatchInfo (ent, info);
 	if (team == -1)

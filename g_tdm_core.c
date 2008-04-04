@@ -441,7 +441,8 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	int			width[2];
 	int			maxplayers;
 	int			offset, offsetfix[2];
-	int			firstteam, secondteam;
+	static int	firstteam = TEAM_A;
+	static int	secondteam = TEAM_B;
 	cvar_t		*hostname;
 	char		serverinfo[60];
 	struct tm	*ts;
@@ -520,7 +521,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			firstteam = TEAM_B;
 			secondteam = TEAM_A;
 		}
-		else
+		else if (teaminfo[TEAM_A].score > teaminfo[TEAM_B].score)
 		{
 			firstteam = TEAM_A;
 			secondteam = TEAM_B;
@@ -1565,14 +1566,11 @@ void TDM_CheckTimes (void)
 		if (!ent->inuse)
 			continue;
 
-		if ((level.framenum - ent->client->resp.enterframe == 100) && !ent->client->showmotd)
+		//r1: only show motd once per connect, not on level change
+		if (!ent->client->pers.shown_motd && !ent->client->showmotd && level.framenum - ent->client->resp.enterframe == SECS_TO_FRAMES(10))
 		{
-			if (ent->client->menu.active)
-			{
-				PMenu_Close (ent);
-			}
-
 			TDM_Motd_f (ent);
+			ent->client->pers.shown_motd = true;
 		}
 	}
 

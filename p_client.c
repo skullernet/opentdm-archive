@@ -1166,12 +1166,11 @@ The game can override any of the settings in place
 */
 void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 {
-	int			i;
-	const char	*s;
-	const char	*old_name;
-	int			playernum;
-	qboolean	name_changed;
-	teamplayer_t	*tmpl;
+	
+	const char		*s;
+	const char		*old_name;
+	int				playernum;
+	qboolean		name_changed;
 
 	//new connection, server is calling us. just save userinfo for later.
 	if (!ent->inuse)
@@ -1206,11 +1205,16 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 		}
 		else
 		{
+			edict_t	*e;
+
 			strncpy (ent->client->pers.netname, s, sizeof(ent->client->pers.netname)-1);
 
 			// wision: update current_matchinfo structure during the match, so the scoreboard is correct
 			if (current_matchinfo.teamplayers)
 			{
+				int				i;
+				teamplayer_t	*tmpl;
+
 				for (i = 0; i < current_matchinfo.num_teamplayers; i++)
 				{
 					tmpl = &current_matchinfo.teamplayers[i];
@@ -1218,6 +1222,13 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 					if (tmpl->client == ent)
 						strncpy (tmpl->name, s, sizeof(tmpl->name)-1);
 				}
+			}
+
+			//reset any id cache information for this player so their name updates
+			for (e = g_edicts + 1; e <= g_edicts + game.maxclients; e++)
+			{
+				if (e->client->resp.last_id_client == ent)
+					e->client->resp.last_id_client = NULL;
 			}
 
 			gi.configstring (CS_PLAYERSKINS + playernum, va ("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->pers.team].skin));

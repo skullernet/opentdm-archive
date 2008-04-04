@@ -1845,11 +1845,12 @@ Show/hide motd message defined in g_motd_message.
 */
 void TDM_Motd_f (edict_t *ent)
 {
-	static char	string[1400];
+	static char	string[1300];
 	char		message[512];
 	int			msg_offset = 0;
 	int			offset = 0;
 	int			len;
+	int			current_length;
 	int			i;
 
 	if (!g_motd_message || !g_motd_message->string[0] || ent->client->showmotd)
@@ -1873,13 +1874,18 @@ void TDM_Motd_f (edict_t *ent)
 
 	for (i = 0; i <= len; i++)
 	{
-		if (message[i] == '\n' || i == len)
+		if (i == len || (message[i] == 'n' && message[i-1] == '\\'))
 		{
-			if ((strlen(string) + strlen(message+msg_offset)) > 1400)
+			// don't cut last letter if it's last line
+			if (i != len)
+				message[i-1] = '\0';
+
+			current_length = strlen(string);
+
+			if (current_length + strlen(message + msg_offset) > sizeof(string)-1)
 				break;
 
-			message[i] = '\0';
-			sprintf(string + strlen(string), "xl 8 yb %d string \"%s\" ", offset-160, message+msg_offset);
+			sprintf (string + current_length, "xl 8 yb %d string \"%s\" ", offset - 160, message + msg_offset);
 			offset += 8;
 			msg_offset = i + 1;
 		}
@@ -2006,6 +2012,17 @@ void TDM_Ghost_f (edict_t *ent)
 
 /*
 ==============
+TDM_Id_f
+==============
+Toggle player id display
+*/
+void TDM_Id_f (edict_t *ent)
+{
+	ent->client->pers.disable_id_view = !ent->client->pers.disable_id_view;
+	gi.cprintf (ent, PRINT_HIGH, "Player identification display is now %sabled.\n", ent->client->pers.disable_id_view ? "dis" : "en");
+}
+/*
+==============
 TDM_Command
 ==============
 Process TDM commands (from ClientCommand)
@@ -2099,6 +2116,8 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Damage_f (ent, &current_matchinfo);
 		else if (!Q_stricmp (cmd, "items"))
 			TDM_Items_f (ent, &current_matchinfo);
+		else if (!Q_stricmp (cmd, "weapons"))
+			TDM_Weapons_f (ent, &current_matchinfo);
 		else if (!Q_stricmp (cmd, "teamstats"))
 			TDM_TeamStats_f (ent, &current_matchinfo);
 		else if (!Q_stricmp (cmd, "ghost") || !Q_stricmp (cmd, "restore") || !Q_stricmp (cmd, "recover") | !Q_stricmp (cmd, "rejoin"))
@@ -2218,6 +2237,8 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Ghost_f (ent);
 		else if (!Q_stricmp (cmd, "talk"))
 			TDM_Talk_f (ent);
+		else if (!Q_stricmp (cmd, "id") || !Q_stricmp (cmd, "ident"))
+			TDM_Id_f (ent);
 		//wision: some compatibility with old mods (ppl are lazy to learn new commands)
 		else if (!Q_stricmp (cmd, "powerups"))
 			TDM_Powerups_f (ent);

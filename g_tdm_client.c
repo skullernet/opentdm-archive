@@ -820,3 +820,144 @@ void TDM_SetInitialItems (edict_t *ent)
 			break;
 	}
 }
+
+/*
+==============
+TDM_GetArmorValue
+==============
+Returns how much armor (any type) the client has.
+*/
+int TDM_GetArmorValue (edict_t *ent)
+{
+	int		index;
+
+	index = ArmorIndex (ent);
+	if (!index)
+		return 0;
+
+	return ent->client->inventory[index];
+}
+
+/*
+==============
+TDM_GetPlayerIdView
+==============
+Find the best player for the id view and return a configstring index that contains their info.
+*/
+int TDM_GetPlayerIdView (edict_t *ent)
+{
+	edict_t		*ignore;
+	edict_t		*target;
+	vec3_t		forward;
+	trace_t		tr;
+	vec3_t		start;
+	vec3_t		mins = {-4,-4,-4};
+	vec3_t		maxs = {4,4,4};
+	qboolean	ignoreConfigStringUpdate;
+	int			i;
+
+	VectorCopy (ent->s.origin, start);
+	start[2] += ent->viewheight;
+
+	AngleVectors (ent->client->v_angle, forward, NULL, NULL);
+
+	VectorScale (forward, 4096, forward);
+	VectorAdd (ent->s.origin, forward, forward);
+
+	ignore = ent;
+
+	target = NULL;
+	ignoreConfigStringUpdate = false;
+
+	//find best player through tracing
+	for (i = 0; i < 10; i++)
+	{
+		tr = gi.trace (start, mins, maxs, forward, ignore, CONTENTS_SOLID|CONTENTS_MONSTER|CONTENTS_DEADMONSTER);
+
+		if (tr.ent == world || tr.fraction == 1.0f)
+			break;
+
+		//we hit something that's a player and it's alive and on our team!
+		if (tr.ent && tr.ent->client && tr.ent->health > 0 &&
+			(ent->client->pers.team == TEAM_SPEC || tr.ent->client->pers.team == ent->client->pers.team))
+		{
+			target = tr.ent;
+			break;
+		}
+		else
+		{
+			VectorCopy (tr.endpos, start);
+			ignore = tr.ent;
+		}
+	}
+
+	//if trace was unsuccessful, try guessing based on angles
+	if (!target)
+	{
+		edict_t		*who, *best;
+		vec3_t		dir;
+		float		distance, bdistance;
+		float		bd = 0, d;
+
+		AngleVectors (ent->client->v_angle, forward, NULL, NULL);
+		best = NULL;
+
+		for (who = g_edicts + 1; who <= g_edicts + game.maxclients; who++)
+		{
+			if (!who->inuse)
+				continue;
+
+			if (ent->client->pers.team != TEAM_SPEC && who->client->pers.team != ent->client->pers.team)
+				continue;
+
+			if (who->health <= 0)
+				continue;
+
+			if (who == ent)
+				continue;
+
+			VectorSubtract (who->s.origin, ent->s.origin, dir);
+			distance = VectorLength (dir);
+
+			VectorNormalize (dir);
+			d = DotProduct (forward, dir);
+
+			if (d > bd && visible (ent, who))
+			{
+				bdistance = distance;
+				bd = d;
+				best = who;
+			}
+		}
+
+		if (best)
+		{
+			//allow variable slop based on proximity
+			if ((bdistance < 150 && bd > 0.50f) || (bdistance < 250 && bd > 0.90f) || (bdistance < 600 && bd > 0.96f) || bd > 0.98f)
+				target = best;
+		}
+	}
+
+	if (!target)
+		return 0;
+
+	//don't spam configstring if they haven't changed since last time
+	if (ent->client->resp.last_id_client == target &&
+		ent->client->resp.last_id_health == target->health &&
+		ent->client->resp.last_id_armor == TDM_GetArmorValue (target))
+		ignoreConfigStringUpdate = true;
+
+	ent->client->resp.last_id_client = target;
+	ent->client->resp.last_id_health = target->health;
+	ent->client->resp.last_id_armor = TDM_GetArmorValue (target);
+
+	if (!ignoreConfigStringUpdate)
+	{
+		gi.WriteByte (svc_configstring);
+		gi.WriteShort (CS_TDM_ID_VIEW);
+		gi.WriteString (va ("%16s H:%d A:%d", target->client->pers.netname, target->health, TDM_GetArmorValue (target)));
+		gi.unicast (ent, false);
+	}
+
+	return target - g_edicts;
+}

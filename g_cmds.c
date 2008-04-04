@@ -70,6 +70,9 @@ void SelectNextItem (edict_t *ent, int itflags)
 	int				i, index;
 	const gitem_t	*it;
 
+	if (tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
+		return;
+
 	cl = ent->client;
 
 	if (cl->menu.active)
@@ -110,6 +113,9 @@ void SelectPrevItem (edict_t *ent, int itflags)
 	gclient_t		*cl;
 	int				i, index;
 	const gitem_t	*it;
+
+	if (tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
+		return;
 
 	cl = ent->client;
 
@@ -415,7 +421,7 @@ void Cmd_Use_f (edict_t *ent)
 	const gitem_t	*it;
 	char			*s;
 
-	if (tdm_match_status == MM_TIMEOUT)
+	if (tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
 		return;
 
 	s = gi.args();
@@ -589,7 +595,7 @@ void Cmd_WeapPrev_f (edict_t *ent)
 	const gitem_t	*it;
 	int				selected_weapon;
 
-	if (tdm_match_status == MM_TIMEOUT)
+	if (tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
 		return;
 
 	cl = ent->client;
@@ -628,7 +634,7 @@ void Cmd_WeapNext_f (edict_t *ent)
 	const gitem_t	*it;
 	int				selected_weapon;
 
-	if (tdm_match_status == MM_TIMEOUT)
+	if (tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
 		return;
 
 	cl = ent->client;
@@ -666,7 +672,7 @@ void Cmd_WeapLast_f (edict_t *ent)
 	int					index;
 	const gitem_t		*it;
 
-	if (tdm_match_status == MM_TIMEOUT)
+	if (tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
 		return;
 
 	cl = ent->client;
@@ -735,7 +741,7 @@ void Cmd_Kill_f (edict_t *ent)
 	if (tdm_match_status == MM_COUNTDOWN)
 		return;
 
-	if (tdm_match_status == MM_TIMEOUT)
+	if (tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
 		return;
 
 	if (ent->health <= 0)
@@ -1132,14 +1138,6 @@ void ClientCommand (edict_t *ent)
 
 	if (TDM_Command (cmd, ent))
 		return;
-
-	if (tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
-	{
-		// ppl usually spam these binds.. so don't print them
-		if (Q_stricmp (cmd, "use") && Q_stricmp (cmd, "invuse") && Q_stricmp (cmd, "drop") && Q_stricmp (cmd, "wave"))
-			Cmd_Say_f (ent, false, true);
-		return;
-	}
 
 	if (Q_stricmp (cmd, "use") == 0)
 		Cmd_Use_f (ent);
