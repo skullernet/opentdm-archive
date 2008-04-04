@@ -1620,7 +1620,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		{
 			if (client->latched_buttons & BUTTON_ANY)
 			{
-				client->latched_buttons |= BUTTON_ANY;
+				client->latched_buttons = 0;
 
 				if (client->chase_target)
 					ChasePrev (ent);
