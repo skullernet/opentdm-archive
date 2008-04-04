@@ -19,7 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 #include "g_local.h"
 #include "m_player.h"
-#include "g_tdm_stats.h"
+#include "g_tdm.h"
 
 void ClientUserinfoChanged (edict_t *ent, char *userinfo);
 
@@ -1106,6 +1106,8 @@ void ClientBeginDeathmatch (edict_t *ent)
 	//guarantee a client is actually making it all the way into the game.
 	memset (&client->resp, 0, sizeof(client->resp));
 
+	client->pers.connected = true;
+
 	//only run this the very first time they join the server, so pers is really persistent
 	//even across map changes
 	if (ent->client->pers.joinstate != JS_JOINED)
@@ -1122,18 +1124,23 @@ void ClientBeginDeathmatch (edict_t *ent)
 		client->pers.joinstate = JS_FIRST_JOIN;
 
 		gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
-	}
 
-	client->pers.connected = true;
 	
-	// locate ent at a spawn point
-	PutClientInServer (ent);
+		// locate ent at a spawn point
+		PutClientInServer (ent);
 
-	// send effect (only to local client)
-	gi.WriteByte (svc_muzzleflash);
-	gi.WriteShort (ent-g_edicts);
-	gi.WriteByte (MZ_LOGIN);
-	gi.unicast (ent, false);
+		// send effect (only to local client)
+		gi.WriteByte (svc_muzzleflash);
+		gi.WriteShort (ent-g_edicts);
+		gi.WriteByte (MZ_LOGIN);
+		gi.unicast (ent, false);
+	}
+	else
+	{
+		//if this player was on a map previously, rejoin the team
+		if (ent->client->pers.team)
+			JoinedTeam (ent, false);
+	}
 	
 	// make sure all view stuff is valid
 	ClientEndServerFrame (ent);

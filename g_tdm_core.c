@@ -2151,6 +2151,8 @@ void TDM_ResetGameState (void)
 
 	TDM_UpdateTeamNames ();
 
+	//note, this block of code only runs on a reset from the same map. a map change
+	//will have every client ->inuse false until they are reconnected.
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
 		if (ent->inuse)
@@ -2171,13 +2173,7 @@ void TDM_ResetGameState (void)
 			{
 				//preserve teams as per bug #0000001
 				//ent->client->pers.team = TEAM_SPEC;
-				PutClientInServer (ent);
-
-				//make it look convincing
-				gi.WriteByte (svc_muzzleflash);
-				gi.WriteShort (ent - g_edicts);
-				gi.WriteByte (MZ_LOGIN);
-				gi.unicast (ent, false);
+				JoinedTeam (ent, false);
 			}
 		}
 	}
