@@ -86,9 +86,6 @@ void SelectNextItem (edict_t *ent, int itflags)
 		return;
 	}
 
-	if (tdm_match_status == MM_TIMEOUT)
-		return;
-
 	// scan  for the next valid one
 	for (i=1 ; i<=MAX_ITEMS ; i++)
 	{
@@ -129,9 +126,6 @@ void SelectPrevItem (edict_t *ent, int itflags)
 		ChasePrev(ent);
 		return;
 	}
-
-	if (tdm_match_status == MM_TIMEOUT)
-		return;
 
 	// scan  for the next valid one
 	for (i=1 ; i<=MAX_ITEMS ; i++)
@@ -1112,7 +1106,7 @@ void ClientCommand (edict_t *ent)
 		Cmd_Say_f (ent, false, false);
 		return;
 	}
-	if (Q_stricmp (cmd, "say_team") == 0)
+	if (Q_stricmp (cmd, "say_team") == 0 || Q_stricmp (cmd, "steam") == 0)
 	{
 		Cmd_Say_f (ent, true, false);
 		return;

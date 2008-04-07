@@ -56,7 +56,7 @@ void MoveClientToIntermission (edict_t *ent)
 	ent->client->invincible_framenum = 0;
 	ent->client->breather_framenum = 0;
 	ent->client->enviro_framenum = 0;
-	ent->client->grenade_blew_up = false;
+	ent->client->grenade_state = GRENADE_NONE;
 	ent->client->grenade_time = 0;
 
 	//simulate player height

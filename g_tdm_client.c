@@ -855,6 +855,7 @@ int TDM_GetPlayerIdView (edict_t *ent)
 	vec3_t		maxs = {4,4,4};
 	qboolean	ignoreConfigStringUpdate;
 	int			i;
+	int			powerarmor;
 	qboolean	show_health_info;
 
 	ignoreConfigStringUpdate = false;
@@ -960,27 +961,61 @@ int TDM_GetPlayerIdView (edict_t *ent)
 	if (!target)
 		return 0;
 
-	if (ent->client->pers.team == TEAM_SPEC || ent->client->pers.team == target->client->pers.team)
+	show_health_info = false;
+
+	if (ent->client->pers.team == target->client->pers.team)
+	{
+		//same team, show health info
 		show_health_info = true;
+	}
+	else if (ent->client->pers.team == TEAM_SPEC)
+	{
+		if (!ent->client->chase_target)
+		{
+			//free floating camera, show health info
+			show_health_info = true;
+		}
+		else if (ent->client->chase_target->client->pers.team == target->client->pers.team)
+		{
+			//viewing someone on the same team as our chase target, show health info
+			show_health_info = true;
+		}
+	}
+
+	//check for power armor
+	if (target->flags & FL_POWER_ARMOR)
+		powerarmor = target->client->inventory[ITEM_AMMO_CELLS];
 	else
-		show_health_info = false;
+		powerarmor = 0;
 
 	//don't spam configstring if they haven't changed since last time
 	if (ent->client->resp.last_id_client == target &&
 		ent->client->resp.last_id_health == target->health &&
-		ent->client->resp.last_id_armor == TDM_GetArmorValue (target))
+		ent->client->resp.last_id_armor == TDM_GetArmorValue (target) &&
+		ent->client->resp.last_id_powerarmor == powerarmor)
 		ignoreConfigStringUpdate = true;
 
 	ent->client->resp.last_id_client = target;
 	ent->client->resp.last_id_health = target->health;
 	ent->client->resp.last_id_armor = TDM_GetArmorValue (target);
+	ent->client->resp.last_id_powerarmor = powerarmor;
 
 	if (!ignoreConfigStringUpdate)
 	{
 		char	*string;
 
 		if (show_health_info)
-			string = va ("%16s H:%d A:%d", target->client->pers.netname, target->health, TDM_GetArmorValue (target));
+		{
+			char	buff[16];
+
+			//show power armor if they have it
+			if (powerarmor)
+				sprintf (buff, " P:%d", powerarmor);
+			else
+				buff[0] = '\0';
+
+			string = va ("%16s H:%d A:%d%s", target->client->pers.netname, target->health, TDM_GetArmorValue (target), buff);
+		}
 		else
 			string = va ("%16s", target->client->pers.netname);
 

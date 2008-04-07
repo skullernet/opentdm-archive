@@ -1681,7 +1681,9 @@ void ClientBeginServerFrame (edict_t *ent)
 		return;
 	}
 
-	if (ent->client->pers.team && FRAMES_TO_SECS(level.framenum - ent->client->last_activity_frame) > g_idle_time->value)
+	// only remove idle players in warmup!
+	if (ent->client->pers.team && tdm_match_status == MM_WARMUP &&
+		FRAMES_TO_SECS(level.framenum - ent->client->last_activity_frame) > g_idle_time->value)
 	{
 		gi.bprintf (PRINT_HIGH, "Removing %s from team '%s' due to inactivity.\n", ent->client->pers.netname, teaminfo[ent->client->pers.team].name);
 		ToggleChaseCam (ent);

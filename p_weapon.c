@@ -109,12 +109,18 @@ current
 */
 void ChangeWeapon (edict_t *ent)
 {
-	if (ent->client->grenade_time && (!ent->client->grenade_blew_up || g_bugs->value >= 2))
+	//a grenade action is happening
+	if (ent->client->grenade_time)
 	{
-		ent->client->grenade_time = level.time;
-		ent->client->weapon_sound = 0;
-		weapon_grenade_fire (ent, false);
-		ent->client->grenade_time = 0;
+		//but it blew up in their hand or they threw it, allow bug to double explode
+		if ((ent->client->grenade_state == GRENADE_BLEW_UP && g_bugs->value >= 2) ||
+			(ent->client->grenade_state == GRENADE_THROWN && g_bugs->value >= 1))
+		{
+			ent->client->grenade_time = level.time;
+			ent->client->weapon_sound = 0;
+			weapon_grenade_fire (ent, false);
+			ent->client->grenade_time = 0;
+		}
 	}
 
 	ent->client->lastweapon = ent->client->weapon;
@@ -637,22 +643,22 @@ void Weapon_Grenade (edict_t *ent)
 			}
 
 			// they waited too long, detonate it in their hand
-			if (!ent->client->grenade_blew_up && level.time >= ent->client->grenade_time)
+			if (ent->client->grenade_state != GRENADE_BLEW_UP && level.time >= ent->client->grenade_time)
 			{
 				ent->client->weapon_sound = 0;
 				weapon_grenade_fire (ent, true);
-				ent->client->grenade_blew_up = true;
+				ent->client->grenade_state = GRENADE_BLEW_UP;
 			}
 
 			if (ent->client->buttons & BUTTON_ATTACK)
 				return;
 
-			if (ent->client->grenade_blew_up)
+			if (ent->client->grenade_state == GRENADE_BLEW_UP)
 			{
 				if (level.time >= ent->client->grenade_time)
 				{
 					ent->client->ps.gunframe = 15;
-					ent->client->grenade_blew_up = false;
+					ent->client->grenade_state = GRENADE_NONE;
 				}
 				else
 				{
@@ -665,6 +671,7 @@ void Weapon_Grenade (edict_t *ent)
 		{
 			ent->client->weapon_sound = 0;
 			weapon_grenade_fire (ent, false);
+			ent->client->grenade_state = GRENADE_THROWN;
 		}
 
 		if ((ent->client->ps.gunframe == 15) && (level.time < ent->client->grenade_time))

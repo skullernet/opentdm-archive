@@ -1287,6 +1287,13 @@ enum
 	CHASE_MAX,
 };
 
+typedef enum
+{
+	GRENADE_NONE,
+	GRENADE_BLEW_UP,
+	GRENADE_THROWN,
+} grenade_state_t;
+
 // client data that stays across multiple level loads
 typedef struct
 {
@@ -1329,6 +1336,7 @@ typedef struct
 	edict_t			*last_id_client;
 	int				last_id_health;
 	int				last_id_armor;
+	int				last_id_powerarmor;
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),
@@ -1404,7 +1412,7 @@ struct gclient_s
 	unsigned	breather_framenum;
 	unsigned	enviro_framenum;
 
-	qboolean	grenade_blew_up;
+	grenade_state_t	grenade_state;
 	unsigned	grenade_time;
 	int			silencer_shots;
 	int			weapon_sound;
