@@ -759,7 +759,7 @@ edict_t *SelectDeathmatchSpawnPoint (void)
 	//in the first 1 second of a match start, or the first 5 seconds of warmup, avoid telefrags above
 	//all other conditions
 	if ((tdm_match_status >= MM_PLAYING && level.framenum - level.match_start_framenum < SECS_TO_FRAMES (1)) ||
-		(tdm_match_status == MM_WARMUP && level.framenum - level.warmup_start_framenum < SECS_TO_FRAMES (5))
+		(tdm_match_status == MM_WARMUP && level.framenum - level.warmup_start_framenum < SECS_TO_FRAMES (5)))
 		return SelectRandomDeathmatchSpawnPointAvoidingTelefrag ();
 
 	if ( (int)(dmflags->value) & DF_SPAWN_FARTHEST)
