@@ -2116,6 +2116,8 @@ void TDM_ResetGameState (void)
 
 	level.tdm_pseudo_1v1mode = false;
 	level.match_start_framenum = 0;
+	level.warmup_start_framenum = level.framenum;
+
 	tdm_match_status = MM_WARMUP;
 	TDM_ResetLevel ();
 	TDM_SetFrameTime ();

@@ -524,6 +524,7 @@ typedef struct
 	int				last_tdm_match_status;
 	qboolean		tdm_pseudo_1v1mode;
 	int				timeout_end_framenum;
+	int				warmup_start_framenum;
 
 	int				numspawns;
 	edict_t			*spawns[32];

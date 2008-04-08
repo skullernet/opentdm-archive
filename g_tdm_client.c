@@ -983,10 +983,10 @@ int TDM_GetPlayerIdView (edict_t *ent)
 	}
 
 	//check for power armor
-	if (target->flags & FL_POWER_ARMOR)
+	if (target->client->inventory[ITEM_ITEM_POWER_SCREEN] > 0 || target->client->inventory[ITEM_ITEM_POWER_SHIELD] > 0)
 		powerarmor = target->client->inventory[ITEM_AMMO_CELLS];
 	else
-		powerarmor = 0;
+		powerarmor = -1;
 
 	//don't spam configstring if they haven't changed since last time
 	if (ent->client->resp.last_id_client == target &&
@@ -1009,7 +1009,7 @@ int TDM_GetPlayerIdView (edict_t *ent)
 			char	buff[16];
 
 			//show power armor if they have it
-			if (powerarmor)
+			if (powerarmor != -1)
 				sprintf (buff, " P:%d", powerarmor);
 			else
 				buff[0] = '\0';

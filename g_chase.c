@@ -68,6 +68,9 @@ void DisableChaseCam (edict_t *ent)
 
 void NextChaseMode (edict_t *ent)
 {
+	if (tdm_match_status == MM_TIMEOUT)
+		return;
+
 	ent->client->chase_mode = (ent->client->chase_mode + 1) % CHASE_MAX;
 
 	if (ent->client->chase_mode == CHASE_EYES)
@@ -189,7 +192,7 @@ void ChaseNext(edict_t *ent)
 	int i;
 	edict_t *e, *old;
 
-	if (!ent->client->chase_target)
+	if (!ent->client->chase_target || tdm_match_status == MM_TIMEOUT)
 		return;
 
 	old = ent->client->chase_target;
@@ -221,7 +224,7 @@ void ChasePrev(edict_t *ent)
 	int i;
 	edict_t *e, *old;
 
-	if (!ent->client->chase_target)
+	if (!ent->client->chase_target || tdm_match_status == MM_TIMEOUT)
 		return;
 
 	old = ent->client->chase_target;
@@ -253,7 +256,8 @@ void GetChaseTarget(edict_t *ent)
 	int i;
 	edict_t *other;
 
-	
+	if (tdm_match_status == MM_TIMEOUT)
+		return;
 
 	for (i = 1; i <= game.maxclients; i++)
 	{
