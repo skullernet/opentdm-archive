@@ -222,8 +222,8 @@ should be on screen vote
 */
 static void TDM_AnnounceVote (void)
 {
-	char	message[1024];
-	char	what[1024];
+	char		message[1024];
+	static char	what[1024];
 
 	message[0] = 0;
 	what[0] = 0;
@@ -389,6 +389,8 @@ static void TDM_AnnounceVote (void)
 		else if (vote.bugs == 2)
 			strcat (what, "no q2 gameplay bugs fixed");
 	}
+
+	vote.vote_string = what;
 
 	gi.bprintf (PRINT_HIGH, "%s%s\n", message, what);
 }
@@ -1662,6 +1664,12 @@ void TDM_Vote_f (edict_t *ent)
 	{
 		if (gi.argc() < 2)
 		{
+			if (vote.active)
+			{
+				gi.cprintf (ent, PRINT_HIGH, "Vote options: %s.\n", vote.vote_string);
+				return;
+			}
+
 			gi.cprintf (ent, PRINT_HIGH,
 				"Usage: vote <setting> <value>\n"
 				" Options:\n"

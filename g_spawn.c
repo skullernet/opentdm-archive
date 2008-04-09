@@ -744,6 +744,13 @@ const char *dm_statusbar =
   "yb -80 "
   "stat_string 27 "
 "endif "
+
+// vote notice
+"if 28 "
+  "xl 10 "
+  "yb -180 "
+  "stat_string 28 "
+"endif "
 ;
 
 

@@ -1029,11 +1029,11 @@ void Cmd_PlayerList_f (edict_t *ent)
 
 	// show players' ips for admin
 	if (ent->client->pers.admin)
-		strcpy (text, "id  time    ping   score                ip  name          team\n");
+		strcpy (text, "id    time  ping   score                ip  name          team\n"
+					"----------------------------------------------------------------\n");
 	else
-		strcpy (text, "id  time    ping   score  name          team\n");
-
-	strcat (text, "----------------------------------------------\n");
+		strcpy (text, "id    time  ping   score  name          team\n"
+					"----------------------------------------------\n");
 
 	ip[0] = '[';
 
@@ -1056,7 +1056,7 @@ void Cmd_PlayerList_f (edict_t *ent)
 			}
 		}
 
-		Com_sprintf (st, sizeof(st), "%2d  %02d:%02d   %4d     %3d %s %-12s  %s%s\n",
+		Com_sprintf (st, sizeof(st), "%2d  %3d:%02d  %4d     %3d %s %-13s %s%s\n",
 			e2 - g_edicts - 1,
 			(level.framenum - e2->client->resp.enterframe) / 600,
 			((level.framenum - e2->client->resp.enterframe) % 600)/10,

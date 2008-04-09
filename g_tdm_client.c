@@ -96,7 +96,7 @@ void JoinedTeam (edict_t *ent, qboolean reconnected)
 
 	//if we were invited mid-game, reallocate and insert into teamplayers
 	// wision: do not add if a player reconnected and used his joincode
-	if (tdm_match_status != MM_WARMUP && !reconnected)
+	if (tdm_match_status != MM_WARMUP && !reconnected && !ent->client->resp.teamplayerinfo)
 		TDM_AddPlayerToMatchinfo (ent);
 
 	//wision: set skin for new player
@@ -970,12 +970,13 @@ int TDM_GetPlayerIdView (edict_t *ent)
 	}
 	else if (ent->client->pers.team == TEAM_SPEC)
 	{
-		if (!ent->client->chase_target)
+		/*if (!ent->client->chase_target)
 		{
-			//free floating camera, show health info
-			show_health_info = true;
+			//free floating camera, DON'T show health info
+			show_health_info = false;
 		}
-		else if (ent->client->chase_target->client->pers.team == target->client->pers.team)
+		else */
+		if (ent->client->chase_target->client->pers.team == target->client->pers.team)
 		{
 			//viewing someone on the same team as our chase target, show health info
 			show_health_info = true;

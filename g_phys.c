@@ -831,6 +831,12 @@ void G_RunEntity (edict_t *ent)
 	if (ent->prethink)
 		ent->prethink (ent);
 
+	if ((ent->flags & FL_NOCLIP_PROJECTILE))
+	{
+		ent->s.solid = SOLID_BBOX;
+		gi.linkentity (ent);
+	}
+
 	switch ( (int)ent->movetype)
 	{
 	case MOVETYPE_PUSH:
@@ -855,4 +861,11 @@ void G_RunEntity (edict_t *ent)
 	default:
 		gi.error ("SV_Physics: bad movetype %i", (int)ent->movetype);			
 	}
+
+	if (ent->inuse && (ent->flags & FL_NOCLIP_PROJECTILE))
+	{
+		ent->s.solid = SOLID_NOT;
+		gi.linkentity (ent);
+	}
+
 }

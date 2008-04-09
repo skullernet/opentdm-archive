@@ -412,6 +412,9 @@ void TDM_BeginMatch (void)
 
 		if (ent->client->pers.team)
 		{
+			//fake kill them first so the spawnpoint code doesn't consider them standing on a spot
+			//if they were on one during warmup
+			ent->health = 0;
 			respawn (ent);
 		}
 	}
@@ -502,6 +505,11 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	{
 		for (i = 0; i < current_matchinfo.num_teamplayers; i++)
 		{
+			// skip players which are not supposed to be drawn during the match (disconnected, moved to observer)
+			if ((current_matchinfo.teamplayers[i].client == NULL || current_matchinfo.teamplayers[i].client->client->pers.team == TEAM_SPEC) &&
+					tdm_match_status != MM_SCOREBOARD)
+				continue;
+
 			if (current_matchinfo.teamplayers[i].team == TEAM_A)
 				team = 0;
 			else if (current_matchinfo.teamplayers[i].team == TEAM_B)
@@ -581,6 +589,17 @@ char *TDM_ScoreBoardString (edict_t *ent)
 		offset = maxplayers * 8 + 24;
 		offsetfix[0] = offsetfix[1] = 0;
 
+		// print more info into old scoreboard
+		// ent is NULL only when we request the scoreboard for preserving
+		if (!ent)
+		{
+			sprintf (tmpstr, "oldscoreboard: %s", level.mapname);
+			sprintf (string + strlen(string), "xv %d yv 24 string2 \"%s\" ",
+					((36-strlen(tmpstr))/2)*8 + 8,
+					tmpstr
+					);
+		}
+
 		// headers
 		sprintf (tmpstr, "%s:%.f(%s)", teaminfo[firstteam].name, averageping[firstteam-1], teaminfo[firstteam].skin);
 		sprintf (string + strlen(string),
@@ -618,20 +637,11 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			{
 				tmpl = &current_matchinfo.teamplayers[sorted[firstteam-1][i]];
 
-				// don't show disconnected players during the match and fix the offset for real players
-				if (tdm_match_status != MM_SCOREBOARD && tmpl->client == NULL)
-				{
-					offsetfix[firstteam-1] += 8;
-					// count the player as drawn!
-					last[firstteam-1] = i;
-					continue;
-				}
-
 				// calculate player's score
 				j = tmpl->enemy_kills - tmpl->team_kills - tmpl->suicides;
 				sprintf (entry,
 					"yv %d string \"%-15.15s   %4d  %3d %3d  %3d\" ",
-					i * 8 + 58 - offsetfix[firstteam-1],
+					i * 8 + 56 - offsetfix[firstteam-1],
 					tmpl->name,
 					j, 
 					tmpl->deaths,
@@ -651,20 +661,11 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			{
 				tmpl = &current_matchinfo.teamplayers[sorted[secondteam-1][i]];
 
-				// don't show disconnected players during the match and fix the offset for real players
-				if (tdm_match_status != MM_SCOREBOARD && tmpl->client == NULL)
-				{
-					offsetfix[secondteam-1] += 8;
-					// count the player as drawn!
-					last[secondteam-1] = i;
-					continue;
-				}
-
 				// calculate player's score
 				j = tmpl->enemy_kills - tmpl->team_kills - tmpl->suicides;
 				sprintf (entry,
 					"yv %d string \"%-15.15s   %4d  %3d %3d  %3d\" ",
-					i * 8 + 58 + offset - offsetfix[secondteam-1],
+					i * 8 + 56 + offset - offsetfix[secondteam-1],
 					tmpl->name,
 					j, 
 					tmpl->deaths,
@@ -893,11 +894,11 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	{
 		if (total[firstteam-1] - last[firstteam-1] > 1) // couldn't fit everyone
 			sprintf (string + strlen(string), "xv 8 yv %d string \"..and %d more\" ",
-				offset + 42 + (last[firstteam-1]+1)*8, total[firstteam-1] - last[firstteam-1] - 1);
+				offset + 56 + (last[firstteam-1]+1)*8, total[firstteam-1] - last[firstteam-1] - 1);
 
 		if (total[secondteam-1] - last[secondteam-1] > 1) // couldn't fit everyone
 			sprintf (string + strlen(string), "xv 8 yv %d string \"..and %d more\" ",
-				offset + 42 + (last[secondteam-1]+1)*8, total[secondteam-1] - last[secondteam-1] - 1);
+				offset + 56 + (last[secondteam-1]+1)*8, total[secondteam-1] - last[secondteam-1] - 1);
 	}
 
 	return string;
@@ -1481,40 +1482,6 @@ void TDM_CheckTimes (void)
 	{
 		gi.bprintf (PRINT_HIGH, "Vote failed.\n");
 		TDM_RemoveVote ();
-	}
-
-	if (vote.active && ((vote.end_frame - level.framenum - 1) % SECS_TO_FRAMES(15)) == 0)
-	{
-		int	vote_total = 0;
-		int	vote_hold = 0;
-		int	vote_yes = 0;
-		int	vote_no = 0;
-
-		for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
-		{
-			if (!ent->inuse)
-				continue;
-
-			if (!ent->client->pers.team)
-				continue;
-
-			if (ent->client->resp.vote == VOTE_YES)
-				vote_yes++;
-			else if (ent->client->resp.vote == VOTE_NO)
-	 			vote_no++;
-			else if (ent->client->resp.vote == VOTE_HOLD)
-	 			vote_hold++;
-
-			vote_total++;
-		}
-
-		if (vote_total % 2 == 0)
-			vote_total = vote_total/2 - vote_yes + 1;
-		else
-			vote_total = ceil((float)vote_total/2.0f) - vote_yes;
-
-		gi.bprintf (PRINT_HIGH, "Yes: %d No: %d. Need %d vote%s to pass the vote.\n",
-				vote_yes, vote_no, vote_total, vote_total == 1 ? "" : "s");
 	}
 	
 	if (tdm_match_status == MM_WARMUP && tdm_settings_not_default && level.framenum >= SECS_TO_FRAMES(300) &&
@@ -2340,6 +2307,55 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 	qboolean			need_serverinfo_update;
 
 	need_serverinfo_update = false;
+
+	if (vote.active || forceUpdate)
+	{
+		char	vote_string[1024];
+		*vote_string = 0;
+
+		if (vote.active)
+		{
+			int		vote_total = 0;
+			int		vote_hold = 0;
+			int		vote_yes = 0;
+			int		vote_no = 0;
+			edict_t	*ent;
+
+			for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+			{
+				if (!ent->inuse)
+					continue;
+
+				if (!ent->client->pers.team)
+					continue;
+
+				if (ent->client->resp.vote == VOTE_YES)
+					vote_yes++;
+				else if (ent->client->resp.vote == VOTE_NO)
+		 			vote_no++;
+				else if (ent->client->resp.vote == VOTE_HOLD)
+		 			vote_hold++;
+
+				vote_total++;
+			}
+
+			if (vote_total % 2 == 0)
+				vote_total = vote_total/2 + 1;
+			else
+				vote_total = ceil((float)vote_total/2.0f);
+
+			sprintf (vote_string, "Vote: %s. Yes: %d No: %d Need: %d\n",
+				vote.vote_string, vote_yes, vote_no, vote_total);
+
+			if (strlen(vote_string) > 63)
+			{
+				sprintf (vote_string, "Vote: type 'vote' to see changes. Yes: %d No: %d Need: %d\n",
+					vote_yes, vote_no, vote_total);
+			}
+		}
+		
+		gi.configstring (CS_TDM_VOTE_STRING, vote_string);
+	}
 
 	if (g_team_a_name->modified || forceUpdate)
 	{

@@ -286,7 +286,7 @@ void blaster_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *
 {
 	int		mod;
 
-	if (other == self->owner)
+	if (other == self->owner || other == self)
 		return;
 
 	if (surf && (surf->flags & SURF_SKY))
@@ -327,10 +327,8 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 
 	VectorNormalize (dir);
 
-	//speed = 5;
-
 	bolt = G_Spawn();
-	bolt->svflags = SVF_NOPREDICTION|SVF_NOVELOCITY;
+	bolt->svflags = SVF_NOPREDICTION;
 	// yes, I know it looks weird that projectiles are deadmonsters
 	// what this means is that when prediction is used against the object
 	// (blaster/hyperblaster shots), the player won't be solid clipped against
@@ -343,6 +341,7 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 	bolt->movetype = MOVETYPE_FLYMISSILE;
 	bolt->clipmask = MASK_SHOT;
 	bolt->solid = SOLID_BBOX;
+	bolt->flags = FL_NOCLIP_PROJECTILE;
 	bolt->s.effects |= effect;
 	VectorClear (bolt->mins);
 	VectorClear (bolt->maxs);
@@ -359,7 +358,7 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 	gi.linkentity (bolt);
 
 	tr = gi.trace (self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
-	if (tr.fraction < 1.0)
+	if (tr.fraction < 1.0 && tr.ent != self)
 	{
 		VectorMA (bolt->s.origin, -10, dir, bolt->s.origin);
 		bolt->touch (bolt, tr.ent, NULL, NULL);

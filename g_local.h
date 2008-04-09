@@ -83,6 +83,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	STAT_GAME_STATUS_STRING_INDEX	26
 
 #define	STAT_ID_VIEW_INDEX				27
+
+#define	STAT_VOTE_STRING_INDEX			28
 // maximum 31!
 
 // dmflags->value flags
@@ -126,6 +128,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 //per client!
 #define CS_TDM_ID_VIEW			(CS_GENERAL + 7)
+
+#define CS_TDM_VOTE_STRING		(CS_GENERAL + 8)
 
 //#define CS_TDM_TEAM_A_PIC		(CS_GENERAL + 5)
 //#define CS_TDM_TEAM_B_PIC		(CS_GENERAL + 6)
@@ -211,6 +215,7 @@ void PMenu_Select(edict_t *ent);
 #define	FL_TEAMSLAVE			0x00000400	// not the first on the team
 #define FL_NO_KNOCKBACK			0x00000800
 #define FL_POWER_ARMOR			0x00001000	// power armor (if any) is active
+#define	FL_NOCLIP_PROJECTILE	0x00002000	// projectile hack
 #define FL_RESPAWN				0x80000000	// used for item respawning
 
 //#define	FRAMETIME		0.05f
@@ -1216,6 +1221,7 @@ typedef struct vote_s
 	int				bugs;
 	unsigned		overtimemins;
 	char			configname[32];
+	char			*vote_string;
 } vote_t;
 
 enum

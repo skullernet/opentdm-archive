@@ -440,6 +440,11 @@ void G_SetStats (edict_t *ent)
 		ent->client->ps.stats[STAT_LAYOUTS] |= 1;
 
 	ent->client->ps.stats[STAT_GAME_STATUS_STRING_INDEX] = CS_TDM_GAME_STATUS;
+
+	if (vote.active)
+		ent->client->ps.stats[STAT_VOTE_STRING_INDEX] = CS_TDM_VOTE_STRING;
+	else
+		ent->client->ps.stats[STAT_VOTE_STRING_INDEX] = 0;
 	//if (ent->client->showinventory && ent->health > 0)
 	//	ent->client->ps.stats[STAT_LAYOUTS] |= 2;
 

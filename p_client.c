@@ -760,7 +760,9 @@ edict_t *SelectDeathmatchSpawnPoint (void)
 	//all other conditions
 	if ((tdm_match_status >= MM_PLAYING && level.framenum - level.match_start_framenum < SECS_TO_FRAMES (1)) ||
 		(tdm_match_status == MM_WARMUP && level.framenum - level.warmup_start_framenum < SECS_TO_FRAMES (5)))
+	{
 		return SelectRandomDeathmatchSpawnPointAvoidingTelefrag ();
+	}
 
 	if ( (int)(dmflags->value) & DF_SPAWN_FARTHEST)
 		return SelectFarthestDeathmatchSpawnPoint ();
@@ -799,7 +801,10 @@ void	SelectSpawnPoint (edict_t *ent, vec3_t origin, vec3_t angles)
 			spot = G_Find (spot, FOFS(classname), "info_player_start");
 
 			if (!spot)
-				gi.error ("Couldn't find spawn point\n");
+			{
+				gi.dprintf ("WARNING: No info_player_start, using world");
+				spot = world;
+			}
 		}
 	}
 
@@ -1428,6 +1433,71 @@ void PrintPmove (pmove_t *pm)
 
 /*
 ==============
+G_TouchProjectiles
+==============
+An insanely ugly hack that temporarily turns any FL_PROJECTILE entities
+solid and runs a trace against them for clipping purposes against players.
+This assumes that the ent will be freed on touch or bad things will happen.
+*/
+void G_TouchProjectiles (edict_t *ent, vec3_t start)
+{
+	edict_t	*e;
+	edict_t	*ignore;
+	trace_t	tr;
+
+	int		i;
+
+	i = 0;
+
+	for (e = g_edicts + game.maxclients + 1; e < g_edicts + game.maxentities; e++)
+	{
+		if (!e->inuse)
+			continue;
+
+		if (!(e->flags & FL_NOCLIP_PROJECTILE))
+			continue;
+
+		e->solid = SOLID_BBOX;
+		gi.linkentity (e);
+		i++;
+	}
+
+	if (!i)
+		return;
+
+	ignore = ent;
+
+	for (i = 0; i < 10; i++)
+	{
+		tr = gi.trace (start, ent->mins, ent->maxs, ent->s.origin, ignore, CONTENTS_MONSTER);
+		if (tr.ent && tr.ent != world)
+		{
+			VectorCopy (tr.endpos, start);
+			ignore = tr.ent;
+
+			if (!(tr.ent->flags & FL_NOCLIP_PROJECTILE))
+				continue;
+
+			//gi.bprintf (PRINT_HIGH, "G_TouchProjectiles: Ent %d touching ent %d\n", ent->s.number, tr.ent->s.number);
+			tr.ent->touch (tr.ent, ent, NULL, NULL);
+		}
+	}
+
+	for (e = g_edicts + game.maxclients + 1; e < g_edicts + game.maxentities; e++)
+	{
+		if (!e->inuse)
+			continue;
+
+		if (!(e->flags & FL_NOCLIP_PROJECTILE))
+			continue;
+
+		e->solid = SOLID_TRIGGER;
+		gi.linkentity (e);
+	}
+}
+
+/*
+==============
 ClientThink
 
 This will be called once for each client frame, which will
@@ -1464,6 +1534,10 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	}
 	else
 	{
+		vec3_t	start_origin;
+
+		VectorCopy (ent->s.origin, start_origin);
+
 		// set up for pmove
 		memset (&pm, 0, sizeof(pm));
 
@@ -1559,6 +1633,8 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 				continue;
 			other->touch (other, ent, NULL, NULL);
 		}
+
+		G_TouchProjectiles (ent, start_origin);
 	}
 
 	if (client->oldbuttons != client->buttons)
