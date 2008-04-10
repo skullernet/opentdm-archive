@@ -976,7 +976,7 @@ int TDM_GetPlayerIdView (edict_t *ent)
 			show_health_info = false;
 		}
 		else */
-		if (ent->client->chase_target->client->pers.team == target->client->pers.team)
+		if (ent->client->chase_target && ent->client->chase_target->client->pers.team == target->client->pers.team)
 		{
 			//viewing someone on the same team as our chase target, show health info
 			show_health_info = true;

@@ -2311,6 +2311,7 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 	if (vote.active || forceUpdate)
 	{
 		char	vote_string[1024];
+
 		*vote_string = 0;
 
 		if (vote.active)
@@ -2344,12 +2345,12 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 			else
 				vote_total = ceil((float)vote_total/2.0f);
 
-			sprintf (vote_string, "Vote: %s. Yes: %d No: %d Need: %d\n",
+			sprintf (vote_string, "Vote: %s. Yes: %d No: %d Need: %d",
 				vote.vote_string, vote_yes, vote_no, vote_total);
 
 			if (strlen(vote_string) > 63)
 			{
-				sprintf (vote_string, "Vote: type 'vote' to see changes. Yes: %d No: %d Need: %d\n",
+				sprintf (vote_string, "Vote: type 'vote' to see changes. Yes: %d No: %d Need: %d",
 					vote_yes, vote_no, vote_total);
 			}
 		}

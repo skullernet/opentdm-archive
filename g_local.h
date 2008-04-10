@@ -1202,17 +1202,17 @@ typedef enum
 
 typedef struct vote_s
 {
+	qboolean		active;
 	unsigned		flags;
-	unsigned		newtimelimit;
-	unsigned		newweaponflags;
-	unsigned		newpowerupflags;
-	unsigned		newmodeflags;
-	char			newmap[MAX_QPATH];
 	edict_t			*victim;
 	edict_t			*initiator;
 	int				end_frame;
-	qboolean		active;
 	vote_success_t	success;
+
+	unsigned		newtimelimit;
+	unsigned		newweaponflags;
+	unsigned		newpowerupflags;
+	char			newmap[MAX_QPATH];
 	int				telemode;
 	int				switchmode;
 	int				tiemode;
