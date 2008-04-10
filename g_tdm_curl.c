@@ -26,6 +26,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #ifdef HAVE_CURL
 #define CURL_STATICLIB
+#ifdef _WIN32
+#define CURL_CALLING_CONVENTION __cdecl
+#endif
 #include <curl/curl.h>
 
 typedef struct dlhandle_s

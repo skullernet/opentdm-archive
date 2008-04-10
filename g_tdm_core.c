@@ -443,7 +443,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	int			last[2];
 	int			width[2];
 	int			maxplayers;
-	int			offset, offsetfix[2];
+	int			offset;
 	static int	firstteam = TEAM_A;
 	static int	secondteam = TEAM_B;
 	cvar_t		*hostname;
@@ -587,7 +587,6 @@ char *TDM_ScoreBoardString (edict_t *ent)
 
 		//figure out how far the other team needs to be drawn below
 		offset = maxplayers * 8 + 24;
-		offsetfix[0] = offsetfix[1] = 0;
 
 		// print more info into old scoreboard
 		// ent is NULL only when we request the scoreboard for preserving
@@ -641,7 +640,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				j = tmpl->enemy_kills - tmpl->team_kills - tmpl->suicides;
 				sprintf (entry,
 					"yv %d string \"%-15.15s   %4d  %3d %3d  %3d\" ",
-					i * 8 + 56 - offsetfix[firstteam-1],
+					i * 8 + 56,
 					tmpl->name,
 					j, 
 					tmpl->deaths,
@@ -665,7 +664,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				j = tmpl->enemy_kills - tmpl->team_kills - tmpl->suicides;
 				sprintf (entry,
 					"yv %d string \"%-15.15s   %4d  %3d %3d  %3d\" ",
-					i * 8 + 56 + offset - offsetfix[secondteam-1],
+					i * 8 + 56 + offset,
 					tmpl->name,
 					j, 
 					tmpl->deaths,

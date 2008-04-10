@@ -31,6 +31,9 @@ const char *TDM_Macro_LongWeapon (edict_t *ent, size_t *length);
 const char *TDM_Macro_ShortWeapon (edict_t *ent, size_t *length);
 const char *TDM_Macro_Location (edict_t *ent, size_t *length);
 
+const char *TDM_Macro_RawHealth (edict_t *ent, size_t *length);
+const char *TDM_Macro_RawArmor (edict_t *ent, size_t *length);
+
 typedef struct
 {
 	const char		*symbol;
@@ -49,7 +52,22 @@ static const tdm_macro_t tdm_macros[] =
 	{"%W", 2, TDM_Macro_LongWeapon},
 	{"%w", 2, TDM_Macro_ShortWeapon},
 	{"%l", 2, TDM_Macro_Location},
+
+	{"#h", 2, TDM_Macro_RawHealth},
+	{"#a", 2, TDM_Macro_RawArmor},
 };
+
+int TDM_GetPowerArmorCount (edict_t *ent)
+{
+	int	powerarmor;
+
+	if (ent->client->inventory[ITEM_ITEM_POWER_SCREEN] > 0 || ent->client->inventory[ITEM_ITEM_POWER_SHIELD] > 0)
+		powerarmor = ent->client->inventory[ITEM_AMMO_CELLS];
+	else
+		powerarmor = -1;
+
+	return powerarmor;
+}
 
 /*
 ==========
@@ -57,6 +75,19 @@ Health
 ==========
 */
 const char *TDM_Macro_Health (edict_t *ent, size_t *length)
+{
+	static char	buff[8];
+
+	*length = sprintf (buff, "H:%d", ent->health);
+	return buff;
+}
+
+/*
+==========
+Health
+==========
+*/
+const char *TDM_Macro_RawHealth (edict_t *ent, size_t *length)
 {
 	static char	buff[8];
 
@@ -71,7 +102,36 @@ Armor (short)
 */
 const char *TDM_Macro_ShortArmor (edict_t *ent, size_t *length)
 {
-	static char	buff[8];
+	static char	buff[16];
+	int			index;
+	int			power;
+	int			count;
+
+	index = ArmorIndex (ent);
+
+	if (index == 0)
+		count = 0;
+	else
+		count = ent->client->inventory[index];
+
+	power = TDM_GetPowerArmorCount (ent);
+
+	if (power == -1)
+		*length = sprintf (buff, "A:%d", count);
+	else
+		*length = sprintf (buff, "A:%d P:%d", count, power);
+
+	return buff;
+}
+
+/*
+==========
+Armor (raw)
+==========
+*/
+const char *TDM_Macro_RawArmor (edict_t *ent, size_t *length)
+{
+	static char	buff[16];
 	int			index;
 
 	index = ArmorIndex (ent);
@@ -95,16 +155,23 @@ const char *TDM_Macro_LongArmor (edict_t *ent, size_t *length)
 {
 	static char	buff[32];
 	int			index;
+	int			power;
+	int			count;
 
 	index = ArmorIndex (ent);
 
 	if (index == 0)
-	{
-		*length = 1;
-		return "0";
-	}
+		count = 0;
+	else
+		count = ent->client->inventory[index];
 
-	*length = sprintf (buff, "%d %s", ent->client->inventory[index], GETITEM(index)->pickup_name);
+	power = TDM_GetPowerArmorCount (ent);
+
+	if (power == -1)
+		*length = sprintf (buff, "A:%d %s", count, GETITEM(index)->pickup_name);
+	else
+		*length = sprintf (buff, "A:%d %s P:%d", count, GETITEM(index)->pickup_name, power);
+
 	return buff;
 }
 
@@ -120,7 +187,12 @@ const char *TDM_Macro_LongWeapon (edict_t *ent, size_t *length)
 	if (!ent->client->weapon)
 		return NULL;
 
-	*length = sprintf (buff, "%s", ent->client->weapon->pickup_name);
+	if (ent->client->weapon == GETITEM(ITEM_WEAPON_BLASTER))
+		*length = sprintf (buff, "%s", ent->client->weapon->pickup_name);
+	else
+		*length = sprintf (buff, "%s:%d", ent->client->weapon->pickup_name, ent->client->inventory[ent->client->ammo_index]);
+
+
 	return buff;
 }
 
@@ -131,12 +203,16 @@ Weapon (short)
 */
 const char *TDM_Macro_ShortWeapon (edict_t *ent, size_t *length)
 {
-	static char	buff[8];
+	static char	buff[16];
 
 	if (!ent->client->weapon)
 		return NULL;
 
-	*length = sprintf (buff, "%s", ent->client->weapon->shortname);
+	if (ent->client->weapon == GETITEM(ITEM_WEAPON_BLASTER))
+		*length = sprintf (buff, "%s", ent->client->weapon->shortname);
+	else
+		*length = sprintf (buff, "%s:%d", ent->client->weapon->shortname, ent->client->inventory[ent->client->ammo_index]);
+
 	return buff;
 }
 
