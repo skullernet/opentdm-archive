@@ -319,7 +319,7 @@ qboolean TDM_CheckMapExists (const char *mapname)
 	if (basedir)
 	{
 		// check basedir
-		snprintf (buffer, sizeof(buffer), "%s/baseq2/maps/%s.bsp", basedir->string, mapname);
+		snprintf (buffer, sizeof(buffer)-1, "%s/baseq2/maps/%s.bsp", basedir->string, mapname);
 
 		mf = fopen (buffer, "r");
 		if (mf != NULL)
@@ -2138,7 +2138,7 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 		else if (!Q_stricmp (cmd, "stopsound"))
 			return true;	//prevent chat from our stuffcmds on people who have no sound
 		else
-			return false;	//print everything else as a text
+			return true;	//don't print everything else as a text
 
 		return true;
 	}

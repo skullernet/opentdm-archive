@@ -447,7 +447,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	static int	firstteam = TEAM_A;
 	static int	secondteam = TEAM_B;
 	cvar_t		*hostname;
-	char		serverinfo[60];
+	char		serverinfo[51];
 	struct tm	*ts;
 	time_t		t;
 	qboolean	drawn_header;
@@ -463,10 +463,12 @@ char *TDM_ScoreBoardString (edict_t *ent)
 
 	hostname = gi.cvar ("hostname", NULL, 0);
 
+	serverinfo[sizeof(serverinfo)-1] = '\0';
+
 	if (hostname)
-		strncpy(serverinfo, hostname->string, 50);
+		strncpy (serverinfo, hostname->string, sizeof(serverinfo)-1);
 	else
-		sprintf(serverinfo, "unnamed server");
+		strcpy (serverinfo, "unnamed server");
 
 	// sort the clients by team and score
 	total[0] = total[1] = 0;
@@ -781,7 +783,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				"xv %d yv %d string \"%s\" "
 				// draw name on X=0 later, so we don't have to set it for all the players below
 				"xv 264 yv %d string2 \"Ping\" xv 8 string2 \" Name\" ",
-				((36-strlen(tmpstr))/2)*8, offset + 40,
+				((36-strlen(tmpstr))/2)*8 + 8, offset + 40,
 				tmpstr,	offset + 48
 				);
 		}
@@ -2306,56 +2308,6 @@ void TDM_UpdateConfigStrings (qboolean forceUpdate)
 	qboolean			need_serverinfo_update;
 
 	need_serverinfo_update = false;
-
-	if (vote.active || forceUpdate)
-	{
-		char	vote_string[1024];
-
-		*vote_string = 0;
-
-		if (vote.active)
-		{
-			int		vote_total = 0;
-			int		vote_hold = 0;
-			int		vote_yes = 0;
-			int		vote_no = 0;
-			edict_t	*ent;
-
-			for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
-			{
-				if (!ent->inuse)
-					continue;
-
-				if (!ent->client->pers.team)
-					continue;
-
-				if (ent->client->resp.vote == VOTE_YES)
-					vote_yes++;
-				else if (ent->client->resp.vote == VOTE_NO)
-		 			vote_no++;
-				else if (ent->client->resp.vote == VOTE_HOLD)
-		 			vote_hold++;
-
-				vote_total++;
-			}
-
-			if (vote_total % 2 == 0)
-				vote_total = vote_total/2 + 1;
-			else
-				vote_total = ceil((float)vote_total/2.0f);
-
-			sprintf (vote_string, "Vote: %s. Yes: %d No: %d Need: %d",
-				vote.vote_string, vote_yes, vote_no, vote_total);
-
-			if (strlen(vote_string) > 63)
-			{
-				sprintf (vote_string, "Vote: type 'vote' to see changes. Yes: %d No: %d Need: %d",
-					vote_yes, vote_no, vote_total);
-			}
-		}
-		
-		gi.configstring (CS_TDM_VOTE_STRING, vote_string);
-	}
 
 	if (g_team_a_name->modified || forceUpdate)
 	{

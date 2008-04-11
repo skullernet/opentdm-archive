@@ -215,6 +215,61 @@ static void TDM_ApplyVote (void)
 
 /*
 ==============
+TDM_UpdateVoteConfigString
+==============
+Display the vote on the screen during active vote.
+*/
+void TDM_UpdateVoteConfigString (void)
+{
+	int		vote_total = 0;
+	int		vote_hold = 0;
+	int		vote_yes = 0;
+	int		vote_no = 0;
+	edict_t	*ent;
+	char	vote_string[1024];
+
+	*vote_string = 0;
+
+	if (vote.active)
+	{
+		for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+		{
+			if (!ent->inuse)
+				continue;
+
+			if (!ent->client->pers.team)
+				continue;
+
+			if (ent->client->resp.vote == VOTE_YES)
+				vote_yes++;
+			else if (ent->client->resp.vote == VOTE_NO)
+				vote_no++;
+			else if (ent->client->resp.vote == VOTE_HOLD)
+	 			vote_hold++;
+
+			vote_total++;
+		}
+
+		if (vote_total % 2 == 0)
+			vote_total = vote_total/2 + 1;
+		else
+			vote_total = ceil((float)vote_total/2.0f);
+
+		sprintf (vote_string, "Vote: %s. Yes: %d (%d) No: %d",
+			vote.vote_string, vote_yes, vote_total, vote_no);
+
+		if (strlen(vote_string) > 63)
+		{
+			sprintf (vote_string, "Vote: type 'vote' to see changes. Yes: %d (%d) No: %d",
+				vote_yes, vote_total, vote_no);
+		}
+	}
+
+	gi.configstring (CS_TDM_VOTE_STRING, vote_string);
+}
+
+/*
+==============
 TDM_AnnounceVote
 ==============
 Announce vote to other players.
@@ -391,6 +446,7 @@ static void TDM_AnnounceVote (void)
 	}
 
 	vote.vote_string = what;
+	TDM_UpdateVoteConfigString ();
 
 	gi.bprintf (PRINT_HIGH, "%s%s\n", message, what);
 }
@@ -414,6 +470,8 @@ void TDM_RemoveVote (void)
 		
 		ent->client->resp.vote = VOTE_HOLD;
 	}
+
+	TDM_UpdateVoteConfigString ();
 }
 
 /*
@@ -1622,6 +1680,8 @@ void TDM_Vote_X (edict_t *ent, player_vote_t x, const char *whatisit)
 		ent->client->resp.vote = x;
 		gi.bprintf (PRINT_HIGH, "%s changed his vote to %s.\n", ent->client->pers.netname, whatisit);
 	}
+
+	TDM_UpdateVoteConfigString ();
 }
 
 /*
