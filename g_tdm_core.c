@@ -1845,6 +1845,13 @@ void TDM_ResetVotableVariables (void)
 
 	tdm_settings_not_default = false;
 
+	if (g_gamemode->value == GAMEMODE_ITDM)
+		dmflags = gi.cvar_set ("dmflags", g_itdmflags->string);
+	else if (g_gamemode->value == GAMEMODE_TDM)
+		dmflags = gi.cvar_set ("dmflags", g_tdmflags->string);
+	else if (g_gamemode->value == GAMEMODE_1V1)
+		dmflags = gi.cvar_set ("dmflags", g_1v1flags->string);
+
 	TDM_ResetLevel ();
 	TDM_UpdateConfigStrings (true);
 }	
