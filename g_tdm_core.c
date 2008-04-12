@@ -1845,6 +1845,7 @@ void TDM_ResetVotableVariables (void)
 
 	tdm_settings_not_default = false;
 
+	TDM_ResetLevel ();
 	TDM_UpdateConfigStrings (true);
 }	
 
