@@ -396,6 +396,7 @@ char *TDM_MaplistString (void)
 			break;
 
 		len = strlen (buffer);
+
 		// cut only first column from the line
 		for (i = 0; i < len; i++)
 		{

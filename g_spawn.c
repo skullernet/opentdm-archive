@@ -319,7 +319,8 @@ void ED_ParseField (const char *key, const char *value, edict_t *ent)
 				*(char **)(b+f->ofs) = ED_NewString (value);
 				break;
 			case F_VECTOR:
-				sscanf (value, "%f %f %f", &vec[0], &vec[1], &vec[2]);
+				if (sscanf (value, "%f %f %f", &vec[0], &vec[1], &vec[2]) != 3)
+					gi.error ("ED_ParseField: Couldn't parse F_VECTOR %s", value);
 				((float *)(b+f->ofs))[0] = vec[0];
 				((float *)(b+f->ofs))[1] = vec[1];
 				((float *)(b+f->ofs))[2] = vec[2];
@@ -661,7 +662,7 @@ const char *dm_statusbar =
 "	yb	-50 "
 "endif "
 
-// timer
+// timer (quad, rebreather, envirosuit)
 "if 9 "
 "	xv	246 "
 "	num	2	10 "
@@ -673,6 +674,15 @@ const char *dm_statusbar =
 "if 11 "
 "	xv	148 "
 "	pic	11 "
+"endif "
+
+// timer (pent)
+"if 29 "
+"   yb  -80 "
+"	xv	246 "
+"	num	2	30 "
+"	xv	296 "
+"	pic	29 "
 "endif "
 
 // First team name

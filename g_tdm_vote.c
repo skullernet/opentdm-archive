@@ -117,14 +117,6 @@ static void TDM_ApplyVote (void)
 		}
 	}
 
-	if (vote.flags & VOTE_MAP)
-	{
-		strcpy (level.nextmap, vote.newmap);
-		if (!(vote.flags & (VOTE_CONFIG|VOTE_WEBCONFIG)))
-			gi.bprintf (PRINT_CHAT, "New map: %s\n", vote.newmap);
-		EndDMLevel();
-	}
-
 	if (vote.flags & VOTE_KICK)
 	{
 		gi.AddCommandString (va ("kick %d\n", (int)(vote.victim - g_edicts - 1)));
@@ -193,6 +185,15 @@ static void TDM_ApplyVote (void)
 
 		if (!(vote.flags & (VOTE_CONFIG|VOTE_WEBCONFIG)))
 			gi.bprintf (PRINT_CHAT, "New overtime: %d minute%s\n", (int)vote.overtimemins, vote.overtimemins == 1 ? "" : "s");
+	}
+
+	// let's have this in the end, so it doesn't mess up with other votes like gamemode
+	if (vote.flags & VOTE_MAP)
+	{
+		strcpy (level.nextmap, vote.newmap);
+		if (!(vote.flags & (VOTE_CONFIG|VOTE_WEBCONFIG)))
+			gi.bprintf (PRINT_CHAT, "New map: %s\n", vote.newmap);
+		EndDMLevel();
 	}
 
 	if (vote.flags & VOTE_RESTART)
@@ -1235,10 +1236,11 @@ char *TDM_ConfiglistString (void)
 		filename = Sys_FindNext ();
 	}
 
+	// close before return
+	Sys_FindClose ();
+
 	if (!configlist[0])
 		return NULL;
-
-	Sys_FindClose ();
 
 	return configlist;
 }
@@ -1325,7 +1327,12 @@ qboolean TDM_VoteConfig (edict_t *ent)
 		return false;
 	}
 
-	fseek (confFile, 0, SEEK_END);
+	if (fseek (confFile, 0, SEEK_END))
+	{
+		fclose (confFile);
+		gi.cprintf (ent, PRINT_HIGH, "Invalid config file.\n");
+		return false;
+	}
 
 	len = ftell (confFile);
 
@@ -1904,6 +1911,160 @@ void TDM_CheckVote (void)
 	{
 		gi.bprintf (PRINT_HIGH, "Vote failed.\n");
 		TDM_RemoveVote();
+	}
+}
+
+/*
+==============
+TDM_VoteMenuApply
+==============
+Call vote from vote menu.
+*/
+void TDM_VoteMenuApply (edict_t *ent)
+{
+	qboolean	newvote = false;
+	int			overtime;
+
+	if (ent->client->votemenu_values.timelimit != ((unsigned)g_match_time->value / 60))
+	{
+		vote.newtimelimit = ent->client->votemenu_values.timelimit;
+		vote.flags |= VOTE_TIMELIMIT;
+		newvote = true;
+	}
+
+	// things above this can be voted during the match
+	if (tdm_match_status == MM_PLAYING && newvote)
+	{
+		PMenu_Close (ent);
+
+		TDM_SetupVote (ent);
+		TDM_AnnounceVote ();
+		TDM_CheckVote();
+		return;
+	}
+
+	if (ent->client->votemenu_values.map[0] != '\0' && ent->client->votemenu_values.map[0] != '-' &&
+			strcmp (ent->client->votemenu_values.map, level.mapname))
+	{
+		strcpy (vote.newmap, ent->client->votemenu_values.map);
+		vote.flags |= VOTE_MAP;
+		newvote = true;
+	}
+
+	if ((ent->client->votemenu_values.bfg && ((int)g_itemflags->value & WEAPON_BFG10K)) ||
+			(!ent->client->votemenu_values.bfg && (~(int)g_itemflags->value & WEAPON_BFG10K)))
+	{
+		vote.newweaponflags = (int)g_itemflags->value;
+
+		if (ent->client->votemenu_values.bfg)
+			vote.newweaponflags &= ~WEAPON_BFG10K;
+		else
+			vote.newweaponflags |= WEAPON_BFG10K;
+
+		vote.flags |= VOTE_WEAPONS;
+		newvote = true;
+	}
+
+	if ((ent->client->votemenu_values.powerups && (int)g_powerupflags->value != 0) ||
+			(!ent->client->votemenu_values.powerups && (int)g_powerupflags->value != 0xFFFFFFFFU))
+	{
+		if (ent->client->votemenu_values.powerups)
+			vote.newpowerupflags = 0;
+		else
+			vote.newpowerupflags = 0xFFFFFFFFU;
+
+		vote.flags |= VOTE_POWERUPS;
+		newvote = true;
+	}
+
+	if (ent->client->votemenu_values.chat != (unsigned)g_chat_mode->value)
+	{
+		vote.newchatmode = ent->client->votemenu_values.chat;
+		vote.flags |= VOTE_CHAT;
+		newvote = true;
+	}
+
+	if (ent->client->votemenu_values.bugs != (unsigned)g_bugs->value)
+	{
+		vote.bugs = ent->client->votemenu_values.bugs;
+		vote.flags |= VOTE_BUGS;
+		newvote = true;
+	}
+
+	if (ent->client->votemenu_values.gamemode != (unsigned)g_gamemode->value)
+	{
+		vote.gamemode = ent->client->votemenu_values.gamemode;
+		vote.flags |= VOTE_GAMEMODE;
+		newvote = true;
+	}
+
+	if (g_tie_mode->value == 1)
+		overtime = ((int)g_overtime->value / 60);
+	else if (g_tie_mode->value == 2)
+		overtime = -1;
+	else
+		overtime = 0;
+
+	if (ent->client->votemenu_values.overtime != overtime)
+	{
+		if (ent->client->votemenu_values.overtime == -1)
+		{
+			vote.tiemode = 2;
+			vote.flags |= VOTE_TIEMODE;
+			newvote = true;
+		}
+		else if (ent->client->votemenu_values.overtime == 0)
+		{
+			vote.tiemode = 0;
+			vote.flags |= VOTE_TIEMODE;
+			newvote = true;
+		}
+		else if (ent->client->votemenu_values.overtime > 0)
+		{
+			if (g_tie_mode->value != 1)
+			{
+				vote.tiemode = 1;
+				vote.flags |= VOTE_TIEMODE;
+			}
+
+			vote.overtimemins = ent->client->votemenu_values.overtime;
+			vote.flags |= VOTE_OVERTIME;
+			newvote = true;
+		}
+	}
+
+	// let this be in the end so we can check if it's the only vote option
+	if (ent->client->votemenu_values.config[0] && ent->client->votemenu_values.config[0] != '-')
+	{
+		if (newvote)
+			gi.cprintf (ent, PRINT_HIGH, "You cannot propose vote config with other options.\n");
+		else
+		{
+			strcpy (vote.configname, ent->client->votemenu_values.config);
+			vote.flags |= VOTE_CONFIG;
+			newvote = true;
+		}
+	}
+
+	if (ent->client->votemenu_values.kick != NULL)
+	{
+		if (newvote)
+			gi.cprintf (ent, PRINT_HIGH, "You cannot propose vote kick with other options.\n");
+		else
+		{
+			vote.victim = ent->client->votemenu_values.kick;
+			vote.flags |= VOTE_KICK;
+			newvote = true;
+		}
+	}
+	
+	PMenu_Close (ent);
+
+	if (newvote)
+	{
+		TDM_SetupVote (ent);
+		TDM_AnnounceVote ();
+		TDM_CheckVote();
 	}
 }
 

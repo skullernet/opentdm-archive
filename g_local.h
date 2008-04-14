@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	OPENTDM_VERSION	"1.0"
 #else
 #define	OPENTDM_VERSION "$Revision$"
-//dummy string to force g_local.h commit: sfgjngfsdfgfghbycg
+//dummy string to force g_local.h commit: sfgjngfsdfgfghbycghkg
 #endif
 
 // protocol bytes that can be directly added to messages
@@ -85,6 +85,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	STAT_ID_VIEW_INDEX				27
 
 #define	STAT_VOTE_STRING_INDEX			28
+
+// another timer for pent so it doesn't overwrite quad
+#define	STAT_TIMER_PENT_ICON			29
+#define	STAT_TIMER_PENT					30
 // maximum 31!
 
 // dmflags->value flags
@@ -1220,9 +1224,38 @@ typedef struct vote_s
 	int				newchatmode;
 	int				bugs;
 	unsigned		overtimemins;
-	char			configname[32];
+	char			configname[MAX_QPATH];
 	char			*vote_string;
 } vote_t;
+
+typedef struct vote_menu_s
+{
+	unsigned		timelimit;
+	unsigned		bfg;
+	unsigned		powerups;
+	unsigned		gamemode;
+	unsigned		chat;
+	unsigned		bugs;
+	int				overtime;
+	char			*mapptr;
+	char			*cfgptr;
+	char			map[MAX_QPATH];
+	char			config[MAX_QPATH];
+	edict_t			*kick;
+
+	char			string_gamemode[32];
+	char			string_map[32];
+	char			string_config[32];
+
+	char			string_timelimit[32];
+	char			string_overtime[32];
+	char			string_powerups[32];
+	char			string_bfg[32];
+
+	char			string_kick[32];
+	char			string_chat[32];
+	char			string_bugs[32];
+} vote_menu_t;
 
 enum
 {
@@ -1450,6 +1483,11 @@ struct gclient_s
 	const gitem_t	*lastweapon;
 
 	pmenuhnd_t	menu;
+
+	// stored info about values changed in vote menu
+	vote_menu_t	votemenu_values;
+	// we need separate vote menu for all players
+	pmenu_t		votemenu[19];
 
 	unsigned	last_command_frame;
 	unsigned	last_activity_frame;

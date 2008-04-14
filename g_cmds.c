@@ -1046,7 +1046,7 @@ void Cmd_PlayerList_f (edict_t *ent)
 		{
 			char	*p;
 
-			strcpy (ip + 1, ent->client->pers.ip);
+			strcpy (ip + 1, e2->client->pers.ip);
 
 			p = strchr (ip, ':');
 			if (p)

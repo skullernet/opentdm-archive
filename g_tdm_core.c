@@ -107,28 +107,6 @@ char		old_scoreboard_string[1400];
 
 //static char	last_player_model[MAX_TEAMS][32];
 
-pmenu_t votemenu[] =
-{
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ "Use [ and ] to move cursor",	PMENU_ALIGN_CENTER, NULL, NULL },
-	{ "ENTER select, ESC exit",	PMENU_ALIGN_CENTER, NULL, NULL },
-	{ "*" OPENTDM_VERSION,	PMENU_ALIGN_RIGHT, NULL, NULL },
-};
-
 pmenu_t joinmenu[] =
 {
 	{ NULL,					PMENU_ALIGN_CENTER, NULL, NULL },
@@ -143,7 +121,7 @@ pmenu_t joinmenu[] =
 	{ "*Spectate",			PMENU_ALIGN_LEFT, NULL, ToggleChaseCam },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ "Voting Menu",		PMENU_ALIGN_LEFT, NULL, NULL },
+	{ "*Voting Menu",		PMENU_ALIGN_LEFT, NULL, OpenVoteMenu },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
 	{ "Use [ and ] to move cursor",	PMENU_ALIGN_CENTER, NULL, NULL },
@@ -646,7 +624,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 					tmpl->name,
 					j, 
 					tmpl->deaths,
-					j - tmpl->deaths,
+					tmpl->enemy_kills - tmpl->team_kills - tmpl->deaths,
 					(tmpl->ping > 999) ? 999 : tmpl->ping);
 
 				if (maxsize - len > strlen(entry))
@@ -670,7 +648,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 					tmpl->name,
 					j, 
 					tmpl->deaths,
-					j - tmpl->deaths,
+					tmpl->enemy_kills - tmpl->team_kills - tmpl->deaths,
 					(tmpl->ping > 999) ? 999 : tmpl->ping);
 
 				if (maxsize - len > strlen(entry))

@@ -10,8 +10,38 @@ qboolean TDM_RateLimited (edict_t *ent, int penalty);
 void TDM_VoteWebConfigResult (edict_t *ent, int code, void *param);
 void TDM_SetupVote (edict_t *ent);
 void TDM_ConfigDownloaded (char *buff, int len, int code);
+char *TDM_ConfiglistString (void);
+void TDM_VoteMenuApply (edict_t *ent);
 
 int LookupPlayer (const char *match, edict_t **out, edict_t *ent);
+
+
+//votemenu.c
+void OpenVoteMenu (edict_t *ent);
+void VoteMenuGameMode (edict_t *ent);
+void VoteMenuMap (edict_t *ent);
+void VoteMenuConfig (edict_t *ent);
+void VoteMenuMatchRestart (edict_t *ent);
+void VoteMenuTimelimit (edict_t *ent);
+void VoteMenuOvertime (edict_t *ent);
+void VoteMenuPowerups (edict_t *ent);
+void VoteMenuBFG (edict_t *ent);
+void VoteMenuKick (edict_t *ent);
+void VoteMenuChat (edict_t *ent);
+void VoteMenuBugs (edict_t *ent);
+
+#define VOTE_MENU_GAMEMODE	0x1
+#define VOTE_MENU_MAP		0x2
+#define VOTE_MENU_CONFIG	0x4
+#define VOTE_MENU_TIMELIMIT	0x8
+#define VOTE_MENU_OVERTIME	0x10
+#define VOTE_MENU_POWERUPS	0x20
+#define VOTE_MENU_BFG		0x40
+#define VOTE_MENU_KICK		0x80
+#define VOTE_MENU_CHAT		0x100
+#define VOTE_MENU_BUGS		0x200
+
+#define VOTE_MENU_ALL		0xFFFFFFFFU 
 
 typedef struct weaponvote_s
 {
