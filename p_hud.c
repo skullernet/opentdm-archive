@@ -428,6 +428,13 @@ void G_SetStats (edict_t *ent)
 		{
 			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex ("p_invulnerability");
 			ent->client->ps.stats[STAT_TIMER] = FRAMES_TO_SECS(ent->client->invincible_framenum - level.framenum);
+
+			// clear previous timer if there was something
+			if (ent->client->ps.stats[STAT_TIMER_PENT])
+			{
+				ent->client->ps.stats[STAT_TIMER_PENT_ICON] = 0;
+				ent->client->ps.stats[STAT_TIMER_PENT] = 0;
+			}
 		}
 	}
 	else

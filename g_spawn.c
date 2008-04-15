@@ -320,7 +320,10 @@ void ED_ParseField (const char *key, const char *value, edict_t *ent)
 				break;
 			case F_VECTOR:
 				if (sscanf (value, "%f %f %f", &vec[0], &vec[1], &vec[2]) != 3)
-					gi.error ("ED_ParseField: Couldn't parse F_VECTOR %s", value);
+				{
+					gi.dprintf ("WARNING: ED_ParseField: Couldn't parse F_VECTOR %s, using (0, 0, 0)\n", value);
+					VectorClear (vec);
+				}
 				((float *)(b+f->ofs))[0] = vec[0];
 				((float *)(b+f->ofs))[1] = vec[1];
 				((float *)(b+f->ofs))[2] = vec[2];
@@ -920,6 +923,8 @@ void SP_worldspawn (edict_t *ent)
 	//is auto downloaded (hopefully!)
 	gi.modelindex ("players/opentdm/tris.md2");
 	gi.modelindex ("players/opentdm/weapon.md2");
+
+	//gi.configstring (CS_PLAYERSKINS+255, "null\\opentdm/null");
 
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is doublebright.
