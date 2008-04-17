@@ -1747,6 +1747,14 @@ void ClientBeginServerFrame (edict_t *ent)
 
 	//gi.dprintf ("think_weapon: server frame %d, weapon frame %d\n", level.time, ent->client->ps.gunframe);
 
+	// only remove idle players in warmup!
+	if (ent->client->pers.team && tdm_match_status == MM_WARMUP &&
+		FRAMES_TO_SECS(level.framenum - ent->client->last_activity_frame) > g_idle_time->value)
+	{
+		gi.bprintf (PRINT_HIGH, "Removing %s from team '%s' due to inactivity.\n", ent->client->pers.netname, teaminfo[ent->client->pers.team].name);
+		ToggleChaseCam (ent);
+	}
+
 	if (ent->deadflag)
 	{
 		// force spawn set by g_respawn_time
@@ -1758,14 +1766,6 @@ void ClientBeginServerFrame (edict_t *ent)
 			client->latched_buttons = 0;
 		}
 		return;
-	}
-
-	// only remove idle players in warmup!
-	if (ent->client->pers.team && tdm_match_status == MM_WARMUP &&
-		FRAMES_TO_SECS(level.framenum - ent->client->last_activity_frame) > g_idle_time->value)
-	{
-		gi.bprintf (PRINT_HIGH, "Removing %s from team '%s' due to inactivity.\n", ent->client->pers.netname, teaminfo[ent->client->pers.team].name);
-		ToggleChaseCam (ent);
 	}
 
 	client->latched_buttons = 0;

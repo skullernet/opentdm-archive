@@ -183,6 +183,9 @@ void Cmd_Give_f (edict_t *ent)
 		return;
 	}
 
+	if (!ent->client->pers.team)
+		return;
+
 	name = gi.args();
 
 	if (Q_stricmp(name, "all") == 0)
@@ -415,6 +418,10 @@ void Cmd_Use_f (edict_t *ent)
 	const gitem_t	*it;
 	char			*s;
 
+	//spectators can't use things!
+	if (!ent->client->pers.team)
+		return;
+
 	if (tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
 		return;
 
@@ -455,6 +462,10 @@ void Cmd_Drop_f (edict_t *ent)
 	int				index;
 	const gitem_t	*it;
 	char			*s;
+
+	//spectators can't drop!
+	if (!ent->client->pers.team)
+		return;
 
 	//wision: drop item during warmup (instagib) is soooo ugly
 	if ((tdm_match_status < MM_PLAYING || tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD) ||
@@ -693,6 +704,10 @@ Cmd_InvDrop_f
 void Cmd_InvDrop_f (edict_t *ent)
 {
 	const gitem_t		*it;
+
+	//spectators can't drop!
+	if (!ent->client->pers.team)
+		return;
 
 	//wision: drop item during warmup (instagib) is soooo ugly
 	if ((tdm_match_status < MM_PLAYING || tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD) ||
