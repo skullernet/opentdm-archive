@@ -781,7 +781,7 @@ void TDM_WriteStatsString (edict_t *ent, teamplayer_t *info)
 	extra = TDM_BuildDamageString (ent, info);
 
 	//need to flush?
-	if (strlen(stats) + strlen(extra) >= sizeof(stats)-1)
+	if (strlen(stats) + 1 + strlen(extra) >= sizeof(stats)-1)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
 		stats[0] = 0;
@@ -797,7 +797,7 @@ void TDM_WriteStatsString (edict_t *ent, teamplayer_t *info)
 		extra = TDM_BuildItemsString (ent, info);
 
 		//need to flush?
-		if (strlen(stats) + strlen(extra) >= sizeof(stats)-1)
+		if (strlen(stats) + 1 + strlen(extra) >= sizeof(stats)-1)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "%s", stats);
 			stats[0] = 0;
@@ -811,7 +811,7 @@ void TDM_WriteStatsString (edict_t *ent, teamplayer_t *info)
 	extra = TDM_BuildAccuracyString (ent, info);
 
 	//need to flush?
-	if (strlen(stats) + strlen(extra) >= sizeof(stats)-1)
+	if (strlen(stats) + 1 + strlen(extra) >= sizeof(stats)-1)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
 		stats[0] = 0;
@@ -845,7 +845,7 @@ void TDM_WriteTeamStatsString (edict_t *ent, matchinfo_t *info, unsigned team)
 	extra = TDM_BuildTeamDamageString (ent, info, team);
 
 	//need to flush?
-	if (strlen(stats) + strlen(extra) >= sizeof(stats)-1)
+	if (strlen(stats) + 1 + strlen(extra) >= sizeof(stats)-1)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
 		stats[0] = 0;
@@ -861,7 +861,7 @@ void TDM_WriteTeamStatsString (edict_t *ent, matchinfo_t *info, unsigned team)
 		extra = TDM_BuildTeamItemsString (ent, info, team);
 
 		//need to flush?
-		if (strlen(stats) + strlen(extra) >= sizeof(stats)-1)
+		if (strlen(stats) + 1 + strlen(extra) >= sizeof(stats)-1)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "%s", stats);
 			stats[0] = 0;
@@ -875,7 +875,7 @@ void TDM_WriteTeamStatsString (edict_t *ent, matchinfo_t *info, unsigned team)
 	extra = TDM_BuildTeamAccuracyString (ent, info, team);
 
 	//need to flush?
-	if (strlen(stats) + strlen(extra) >= sizeof(stats)-1)
+	if (strlen(stats) + 1 + strlen(extra) >= sizeof(stats)-1)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
 		stats[0] = 0;
