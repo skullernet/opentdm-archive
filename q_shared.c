@@ -1348,7 +1348,7 @@ char *Info_ValueForKey (const char *s, const char *key)
 				return "";
 			*o++ = *s++;
 		}
-		*o = 0;
+		*o = '\0';
 		s++;
 
 		o = value[valueindex];

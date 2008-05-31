@@ -457,7 +457,7 @@ void G_FindTeams (void)
 	//gi.dprintf ("%i teams with %i entities\n", c, c2);
 }
 
-edict_t *spawned_entities[MAX_EDICTS];
+edict_t *spawned_entities[MAX_EDICTS*4];
 int		num_spawned_entities;
 
 void ParseEntityString (qboolean respawn)
@@ -539,7 +539,11 @@ void ParseEntityString (qboolean respawn)
 		ED_CallSpawn (ent);
 
 		if (!respawn)
+		{
+			if (num_spawned_entities == MAX_EDICTS * 4)
+				TDM_Error ("Exceeded MAX_EDICTS * 4 entities during entity string parse");
 			spawned_entities[num_spawned_entities++] = ent;
+		}
 		else
 		{
 			//an elevator or something respawned on top of a player? don't do it for match start, since

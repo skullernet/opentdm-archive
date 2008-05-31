@@ -486,14 +486,16 @@ qboolean SV_Push (edict_t *pusher, vec3_t move, vec3_t amove)
 			pushed_p->ent = check;
 			VectorCopy (check->s.origin, pushed_p->origin);
 			VectorCopy (check->s.angles, pushed_p->angles);
-			pushed_p++;
 
 			// try moving the contacted entity 
 			VectorAdd (check->s.origin, move, check->s.origin);
 			if (check->client)
 			{	// FIXME: doesn't rotate monsters?
 				check->client->ps.pmove.delta_angles[YAW] += amove[YAW];
+				pushed_p->deltayaw = pushed_p->ent->client->ps.pmove.delta_angles[YAW];
 			}
+
+			pushed_p++;
 
 			// figure movement due to the pusher's amove
 			VectorSubtract (check->s.origin, pusher->s.origin, org);

@@ -70,7 +70,7 @@ TDM_StartMatch_f
 ==============
 Start the match right away.
 */
-void TDM_StartMatch_f (edict_t *ent)
+/*void TDM_StartMatch_f (edict_t *ent)
 {
 	if (!teaminfo[TEAM_A].players || !teaminfo[TEAM_B].players)
 	{
@@ -79,7 +79,7 @@ void TDM_StartMatch_f (edict_t *ent)
 	}
 
 	TDM_BeginMatch ();
-}
+}*/
 
 /*
 ==============
@@ -868,20 +868,19 @@ void TDM_Timeout_f (edict_t *ent)
 
 	// wision: if i'm admin, i want unlimited timeout!
 	// wision: check what happens if admin is just a spectator and he calls timeout
+	// r1: your method didn't work, and the code isn't really designed to allow such. is an hour enough to organize the game? :)
 	if (ent->client->pers.admin)
-	{
-//		level.timeout_end_framenum = level.realframenum + SECS_TO_FRAMES(g_max_timeout->value);
-		level.tdm_timeout_caller = ent->client->resp.teamplayerinfo;
-		level.last_tdm_match_status = tdm_match_status;
-		tdm_match_status = MM_TIMEOUT;
-	}
+		level.timeout_end_framenum = level.realframenum + SECS_TO_FRAMES(3600);
 	else
-	{
 		level.timeout_end_framenum = level.realframenum + SECS_TO_FRAMES(g_max_timeout->value);
-		level.tdm_timeout_caller = ent->client->resp.teamplayerinfo;
+
+	level.tdm_timeout_caller = ent->client->resp.teamplayerinfo;
+
+	// r1: crash fix, never reset the match status to a timeout (calling time during resume timer)
+	if (tdm_match_status != MM_TIMEOUT)
 		level.last_tdm_match_status = tdm_match_status;
-		tdm_match_status = MM_TIMEOUT;
-	}
+
+	tdm_match_status = MM_TIMEOUT;
 	
 	if (TDM_Is1V1 ())
 		gi.bprintf (PRINT_CHAT, "%s called a time out. Match will resume automatically in %s.\n", ent->client->pers.netname, TDM_SecsToString (g_max_timeout->value));
@@ -2037,11 +2036,11 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_ForceReady_f (true);
 			return true;
 		}
-		else if (!Q_stricmp (cmd, "startmatch"))
+		/*else if (!Q_stricmp (cmd, "startmatch"))
 		{
 			TDM_StartMatch_f (ent);
 			return true;
-		}
+		}*/
 		else if (!Q_stricmp (cmd, "kickplayer"))
 		{
 			TDM_KickPlayer_f (ent);

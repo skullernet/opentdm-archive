@@ -1371,7 +1371,7 @@ void TDM_CheckTimes (void)
 			TDM_FixDeltaAngles ();
 			gi.bprintf (PRINT_HIGH, "Fight!\n");
 
-			level.tdm_timeout_caller = 0;
+			level.tdm_timeout_caller = NULL;
 			level.match_resume_framenum = 0;
 			tdm_match_status = level.last_tdm_match_status;
 
