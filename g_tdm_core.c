@@ -2083,7 +2083,8 @@ void TDM_ResetGameState (void)
 	teaminfo[TEAM_A].ready = teaminfo[TEAM_B].ready = false;
 
 	//preserve captains as per bug #0000001
-	//teaminfo[TEAM_A].captain = teaminfo[TEAM_B].captain = NULL;
+	if (!g_auto_rejoin_match->value)
+		teaminfo[TEAM_A].captain = teaminfo[TEAM_B].captain = NULL;
 
 	TDM_UpdateTeamNames ();
 
@@ -2105,12 +2106,14 @@ void TDM_ResetGameState (void)
 
 			ent->viewheight = 0;
 
-			if (ent->client->pers.team != TEAM_SPEC)
+			if (ent->client->pers.team != TEAM_SPEC && g_auto_rejoin_match->value)
 			{
 				//preserve teams as per bug #0000001
 				//ent->client->pers.team = TEAM_SPEC;
-				JoinedTeam (ent, false);
+				JoinedTeam (ent, false, false);
 			}
+			else
+				ent->client->pers.team = TEAM_SPEC;
 		}
 	}
 

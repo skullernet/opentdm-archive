@@ -77,12 +77,15 @@ JoinedTeam
 ==============
 A player just joined a team, so do things.
 */
-void JoinedTeam (edict_t *ent, qboolean reconnected)
+void JoinedTeam (edict_t *ent, qboolean reconnected, qboolean notify)
 {
-	if (g_gamemode->value != GAMEMODE_1V1)
-		gi.bprintf (PRINT_HIGH, "%s %sjoined team '%s'\n", ent->client->pers.netname, reconnected ? "re" : "", teaminfo[ent->client->pers.team].name);
-	else
-		gi.bprintf (PRINT_HIGH, "%s %sjoined the game.\n", ent->client->pers.netname, reconnected ? "re" : "");
+	if (notify)
+	{
+		if (g_gamemode->value != GAMEMODE_1V1)
+			gi.bprintf (PRINT_HIGH, "%s %sjoined team '%s'\n", ent->client->pers.netname, reconnected ? "re" : "", teaminfo[ent->client->pers.team].name);
+		else
+			gi.bprintf (PRINT_HIGH, "%s %sjoined the game.\n", ent->client->pers.netname, reconnected ? "re" : "");
+	}
 
 	ent->client->resp.ready = false;
 
@@ -117,7 +120,7 @@ TDM_LeftTeam
 ==============
 A player just left a team, so do things. Remember to call TeamsChanged afterwards!
 */
-void TDM_LeftTeam (edict_t *ent)
+void TDM_LeftTeam (edict_t *ent, qboolean notify)
 {
 	int	oldteam;
 
@@ -199,10 +202,10 @@ void JoinTeam1 (edict_t *ent)
 		return;
 
 	if (ent->client->pers.team)
-		TDM_LeftTeam (ent);
+		TDM_LeftTeam (ent, true);
 
 	ent->client->pers.team = TEAM_A;
-	JoinedTeam (ent, false);
+	JoinedTeam (ent, false, true);
 }
 //merge those together?
 /*
@@ -217,10 +220,10 @@ void JoinTeam2 (edict_t *ent)
 		return;
 
 	if (ent->client->pers.team)
-		TDM_LeftTeam (ent);
+		TDM_LeftTeam (ent, true);
 
 	ent->client->pers.team = TEAM_B;
-	JoinedTeam (ent, false);
+	JoinedTeam (ent, false, true);
 }
 
 /*
@@ -370,7 +373,7 @@ void ToggleChaseCam (edict_t *ent)
 {
 	if (ent->client->pers.team)
 	{
-		TDM_LeftTeam (ent);
+		TDM_LeftTeam (ent, true);
 		TDM_TeamsChanged ();
 		if (tdm_match_status == MM_TIMEOUT && teaminfo[TEAM_A].players == 0 && teaminfo[TEAM_B].players == 0)
 			TDM_ResumeGame ();
@@ -474,7 +477,7 @@ qboolean TDM_ProcessJoinCode (edict_t *ent, unsigned value)
 	gi.unlinkentity (ent);
 
 	ent->client->pers.team = t->team;
-	JoinedTeam (ent, true);
+	JoinedTeam (ent, true, true);
 
 	//we only preserve the whole client state in 1v1 mode, in TDM we simply respawn the player
 	if (TDM_Is1V1())
@@ -639,7 +642,7 @@ void TDM_Disconnected (edict_t *ent)
 		if (removeTimeout)
 			TDM_ResumeGame ();
 
-		TDM_LeftTeam (ent);
+		TDM_LeftTeam (ent, false);
 	}
 
 	TDM_TeamsChanged ();

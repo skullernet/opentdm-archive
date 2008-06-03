@@ -1137,10 +1137,10 @@ void ClientBeginDeathmatch (edict_t *ent)
 	}
 
 	//spawn the client
-	if (ent->client->pers.team)
+	if (ent->client->pers.team && g_auto_rejoin_map->value)
 	{
 		//rejoin a team if we were on one last map
-		JoinedTeam (ent, false);
+		JoinedTeam (ent, false, false);
 	}
 	else
 	{
@@ -1748,7 +1748,7 @@ void ClientBeginServerFrame (edict_t *ent)
 	//gi.dprintf ("think_weapon: server frame %d, weapon frame %d\n", level.time, ent->client->ps.gunframe);
 
 	// only remove idle players in warmup!
-	if (ent->client->pers.team && tdm_match_status == MM_WARMUP &&
+	if (ent->client->pers.team && tdm_match_status == MM_WARMUP && g_idle_time->value &&
 		FRAMES_TO_SECS(level.framenum - ent->client->last_activity_frame) > g_idle_time->value)
 	{
 		gi.bprintf (PRINT_HIGH, "Removing %s from team '%s' due to inactivity.\n", ent->client->pers.netname, teaminfo[ent->client->pers.team].name);

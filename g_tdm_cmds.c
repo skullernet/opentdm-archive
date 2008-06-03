@@ -1287,10 +1287,10 @@ void TDM_PickPlayer_f (edict_t *ent)
 		gi.bprintf (PRINT_CHAT, "%s picked %s for team '%s'.\n", ent->client->pers.netname, victim->client->pers.netname, teaminfo[ent->client->pers.team].name);
 
 		if (victim->client->pers.team)
-			TDM_LeftTeam (victim);
+			TDM_LeftTeam (victim, false);
 
 		victim->client->pers.team = ent->client->pers.team;
-		JoinedTeam (victim, false);
+		JoinedTeam (victim, false, false);
 	}
 }
 
@@ -1334,11 +1334,11 @@ void TDM_Accept_f (edict_t *ent)
 	}
 
 	if (ent->client->pers.team)
-		TDM_LeftTeam (ent);
+		TDM_LeftTeam (ent, true);
 
 	ent->client->pers.team = ent->client->resp.last_invited_by->client->pers.team;
 
-	JoinedTeam (ent, false);
+	JoinedTeam (ent, false, true);
 }
 
 /*

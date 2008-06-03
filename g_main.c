@@ -130,6 +130,9 @@ cvar_t	*g_allow_name_change_during_match;
 
 cvar_t	*g_allow_vote_config;
 
+cvar_t	*g_auto_rejoin_match;
+cvar_t	*g_auto_rejoin_map;
+
 void SpawnEntities (const char *mapname, const char *entities, const char *spawnpoint);
 void ClientThink (edict_t *ent, usercmd_t *cmd);
 qboolean ClientConnect (edict_t *ent, char *userinfo);

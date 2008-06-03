@@ -256,6 +256,9 @@ void InitGame (void)
 	g_allow_name_change_during_match = gi.cvar ("g_allow_name_change_during_match", "1", 0);
 
 	g_allow_vote_config = gi.cvar ("g_allow_vote_config", "1", 0);
+
+	g_auto_rejoin_match = gi.cvar ("g_auto_rejoin_match", "1", 0);
+	g_auto_rejoin_map = gi.cvar ("g_auto_rejoin_map", "1", 0);
 	
 #ifdef _DEBUG
 	g_http_baseurl = gi.cvar ("g_http_baseurl", "http://localhost/api/", CVAR_NOSET);

@@ -813,6 +813,9 @@ extern	cvar_t	*g_allow_name_change_during_match;
 
 extern	cvar_t	*g_allow_vote_config;
 
+extern	cvar_t	*g_auto_rejoin_match;
+extern	cvar_t	*g_auto_rejoin_map;
+
 #define world	(&g_edicts[0])
 
 // item spawnflags
@@ -1076,7 +1079,7 @@ void TDM_CheckTimes (void);
 void TDM_ResetGameState (void);
 char *TDM_ScoreBoardString (edict_t *ent);
 void TDM_MapChanged (void);
-void TDM_LeftTeam (edict_t *ent);
+void TDM_LeftTeam (edict_t *ent, qboolean notify);
 void TDM_Disconnected (edict_t *ent);
 qboolean TDM_ServerCommand (const char *cmd);
 void TDM_UpdateTeamNames (void);
