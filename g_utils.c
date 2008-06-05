@@ -538,10 +538,17 @@ void	G_TouchTriggers (edict_t *ent)
 	for (i=0 ; i<num ; i++)
 	{
 		hit = touch[i];
+
 		if (!hit->inuse)
 			continue;
+
 		if (!hit->touch)
 			continue;
+
+		// r1: don't hit a projectile in its "stopped" state
+		if (hit->flags & FL_NOCLIP_PROJECTILE)
+			continue;
+
 		hit->touch (hit, ent, NULL, NULL);
 	}
 }

@@ -835,7 +835,7 @@ void G_RunEntity (edict_t *ent)
 
 	if ((ent->flags & FL_NOCLIP_PROJECTILE))
 	{
-		ent->s.solid = SOLID_BBOX;
+		ent->solid = SOLID_BBOX;
 		gi.linkentity (ent);
 	}
 
@@ -866,7 +866,7 @@ void G_RunEntity (edict_t *ent)
 
 	if (ent->inuse && (ent->flags & FL_NOCLIP_PROJECTILE))
 	{
-		ent->s.solid = SOLID_NOT;
+		ent->solid = SOLID_NOT;
 		gi.linkentity (ent);
 	}
 

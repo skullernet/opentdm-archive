@@ -269,7 +269,7 @@ void TDM_ResetLevel (void)
 		{
 			//it could still be an ungibbed body, make sure nothing can happen to it
 			ent->takedamage = DAMAGE_NO;
-			ent->s.solid = SOLID_NOT;
+			ent->solid = SOLID_NOT;
 			ent->s.modelindex = ent->s.effects = ent->s.sound = ent->s.renderfx = 0;
 			gi.unlinkentity (ent);
 			continue;

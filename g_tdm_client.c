@@ -282,7 +282,7 @@ void TDM_GlobalClientSound (edict_t *ent, int channel, int soundindex, float vol
 			}
 
 		// use the entity origin unless it is a bmodel or explicitly specified
-		if (ent->s.solid == SOLID_BSP)
+		if (ent->solid == SOLID_BSP)
 		{
 			origin_v[0] = ent->s.origin[0]+0.5f*(ent->mins[0]+ent->maxs[0]);
 			origin_v[1] = ent->s.origin[1]+0.5f*(ent->mins[1]+ent->maxs[1]);
