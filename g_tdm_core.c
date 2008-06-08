@@ -2037,6 +2037,7 @@ void TDM_SetupSpawns (void)
 	}
 
 	level.numspawns = count;
+	gi.dprintf ("Map has %d spawn points.\n", level.numspawns);
 }
 
 /*

@@ -597,19 +597,81 @@ go to a random point, but NOT points with other players
 on them
 ================
 */
-edict_t *SelectRandomDeathmatchSpawnPointAvoidingTelefrag (void)
+edict_t *SelectRandomDeathmatchSpawnPointAvoidingTelefrag (edict_t *player)
 {
-	int		i;
-	edict_t	*spawn;
+	//nasty! but we only need origin and angles.
+	static edict_t		fake_spawn;
+
+	//hard coded since the player may be spawning from spec and has no inherent size
+	static vec3_t	mins = {-16, -16, -24};
+	static vec3_t	maxs = {16, 16, 32};
+
+	int				i, x;
+	edict_t			*spawn;
+	edict_t			*occupier;
 
 	//all spots could be taken, so don't while(1)
-	for (i = 0; i < 50; i++)
+	for (i = 0; i < 100; i++)
 	{
-		spawn = level.spawns[genrand_int32() % level.numspawns];
+		x = genrand_int32() % level.numspawns;
+		spawn = level.spawns[x];
 
 		//64 should be safe enough...
 		if (PlayersRangeFromSpot (spawn, NULL) < 64)
 			continue;
+
+		return spawn;
+	}
+
+	//all spots were taken, so go again, this time looking for spawns taken by teammates
+	//and check if we can spawn next to them
+	for (i = 0; i < 100; i++)
+	{
+		x = genrand_int32() % level.numspawns;
+		spawn = level.spawns[x];
+
+		//64 should be safe enough...
+		if (PlayersRangeFromSpot (spawn, &occupier) < 64)
+		{
+			int			j;
+			trace_t		tr;
+			vec3_t		test;
+			vec3_t		forward, right, start;
+
+			//its occupied, is it a teammate?
+			if (occupier->client->pers.team != player->client->pers.team)
+				continue;
+
+			AngleVectors (spawn->s.angles, forward, right, NULL);
+
+			//is there any room?
+			for (j = 0; j < 4; j++)
+			{
+				VectorCopy (spawn->s.origin, start);
+				start[2] += player->viewheight;
+
+				//try in this order: left, right, back, forward by 80 units
+				if (j == 0)
+					VectorMA (start, -80, right, test);
+				else if (j == 1)
+					VectorMA (start, 80, right, test);
+				else if (j == 2)
+					VectorMA (start, -80, forward, test);
+				else if (j == 3)
+					VectorMA (start, 80, forward, test);
+
+				//check the player fits and there is clearance to the original spawn
+				tr = gi.trace (start, mins, maxs, test, spawn, MASK_PLAYERSOLID);
+				if (!tr.allsolid && !tr.startsolid && tr.fraction == 1.0f)
+				{
+					VectorCopy (test, fake_spawn.s.origin);
+					VectorCopy (spawn->s.angles, fake_spawn.s.angles);
+					return &fake_spawn;
+				}
+			}
+			
+			continue;
+		}
 
 		return spawn;
 	}
@@ -754,14 +816,14 @@ edict_t *SelectFarthestDeathmatchSpawnPoint (void)
 	return spot;
 }
 
-edict_t *SelectDeathmatchSpawnPoint (void)
+edict_t *SelectDeathmatchSpawnPoint (edict_t *player)
 {
 	//in the first 1 second of a match start, or the first 5 seconds of warmup, avoid telefrags above
 	//all other conditions
 	if ((tdm_match_status >= MM_PLAYING && level.framenum - level.match_start_framenum < SECS_TO_FRAMES (1)) ||
 		(tdm_match_status == MM_WARMUP && level.framenum - level.warmup_start_framenum < SECS_TO_FRAMES (5)))
 	{
-		return SelectRandomDeathmatchSpawnPointAvoidingTelefrag ();
+		return SelectRandomDeathmatchSpawnPointAvoidingTelefrag (player);
 	}
 
 	if ( (int)(dmflags->value) & DF_SPAWN_FARTHEST)
@@ -782,9 +844,7 @@ void	SelectSpawnPoint (edict_t *ent, vec3_t origin, vec3_t angles)
 	edict_t	*spot = NULL;
 
 	if (ent->client->pers.team)
-	{
-		spot = SelectDeathmatchSpawnPoint ();
-	}
+		spot = SelectDeathmatchSpawnPoint (ent);
 
 	// find a single player start spot
 	if (!spot)
@@ -809,7 +869,7 @@ void	SelectSpawnPoint (edict_t *ent, vec3_t origin, vec3_t angles)
 	}
 
 	VectorCopy (spot->s.origin, origin);
-	origin[2] += 9;
+	//origin[2] += 9;
 	VectorCopy (spot->s.angles, angles);
 }
 
@@ -1029,8 +1089,9 @@ void PutClientInServer (edict_t *ent)
 
 	ent->s.frame = 0;
 	VectorCopy (spawn_origin, ent->s.origin);
-	ent->s.origin[2] += 1;	// make sure off ground
-	VectorCopy (ent->s.origin, ent->s.old_origin);
+	//ent->s.origin[2] += 1;	// make sure off ground
+
+
 
 	// set the delta angle
 	for (i=0 ; i<3 ; i++)
@@ -1071,21 +1132,41 @@ void PutClientInServer (edict_t *ent)
 		return;
 	}
 
-	//we most link before killbox since it uses absmin/absmax
-	gi.linkentity (ent);
-
 	// force the current weapon up, or just set vwep info if we respawned a full client already,
 	// although we shouldn't need to since the info should be preserved. we don't killbox if the
 	// client rejoined since they should already be in a valid position, and the killbox extends
 	// by +- 1 unit, so it could theoretically kill the other player if they are touching :)
 	if (!rejoined)
 	{
+		trace_t			tr;
+		vec3_t			temp, temp2;
+
+		//try to properly clip to the floor / spawn
+		VectorCopy (ent->s.origin, temp);
+		VectorCopy (ent->s.origin, temp2);
+		temp[2] -= 64;
+		temp2[2] += 16;
+		tr = gi.trace (temp2, ent->mins, ent->maxs, temp, ent, MASK_PLAYERSOLID);
+		if (!tr.allsolid && !tr.startsolid)
+		{
+			VectorCopy (tr.endpos, ent->s.origin);
+			ent->groundentity = tr.ent;
+		}
+
+		VectorCopy (ent->s.origin, ent->s.old_origin);
+
+		//we most link before killbox since it uses absmin/absmax
+		gi.linkentity (ent);
+
 		KillBox (ent);
 		client->newweapon = client->weapon;
 		ChangeWeapon (ent);
 	}
 	else
+	{
+		gi.linkentity (ent);
 		SetVWepInfo (ent);
+	}
 
 	//just in case we spawned in the middle of a rocket or something, make sure it hits.
 	G_TouchSolids (ent);
