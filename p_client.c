@@ -1089,7 +1089,7 @@ void PutClientInServer (edict_t *ent)
 
 	ent->s.frame = 0;
 	VectorCopy (spawn_origin, ent->s.origin);
-	//ent->s.origin[2] += 1;	// make sure off ground
+	ent->s.origin[2] += 1;	// make sure off ground
 
 
 
@@ -1151,6 +1151,10 @@ void PutClientInServer (edict_t *ent)
 		{
 			VectorCopy (tr.endpos, ent->s.origin);
 			ent->groundentity = tr.ent;
+		}
+		else
+		{
+			ent->s.origin[2] += 9;
 		}
 
 		VectorCopy (ent->s.origin, ent->s.old_origin);
@@ -1218,9 +1222,9 @@ void ClientBeginDeathmatch (edict_t *ent)
 	}
 
 	//spawn the client
-	if (ent->client->pers.team && g_auto_rejoin_map->value)
+	if (ent->client->pers.team && tdm_match_status == MM_WARMUP && g_auto_rejoin_map->value)
 	{
-		//rejoin a team if we were on one last map
+		//rejoin a team if we were on one last map (not in the middle of a game though!)
 		JoinedTeam (ent, false, false);
 	}
 	else
@@ -1412,6 +1416,22 @@ qboolean ClientConnect (edict_t *ent, char *userinfo)
 
 	// they can connect
 	ent->client = game.clients + (ent - g_edicts - 1);
+
+	//possible new client taking the place of a non-clean disconnect, clean up if so
+	if (ent->client->pers.connected)
+	{
+		ent->s.solid = 0;
+		ent->s.effects = 0;
+		ent->s.modelindex = 0;
+		ent->s.sound = 0;
+
+		ent->solid = SOLID_NOT;
+		
+		ent->client->pers.connected = false;
+
+		//zero pers in preparation for new client
+		memset (&ent->client->pers, 0, sizeof(ent->client->pers));
+	}
 
 	// clear the respawning variables
 	//InitClientResp (ent->client);

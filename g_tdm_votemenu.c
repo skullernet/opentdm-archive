@@ -75,7 +75,7 @@ void VoteMenuUpdate (edict_t *ent, unsigned flags)
 		}
 		else
 		{
-			sprintf (ent->client->votemenu_values.string_map, "Map:      %s", ent->client->votemenu_values.map);
+			sprintf (ent->client->votemenu_values.string_map, "Map:      %16s", ent->client->votemenu_values.map);
 			ent->client->votemenu[3].SelectFunc = VoteMenuMap;
 		}
 
@@ -91,7 +91,7 @@ void VoteMenuUpdate (edict_t *ent, unsigned flags)
 		}
 		else
 		{
-			sprintf (ent->client->votemenu_values.string_config, "Config:   %s", ent->client->votemenu_values.config);
+			sprintf (ent->client->votemenu_values.string_config, "Config:   %16s", ent->client->votemenu_values.config);
 			ent->client->votemenu[4].SelectFunc = VoteMenuConfig;
 		}
 

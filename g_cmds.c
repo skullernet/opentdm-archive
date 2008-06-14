@@ -744,8 +744,10 @@ void Cmd_Kill_f (edict_t *ent)
 	if (!ent->client->pers.team)
 		return;
 
+#ifndef _DEBUG
 	if((level.framenum - ent->client->respawn_framenum) < 5 * (1 * SERVER_FPS))
 		return;
+#endif
 
 	if (tdm_match_status == MM_COUNTDOWN)
 		return;
