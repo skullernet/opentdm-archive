@@ -188,12 +188,13 @@ void TDM_Damage (edict_t *ent, edict_t *victim, edict_t *inflictor, int damage)
 	if (!ent->client->resp.teamplayerinfo)
 		TDM_Error ("TDM_Damage: Trying to track stats but no teamplayerinfo for attacker %s", ent->client->pers.netname);
 
-	ent->client->resp.teamplayerinfo->damage_dealt[weapon] += damage;
 	victim->client->resp.teamplayerinfo->damage_received[weapon] += damage;
-
-	//Hitting yourself doesn't count for accuracy, does for damage
+	
+	//Hitting yourself doesn't count for dealt or accuracy!
 	if (ent == victim)
 		return;
+
+	ent->client->resp.teamplayerinfo->damage_dealt[weapon] += damage;
 
 	//Shooting teammates is not accurate!
 	if (ent->client->pers.team == victim->client->pers.team)
