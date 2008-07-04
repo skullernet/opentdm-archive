@@ -1355,6 +1355,8 @@ typedef struct
 	const gitem_t	*last_weapon;
 	qboolean		shown_motd;
 	qboolean		disable_id_view;
+
+	unsigned		mute_frame;		// mute player while game framenum < this
 } client_persistant_t;
 
 typedef struct

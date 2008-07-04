@@ -949,6 +949,14 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	if (!ent->client->pers.team && !ent->client->pers.admin && g_chat_mode->value == 2)
 		return;
 	
+
+	// disable mm1 and mm2 for spectators. for players in team disable only mm1
+	if (ent->client->pers.mute_frame > level.framenum && (!ent->client->pers.team || (!team && ent->client->pers.team)))
+	{
+		gi.cprintf(ent, PRINT_HIGH, "You are muted for %d more seconds\n", FRAMES_TO_SECS (ent->client->pers.mute_frame - level.framenum));
+		return;
+	}
+
 	if (tdm_match_status != MM_TIMEOUT && tdm_match_status > MM_COUNTDOWN && tdm_match_status < MM_SCOREBOARD &&
 		!ent->client->pers.team && !ent->client->pers.admin && g_chat_mode->value == 1)
 	{

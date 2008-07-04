@@ -2192,6 +2192,102 @@ void TDM_Id_f (edict_t *ent)
 	ent->client->pers.disable_id_view = !ent->client->pers.disable_id_view;
 	gi.cprintf (ent, PRINT_HIGH, "Player identification display is now %sabled.\n", ent->client->pers.disable_id_view ? "dis" : "en");
 }
+
+/*
+==============
+TDM_Mute_f
+==============
+Mute a player. Default for five minutes, maximum 1 hour
+should we block everything like 'say', 'say_team', 'talk'? or just 'say' ?
+*/
+void TDM_Mute_f (edict_t *ent)
+{
+	unsigned	time;
+	const char	*input;
+	edict_t	*victim;
+
+	if (!ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Only admin can mute other players\n");
+		return;
+	}
+
+	if (gi.argc() < 2)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: mute <name/id> [minutes]\n");
+		TDM_PrintPlayers (ent);
+		return;
+	}
+
+	if (LookupPlayer (gi.argv(1), &victim, ent))
+	{
+		if (victim == ent)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You cannot mute yourself.");
+			return;
+		}
+
+		if (victim->client->pers.admin)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You cannot mute an admin!\n");
+			return;
+		}
+
+		// default mute for five minutes
+		if (gi.argc() < 3)
+			time = 5;
+		else
+		{
+			input = gi.argv(2);
+			time = strtoul (input, NULL, 10);
+		}
+
+		if (time > 0)
+		{
+			if (time > 60)
+				time = 60;
+
+			victim->client->pers.mute_frame = level.framenum + SECS_TO_FRAMES (time * 60);
+			gi.cprintf (ent, PRINT_HIGH, "%s is muted for %d minute%s\n", victim->client->pers.netname, time, time == 1 ? "" : "s");
+			gi.cprintf (victim, PRINT_HIGH, "You are muted for %d minute%s by admin\n", time, time == 1 ? "" : "s");
+		}
+	}
+}
+
+/*
+==============
+TDM_Unmute_f
+==============
+Unmute a player.
+*/
+void TDM_Unmute_f (edict_t *ent)
+{
+	edict_t	*victim;
+
+	if (!ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Only admin can unmute other players\n");
+		return;
+	}
+
+	if (gi.argc() < 2)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: unmute <name/id>\n");
+		TDM_PrintPlayers (ent);
+		return;
+	}
+
+	if (LookupPlayer (gi.argv(1), &victim, ent))
+	{
+		if (victim->client->pers.mute_frame > level.framenum)
+		{
+			victim->client->pers.mute_frame = 0;
+			gi.cprintf (ent, PRINT_HIGH, "%s is not muted anymore\n", victim->client->pers.netname);
+			gi.cprintf (victim, PRINT_HIGH, "You are not muted anymore\n");
+		}
+	}
+}
+
 /*
 ==============
 TDM_Command
@@ -2431,6 +2527,10 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Obsmode_f (ent);
 		else if (!Q_stricmp (cmd, "motd"))
 			TDM_Motd_f (ent);
+		else if (!Q_stricmp (cmd, "mute"))
+			TDM_Mute_f (ent);
+		else if (!Q_stricmp (cmd, "unmute"))
+			TDM_Unmute_f (ent);
 		else if (!Q_stricmp (cmd, "stopsound"))
 			return true;	//prevent chat from our stuffcmds on people who have no sound
 		else
