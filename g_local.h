@@ -767,6 +767,7 @@ extern	cvar_t	*g_team_b_skin;
 extern	cvar_t	*g_locked_skins;
 
 extern	cvar_t	*g_admin_password;
+extern	cvar_t	*g_admin_vote_decide;
 extern	cvar_t	*g_match_time;
 extern	cvar_t	*g_match_countdown;
 extern	cvar_t	*g_vote_time;

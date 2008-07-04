@@ -85,6 +85,7 @@ cvar_t	*g_team_b_skin;
 cvar_t	*g_locked_skins;
 
 cvar_t	*g_admin_password;
+cvar_t	*g_admin_vote_decide;
 cvar_t	*g_match_time;
 cvar_t	*g_match_countdown;
 cvar_t	*g_vote_time;

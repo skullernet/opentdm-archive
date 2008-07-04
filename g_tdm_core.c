@@ -1074,7 +1074,7 @@ void TDM_BeginIntermission (void)
 	int		i;
 	edict_t	*ent, *client;
 
-	level.match_score_end_framenum = level.framenum + (10 * SERVER_FPS);
+	level.match_score_end_framenum = level.framenum + SECS_TO_FRAMES (g_intermission_time->value);
 
 	//remove any weapons or similar stuff still in flight
 	for (ent = g_edicts + game.maxclients + 1; ent < g_edicts + globals.num_edicts; ent++)
@@ -1132,9 +1132,6 @@ void TDM_BeginIntermission (void)
 
 		if (client->client->chase_target)
 			DisableChaseCam (client);
-
-		if (client->client->pers.team && g_force_screenshot->value == 1)
-			G_StuffCmd (client, "screenshot\n");
 	}
 }
 
@@ -1435,7 +1432,7 @@ void TDM_CheckTimes (void)
 	}
 
 	//end of map intermission - same as regular dm style
-	if (level.intermissionframe && level.framenum - level.intermissionframe == SECS_TO_FRAMES(g_intermission_time->value))
+	if (level.intermissionframe && level.framenum - level.intermissionframe == 0)
 	{
 		level.exitintermission = 1;
 	}
@@ -1455,6 +1452,21 @@ void TDM_CheckTimes (void)
 
 		if (remaining <= 0)
 			TDM_EndIntermission ();
+
+		// take screenshot 5 frames after the intermission began
+		if (remaining == SECS_TO_FRAMES (g_intermission_time->value) - 5)
+		{
+			edict_t *client;
+
+			for (client = g_edicts + 1; client <= g_edicts + game.maxclients; client++)
+			{
+				if (!client->inuse)
+					continue;
+
+				if (client->client->pers.team && g_force_screenshot->value == 1)
+					G_StuffCmd (client, "screenshot\n");
+			}
+		}
 	}
 
 	if (vote.active && level.framenum == vote.end_frame)

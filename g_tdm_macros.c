@@ -31,6 +31,9 @@ const char *TDM_Macro_LongWeapon (edict_t *ent, size_t *length);
 const char *TDM_Macro_ShortWeapon (edict_t *ent, size_t *length);
 const char *TDM_Macro_Location (edict_t *ent, size_t *length);
 
+const char *TDM_Macro_NearByTeam (edict_t *ent, size_t *length);
+const char *TDM_Macro_NearByAll (edict_t *ent, size_t *length);
+
 const char *TDM_Macro_RawHealth (edict_t *ent, size_t *length);
 const char *TDM_Macro_RawArmor (edict_t *ent, size_t *length);
 
@@ -47,16 +50,83 @@ static const tdm_macro_t tdm_macros[] =
 {
 	{"%h", 2, TDM_Macro_Health},
 	{"%H", 2, TDM_Macro_Health},
+
 	{"%A", 2, TDM_Macro_LongArmor},
 	{"%a", 2, TDM_Macro_ShortArmor},
+
 	{"%W", 2, TDM_Macro_LongWeapon},
 	{"%w", 2, TDM_Macro_ShortWeapon},
+
 	{"%l", 2, TDM_Macro_Location},
+
+	{"%n", 2, TDM_Macro_NearByTeam},
+	{"%N", 2, TDM_Macro_NearByAll},
 
 	{"#h", 2, TDM_Macro_RawHealth},
 	{"#a", 2, TDM_Macro_RawArmor},
 };
 
+/*
+==========
+Nearby Players
+==========
+*/
+const char *TDM_NearByPlayers (edict_t *ent, qboolean teamOnly, size_t *length)
+{
+	static char buff[256];
+	edict_t		*e;
+	int			len;
+
+	len = 0;
+	buff[0] = '\0';
+
+	for (e = g_edicts + 1; e <= g_edicts + game.maxclients; e++)
+	{
+		if (!e->inuse)
+			continue;
+
+		if (e == ent)
+			continue;
+
+		if (!e->client->pers.team || (teamOnly && e->client->pers.team != ent->client->pers.team))
+			continue;
+
+		if (e->health <= 0)
+			continue;
+
+		if (!visible (ent, e, MASK_SHOT))
+			continue;
+
+		if (len)
+		{
+			strcat (buff, ", ");
+			strcat (buff, e->client->pers.netname);
+			len = strlen (buff);
+
+			if (len > sizeof(buff) - 20)
+				break;
+		}
+	}
+
+	*length = len;
+	return buff;
+}
+
+const char *TDM_Macro_NearByTeam (edict_t *ent, size_t *length)
+{
+	return TDM_NearByPlayers (ent, true, length);
+}
+
+const char *TDM_Macro_NearByAll (edict_t *ent, size_t *length)
+{
+	return TDM_NearByPlayers (ent, false, length);
+}
+
+/*
+==========
+Power armor helper
+==========
+*/
 int TDM_GetPowerArmorCount (edict_t *ent)
 {
 	int	powerarmor;

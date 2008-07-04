@@ -815,7 +815,9 @@ Call a timeout.
 */
 void TDM_Timeout_f (edict_t *ent)
 {
-	if (!ent->client->pers.team)
+	int	time_len;
+
+	if (!ent->client->pers.team && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only players in the match may call a time out.\n");
 		return;
@@ -870,10 +872,11 @@ void TDM_Timeout_f (edict_t *ent)
 	// wision: check what happens if admin is just a spectator and he calls timeout
 	// r1: your method didn't work, and the code isn't really designed to allow such. is an hour enough to organize the game? :)
 	if (ent->client->pers.admin)
-		level.timeout_end_framenum = level.realframenum + SECS_TO_FRAMES(3600);
+		time_len = level.realframenum + SECS_TO_FRAMES(3600);
 	else
-		level.timeout_end_framenum = level.realframenum + SECS_TO_FRAMES(g_max_timeout->value);
+		time_len = level.realframenum + SECS_TO_FRAMES(g_max_timeout->value);
 
+	level.timeout_end_framenum = level.realframenum + time_len;
 	level.tdm_timeout_caller = ent->client->resp.teamplayerinfo;
 
 	// r1: crash fix, never reset the match status to a timeout (calling time during resume timer)
@@ -883,9 +886,9 @@ void TDM_Timeout_f (edict_t *ent)
 	tdm_match_status = MM_TIMEOUT;
 	
 	if (TDM_Is1V1 ())
-		gi.bprintf (PRINT_CHAT, "%s called a time out. Match will resume automatically in %s.\n", ent->client->pers.netname, TDM_SecsToString (g_max_timeout->value));
+		gi.bprintf (PRINT_CHAT, "%s called a time out. Match will resume automatically in %s.\n", ent->client->pers.netname, TDM_SecsToString (time_len));
 	else
-		gi.bprintf (PRINT_CHAT, "%s (%s) called a time out. Match will resume automatically in %s.\n", ent->client->pers.netname, teaminfo[ent->client->pers.team].name, TDM_SecsToString (g_max_timeout->value));
+		gi.bprintf (PRINT_CHAT, "%s (%s) called a time out. Match will resume automatically in %s.\n", ent->client->pers.netname, teaminfo[ent->client->pers.team].name, TDM_SecsToString (time_len));
 
 	gi.cprintf (ent, PRINT_HIGH, "Match paused. Use '%s' again to resume play.\n", gi.argv(0));
 }
@@ -1061,11 +1064,18 @@ Set teamname (captain/admin only).
 void TDM_Teamname_f (edict_t *ent)
 {
 	char		*value;
+	int			team;
 	unsigned	i;
 
 	if (g_locked_names->value)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Teamnames are locked.\n");
+		return;
+	}
+
+	if (gi.argc() < 3 && ent->client->pers.admin && !ent->client->pers.team)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: teamname <team> <name>\n");
 		return;
 	}
 
@@ -1093,7 +1103,28 @@ void TDM_Teamname_f (edict_t *ent)
 		return;
 	}
 
+	if (ent->client->pers.admin && gi.argc() > 2)
+		team = TDM_GetTeamFromArg (ent, gi.argv(1));
+	else
+		team = ent->client->pers.team;
+
+	if (team != TEAM_A && team != TEAM_B)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Invalid team.\n");
+		return;
+	}
+
 	value = gi.args ();
+
+	// skip original team name in the string
+	if (gi.argc() == 3)
+	{
+		while (*value != ' ')
+			value++;
+
+		while (*value == ' ')
+			value++;
+	}
 
 	//chop off quotes if the user specified them
 	value = G_StripQuotes (value);
@@ -1114,7 +1145,7 @@ void TDM_Teamname_f (edict_t *ent)
 		i++;
 	} while (value[i]);
 
-	if (ent->client->pers.team == TEAM_A)
+	if (team == TEAM_A)
 	{
 		if (!strcmp (teaminfo[TEAM_A].name, value))
 			return;
@@ -1122,7 +1153,7 @@ void TDM_Teamname_f (edict_t *ent)
 		g_team_a_name = gi.cvar_set ("g_team_a_name", value);
 		g_team_a_name->modified = true;
 	}
-	else if (ent->client->pers.team == TEAM_B)
+	else if (team == TEAM_B)
 	{
 		if (!strcmp (teaminfo[TEAM_B].name, value))
 			return;
@@ -1131,7 +1162,7 @@ void TDM_Teamname_f (edict_t *ent)
 		g_team_b_name->modified = true;
 	}
 
-	gi.bprintf (PRINT_HIGH, "Team '%s' renamed to '%s'.\n", teaminfo[ent->client->pers.team].name, value);
+	gi.bprintf (PRINT_HIGH, "Team '%s' renamed to '%s'.\n", teaminfo[team].name, value);
 
 	TDM_UpdateTeamNames ();
 
@@ -1146,6 +1177,8 @@ Locks / unlocks team (captain/admin only).
 */
 void TDM_Lockteam_f (edict_t *ent, qboolean lock)
 {
+	int 	team;
+
 	if (g_gamemode->value == GAMEMODE_1V1)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "This command is unavailable in 1v1 mode.\n");
@@ -1158,8 +1191,31 @@ void TDM_Lockteam_f (edict_t *ent, qboolean lock)
 		return;
 	}
 
-	teaminfo[ent->client->pers.team].locked = lock;
-	gi.cprintf (ent, PRINT_HIGH, "Team '%s' is %slocked.\n", teaminfo[ent->client->pers.team].name, (lock ? "" : "un"));
+	if (gi.argc() < 2 && ent->client->pers.admin && !ent->client->pers.team)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: %s <team>\n", gi.argv(0));
+		return;
+	}
+
+	if (ent->client->pers.admin && gi.argc() > 1)
+		team = TDM_GetTeamFromArg (ent, gi.args());
+	else
+		team = ent->client->pers.team;
+
+	if (team != TEAM_A && team != TEAM_B)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Invalid team.\n");
+		return;
+	}
+
+	if (teaminfo[team].players == 0)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "You can't lock empty team!\n");
+		return;
+	}
+
+	teaminfo[team].locked = lock;
+	gi.cprintf (ent, PRINT_HIGH, "Team '%s' is %slocked.\n", teaminfo[team].name, (lock ? "" : "un"));
 }
 
 void TDM_Forceteam_f (edict_t *ent)
@@ -1233,6 +1289,8 @@ Pick a player
 */
 void TDM_PickPlayer_f (edict_t *ent)
 {
+	int		team;
+	char	*name;
 	edict_t	*victim;
 
 	//this could be abused by some captain to make server unplayable by constantly picking
@@ -1240,6 +1298,12 @@ void TDM_PickPlayer_f (edict_t *ent)
 	{
 		TDM_Invite_f (ent);
 		//gi.cprintf (ent, PRINT_HIGH, "Player picking is disabled by the server administrator. Try using invite instead.\n");
+		return;
+	}
+
+	if (gi.argc() < 3 && ent->client->pers.admin && !ent->client->pers.team)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: %s <team> <name/id>\n", gi.argv(0));
 		return;
 	}
 
@@ -1270,7 +1334,19 @@ void TDM_PickPlayer_f (edict_t *ent)
 	if (TDM_RateLimited (ent, SECS_TO_FRAMES(1)))
 		return;
 
-	if (LookupPlayer (gi.args(), &victim, ent))
+	name = gi.args();
+
+	// skip the name in the string
+	if (gi.argc() > 2)
+	{
+		while (*name != ' ')
+			name++;
+
+		while (*name == ' ')
+			name++;
+	}
+
+	if (LookupPlayer (name, &victim, ent))
 	{
 		if (ent == victim)
 		{
@@ -1284,12 +1360,23 @@ void TDM_PickPlayer_f (edict_t *ent)
 			return;
 		}
 
-		gi.bprintf (PRINT_CHAT, "%s picked %s for team '%s'.\n", ent->client->pers.netname, victim->client->pers.netname, teaminfo[ent->client->pers.team].name);
+		if (ent->client->pers.admin && gi.argc() > 2)
+			team = TDM_GetTeamFromArg (ent, gi.argv(1));
+		else
+			team = ent->client->pers.team;
+
+		if (team != TEAM_A && team != TEAM_B)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Invalid team.\n");
+			return;
+		}
+
+		gi.bprintf (PRINT_CHAT, "%s picked %s for team '%s'.\n", ent->client->pers.netname, victim->client->pers.netname, teaminfo[team].name);
 
 		if (victim->client->pers.team)
 			TDM_LeftTeam (victim, false);
 
-		victim->client->pers.team = ent->client->pers.team;
+		victim->client->pers.team = team;
 		JoinedTeam (victim, false, false);
 	}
 }
@@ -1451,7 +1538,15 @@ Kick a player from a team
 */
 void TDM_KickPlayer_f (edict_t *ent)
 {
-	edict_t	*victim;
+	unsigned	team;
+	char		*name;
+	edict_t		*victim;
+
+	if (gi.argc() < 3 && ent->client->pers.admin && !ent->client->pers.team)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: %s <team> <name>\n", gi.argv(0));
+		return;
+	}
 
 	if (gi.argc() < 2)
 	{
@@ -1471,7 +1566,30 @@ void TDM_KickPlayer_f (edict_t *ent)
 		return;
 	}
 
-	if (LookupPlayer (gi.args(), &victim, ent))
+	if (ent->client->pers.admin && gi.argc() > 2)
+		team = TDM_GetTeamFromArg (ent, gi.argv(1));
+	else
+		team = ent->client->pers.team;
+
+	if (team != TEAM_A && team != TEAM_B)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Invalid team.\n");
+		return;
+	}
+
+	name = gi.args();
+
+	// skip the name in the string
+	if (gi.argc() > 2)
+	{
+		while (*name != ' ')
+			name++;
+
+		while (*name == ' ')
+			name++;
+	}
+
+	if (LookupPlayer (name, &victim, ent))
 	{
 		if (!victim->client->pers.team)
 		{
@@ -1479,7 +1597,7 @@ void TDM_KickPlayer_f (edict_t *ent)
 			return;
 		}
 
-		if (victim->client->pers.team != ent->client->pers.team)
+		if (victim->client->pers.team != team && !ent->client->pers.admin && gi.argc() < 3)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "%s is not on your team.\n", victim->client->pers.netname);
 			return;
@@ -1577,9 +1695,9 @@ void TDM_Captain_f (edict_t *ent)
 		}
 
 	}
-	else
+	//transferring captain to another player
+	else if (gi.argc() == 2)
 	{
-		//transferring captain to another player
 		edict_t	*victim;
 
 		if (teaminfo[ent->client->pers.team].captain != ent)
@@ -1599,6 +1717,37 @@ void TDM_Captain_f (edict_t *ent)
 			if (victim->client->pers.team != ent->client->pers.team)
 			{
 				gi.cprintf (ent, PRINT_HIGH, "%s is not on your team.\n", victim->client->pers.netname);
+				return;
+			}
+
+			//so they don't wonder wtf just happened...
+			gi.cprintf (victim, PRINT_HIGH, "%s transferred captain status to you.\n", ent->client->pers.netname);
+			TDM_SetCaptain (victim->client->pers.team, victim);
+		}
+	}
+	else
+	{
+		unsigned		team;
+		edict_t	*victim;
+
+		if (!ent->client->pers.admin)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "You must be admin to change another teams captain!\n");
+			return;
+		}
+		team = TDM_GetTeamFromArg (ent, gi.argv(1));
+
+		if (team != TEAM_A && team != TEAM_B)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Invalid team.\n");
+			return;
+		}
+
+		if (LookupPlayer (gi.argv(2), &victim, ent))
+		{
+			if (victim->client->pers.team != team)
+			{
+				gi.cprintf (ent, PRINT_HIGH, "%s is not on the team.\n", victim->client->pers.netname);
 				return;
 			}
 
@@ -1665,12 +1814,19 @@ void TDM_Teamskin_f (edict_t *ent)
 	char	*model;
 	char	*skin;
 
+	int			team;
 	unsigned	i;
 	size_t		len;
 
 	if (g_locked_skins->value)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Teamskins are locked.\n");
+		return;
+	}
+
+	if (gi.argc() < 3 && ent->client->pers.admin && !ent->client->pers.team)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: teamskin <team> <model/skin>\n");
 		return;
 	}
 
@@ -1686,7 +1842,22 @@ void TDM_Teamskin_f (edict_t *ent)
 		return;
 	}
 
-	value = gi.argv(1);
+	if (gi.argc() == 3 && ent->client->pers.admin)
+	{
+		team = TDM_GetTeamFromArg (ent, gi.argv(1));
+		value = gi.argv(2);
+	}
+	else
+	{
+		team = ent->client->pers.team;
+		value = gi.argv(1);
+	}
+
+	if (team != TEAM_A && team != TEAM_B)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Invalid team.\n");
+		return;
+	}
 
 	if (!value[0] || strlen (value) >= sizeof(teaminfo[TEAM_SPEC].skin) - 1)
 	{
@@ -1757,14 +1928,14 @@ void TDM_Teamskin_f (edict_t *ent)
 
 	//TODO: some check model/skin name, force only female/male models
 
-	if (ent->client->pers.team == TEAM_A)
+	if (team == TEAM_A)
 	{
 		if (!strcmp (teaminfo[TEAM_A].skin, value))
 			return;
 		g_team_a_skin = gi.cvar_set ("g_team_a_skin", value);
 		g_team_a_skin->modified = true;
 	}
-	else if (ent->client->pers.team == TEAM_B)
+	else if (team == TEAM_B)
 	{
 		if (!strcmp (teaminfo[TEAM_B].skin, value))
 			return;
@@ -2099,6 +2270,14 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 		}
 	}
 
+	// let's allow voting during the timeout
+	if (tdm_match_status == MM_TIMEOUT)
+	{
+		if (!Q_stricmp (cmd, "vote"))
+			TDM_Vote_f (ent);
+		else if (!Q_stricmp (cmd, "yes") || !Q_stricmp (cmd, "no"))
+			TDM_Vote_f (ent);
+	}
 	//only a few commands work in time out mode or intermission
 	if (tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
 	{

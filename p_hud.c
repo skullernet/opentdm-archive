@@ -551,6 +551,13 @@ void G_SetSpectatorStats (edict_t *ent)
 		//if our target player has the id stat up, we need to set configstrings for ourself.
 		if (cl->ps.stats[STAT_ID_VIEW_INDEX])
 			TDM_GetPlayerIdView (ent);
+
+		// wision: don't show scores in the hud during warmup if specced player brings up oldscoreboard
+		if (tdm_match_status == MM_WARMUP)
+		{
+			cl->ps.stats[STAT_FIRST_TEAM_SCORE] = 0;
+			cl->ps.stats[STAT_SECOND_TEAM_SCORE] = 0;
+		}
 	}
 
 	cl->ps.stats[STAT_SPECTATOR] = 1;

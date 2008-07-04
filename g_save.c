@@ -201,6 +201,7 @@ void InitGame (void)
 	g_locked_skins = gi.cvar ("g_locked_skins", "0", 0);
 
 	g_admin_password = gi.cvar ("g_admin_password", "", 0);
+	g_admin_vote_decide = gi.cvar ("g_admin_vote_decide", "1", 0);
 	g_match_time = gi.cvar ("g_match_time", "600", 0);
 	g_match_countdown = gi.cvar ("g_match_countdown", "15", 0);
 	g_vote_time = gi.cvar ("g_vote_time", "30", 0);

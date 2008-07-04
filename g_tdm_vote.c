@@ -1717,7 +1717,8 @@ void TDM_Vote_f (edict_t *ent)
 	const char	*cmd;
 	qboolean	started_new_vote;
 
-	if ((!vote.active || !ent->client->pers.team) && (!Q_stricmp (gi.argv(0), "yes") || !Q_stricmp (gi.argv(0), "no")))
+	if ((!Q_stricmp (gi.argv(0), "yes") || !Q_stricmp (gi.argv(0), "no")) &&
+			(!vote.active || (!ent->client->pers.team && !ent->client->pers.admin)))
 	{
 		Cmd_Say_f (ent, false, true);
 		return;
@@ -1765,7 +1766,8 @@ void TDM_Vote_f (edict_t *ent)
 	//allow some commands mid-game
 	if (tdm_match_status != MM_WARMUP)
 	{
-		if (!Q_stricmp (cmd, "timelimit") || !Q_stricmp (cmd, "tl") || !Q_stricmp (cmd, "restart") || !Q_stricmp (cmd, "yes") || !Q_stricmp (cmd, "no"))
+		if (!Q_stricmp (cmd, "timelimit") || !Q_stricmp (cmd, "tl") || !Q_stricmp (cmd, "restart") ||
+				!Q_stricmp (cmd, "yes") || !Q_stricmp (cmd, "no") || !Q_stricmp (cmd, "kick"))
 		{
 			if (!(tdm_match_status >= MM_PLAYING && tdm_match_status < MM_SCOREBOARD))
 			{
@@ -1875,7 +1877,7 @@ void TDM_CheckVote (void)
 		if (ent->client->resp.vote == VOTE_YES)
 		{
 			vote_yes++;
-			if (ent->client->pers.admin)
+			if (ent->client->pers.admin && g_admin_vote_decide->value)
 			{
 				vote_no = vote_hold = 0;
 				break;
@@ -1884,7 +1886,7 @@ void TDM_CheckVote (void)
 		else if (ent->client->resp.vote == VOTE_NO)
 		{
  			vote_no++;
-			if (ent->client->pers.admin)
+			if (ent->client->pers.admin && g_admin_vote_decide->value)
 			{
 				vote_yes = vote_hold = 0;
 				break;
