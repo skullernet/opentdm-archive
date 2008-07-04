@@ -872,9 +872,9 @@ void TDM_Timeout_f (edict_t *ent)
 	// wision: check what happens if admin is just a spectator and he calls timeout
 	// r1: your method didn't work, and the code isn't really designed to allow such. is an hour enough to organize the game? :)
 	if (ent->client->pers.admin)
-		time_len = level.realframenum + SECS_TO_FRAMES(3600);
+		time_len = SECS_TO_FRAMES(3600);
 	else
-		time_len = level.realframenum + SECS_TO_FRAMES(g_max_timeout->value);
+		time_len = SECS_TO_FRAMES(g_max_timeout->value);
 
 	level.timeout_end_framenum = level.realframenum + time_len;
 	level.tdm_timeout_caller = ent->client->resp.teamplayerinfo;
