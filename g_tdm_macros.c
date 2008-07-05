@@ -98,14 +98,13 @@ const char *TDM_NearByPlayers (edict_t *ent, qboolean teamOnly, size_t *length)
 			continue;
 
 		if (len)
-		{
 			strcat (buff, ", ");
-			strcat (buff, e->client->pers.netname);
-			len = strlen (buff);
 
-			if (len > sizeof(buff) - 20)
-				break;
-		}
+		strcat (buff, e->client->pers.netname);
+		len = strlen (buff);
+
+		if (len > sizeof(buff) - 20)
+			break;		
 	}
 
 	*length = len;
