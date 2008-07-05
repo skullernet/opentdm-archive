@@ -83,6 +83,10 @@ tdm_config_t	tdm_configs;
 //settings non-default?
 qboolean		tdm_settings_not_default;
 
+//config list
+char			**tdm_configlist;
+char			tdm_configlist_string[900];
+
 /*
 ==============
 TDM_ApplyVote
@@ -544,16 +548,12 @@ qboolean TDM_VoteMap (edict_t *ent)
 
 	if (!value[0])
 	{
-		const char	*maplist;
-
-		maplist = TDM_MaplistString ();
-
-		if (maplist != NULL)
+		if (tdm_maplist != NULL)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "Allowed maplist:\n"
 					"----------------\n"
 					"%s\n"
-					"Usage: vote map <mapname>\n", maplist);
+					"Usage: vote map <mapname>\n", tdm_maplist_string);
 		}
 		else
 			gi.cprintf (ent, PRINT_HIGH, "Usage: vote map <mapname>\n");
@@ -1180,22 +1180,28 @@ qboolean TDM_VoteOverTimeLimit (edict_t *ent)
 
 /*
 ==============
-TDM_ConfiglistString
+TDM_CreateConfiglist
 ==============
-Return string for currently available configs.
+Read available configs.
 */
-char *TDM_ConfiglistString (void)
+void TDM_CreateConfiglist (void)
 {
-	int				i;
+	int				i, j= 0;
 	int				len;
+	int				entries_num = 100;
 	cvar_t			*gamedir;
 	qboolean		valid;
 	char			path[MAX_QPATH + 1];
-	static char		configlist[2048];
 	const char		*filename;
 	const char		*configname;
 
-	configlist[0] = '\0';
+	if (tdm_configlist)
+	{
+		gi.TagFree (tdm_configlist);
+		tdm_configlist = NULL;
+	}
+
+	tdm_configlist = gi.TagMalloc (sizeof(char *) * entries_num, TAG_GAME);
 
 	gamedir = gi.cvar ("gamedir", NULL, 0);
 
@@ -1230,19 +1236,54 @@ char *TDM_ConfiglistString (void)
 
 		if (!valid)
 			continue;
-				
-		sprintf (configlist + strlen(configlist), "%s\n", configname);
+
+		tdm_configlist[j] = gi.TagMalloc (strlen(configname) + 1, TAG_GAME);
+		strcpy (tdm_configlist[j], configname);
+		j++;
+
+		// realloc
+		if (j % entries_num == 0)
+		{
+			char	**tmp;
+
+			tmp = gi.TagMalloc (sizeof(char *) * (j + entries_num), TAG_GAME);
+			memcpy (tmp, tdm_configlist, j * sizeof(char *));
+
+			gi.TagFree (tdm_configlist);
+			tdm_configlist = tmp;
+		}
 
 		filename = Sys_FindNext ();
 	}
-
+	
 	// close before return
 	Sys_FindClose ();
 
-	if (!configlist[0])
-		return NULL;
+	// no valid configs, no config list!
+	if (j == 0)
+	{
+		gi.TagFree (tdm_configlist);
+		tdm_configlist = NULL;
+	}
+	else
+	{
+		tdm_configlist[j] = NULL;
 
-	return configlist;
+		//now generate static string
+		tdm_configlist_string[0] = '\0';
+		j = 0;
+
+		for (i = 0; tdm_configlist[i] != NULL; i++)
+		{
+			if (strlen(tdm_configlist[i]) + j >= sizeof(tdm_configlist_string)-16)
+			{
+				strcat (tdm_configlist_string, "  ...\n");
+				return;
+			}
+			sprintf (tdm_configlist_string + j, "  %s\n", tdm_configlist[i]);
+			j = strlen (tdm_configlist_string);
+		}
+	}
 }
 
 /*
@@ -1272,16 +1313,12 @@ qboolean TDM_VoteConfig (edict_t *ent)
 	value = gi.argv(2);
 	if (!value[0])
 	{
-		const char	*configlist;
-
-		configlist = TDM_ConfiglistString ();
-
-		if (configlist != NULL)
+		if (tdm_configlist)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "Available configs:\n"
 				"------------------\n"
 				"%s\n"
-				"Usage: vote config <configname>\n", configlist);
+				"Usage: vote config <configname>\n", tdm_configlist_string);
 		}
 		else
 			gi.cprintf (ent, PRINT_HIGH, "No configs are available.\n");

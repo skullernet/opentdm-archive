@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 #include "g_local.h"
 #include "m_player.h"
+#include "g_tdm_votemenu.h"
 
 
 /*char *ClientTeam (edict_t *ent)
@@ -704,6 +705,13 @@ Cmd_InvDrop_f
 void Cmd_InvDrop_f (edict_t *ent)
 {
 	const gitem_t		*it;
+
+	// wision: decrease a value in voting menu if it's up
+	if (ent->client->votemenu_values.show)
+	{
+		VoteMenuDecreaseValue (ent);
+		return;
+	}
 
 	//spectators can't drop!
 	if (!ent->client->pers.team)

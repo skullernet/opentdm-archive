@@ -180,7 +180,10 @@ Vote menu gamemode change handler.
 */
 void VoteMenuGameMode (edict_t *ent)
 {
-	ent->client->votemenu_values.gamemode = (ent->client->votemenu_values.gamemode + 1) % 3;
+	if (ent->client->votemenu_values.decrease)
+		ent->client->votemenu_values.gamemode = (ent->client->votemenu_values.gamemode + 2) % 3;
+	else
+		ent->client->votemenu_values.gamemode = (ent->client->votemenu_values.gamemode + 1) % 3;
 
 	VoteMenuUpdate (ent, VOTE_MENU_GAMEMODE);
 	PMenu_Update (ent);
@@ -195,40 +198,40 @@ Vote menu map change handler.
 */
 void VoteMenuMap (edict_t *ent)
 {
-	static char	maplist[2048];
-	char		*listptr;
-	int			i = 0;
+	int			map_count;
+	int			map_index;
 
-	listptr = TDM_MaplistString ();
+	map_index = ent->client->votemenu_values.map_index;
 
-	if (!listptr || !listptr[0])
+	if (tdm_maplist == NULL)
 		return;
 
-	if (!maplist[0])
-		strcpy (maplist, listptr);
+	for (map_count = 0; tdm_maplist[map_count] != NULL; map_count++);
 
-	if (ent->client->votemenu_values.mapptr == NULL || ent->client->votemenu_values.mapptr > maplist + strlen (maplist))
-		ent->client->votemenu_values.mapptr = maplist;
+	if (ent->client->votemenu_values.decrease)
+		map_index--;
+	else
+		map_index++;
 
-	while (ent->client->votemenu_values.mapptr[i] && ent->client->votemenu_values.mapptr[i] != '\n')
-		i++;
+	// don't show "---" twice if user decreased value at the start
+	if (map_index == -2)
+		map_index = map_count - 1;
+	// jump from the start of the list to the end 
+	else if (map_index < 0)
+		map_index = map_count;
+	// jump from the end of the list to the start
+	else if (map_index > map_count)
+		map_index = 0;
 
 	//memset (ent->client->votemenu_values.map, '\0', strlen (ent->client->votemenu_values.map));
 
 	// we reached the end of maplist.. show '---'
-	if (!ent->client->votemenu_values.mapptr[0])
-	{
+	if (tdm_maplist[map_index] == NULL)
 		strcpy (ent->client->votemenu_values.map, "---");
-		ent->client->votemenu_values.mapptr = NULL;
-	}
 	else
-	{
-		strncpy (ent->client->votemenu_values.map, ent->client->votemenu_values.mapptr, i);
-		ent->client->votemenu_values.map[i] = '\0';
+		strcpy (ent->client->votemenu_values.map, tdm_maplist[map_index]);
 
-		ent->client->votemenu_values.mapptr += (i+1);
-	}
-
+	ent->client->votemenu_values.map_index = map_index;
 	VoteMenuUpdate (ent, VOTE_MENU_MAP);
 	PMenu_Update (ent);
 	gi.unicast (ent, true);
@@ -242,39 +245,40 @@ Vote menu config change handler.
 */
 void VoteMenuConfig (edict_t *ent)
 {
-	static char	configlist[2048];
-	char		*listptr;
-	int			i = 0;
+	int			cfg_count;
+	int			cfg_index;
 
-	listptr = TDM_ConfiglistString ();
+	cfg_index = ent->client->votemenu_values.cfg_index;
 
-	if (!listptr || !listptr[0])
+	if (tdm_configlist == NULL)
 		return;
 
-	if (!configlist[0])
-		strcpy (configlist, listptr);
+	for (cfg_count = 0; tdm_configlist[cfg_count] != NULL; cfg_count++);
 
-	if (ent->client->votemenu_values.cfgptr == NULL || ent->client->votemenu_values.cfgptr > configlist + strlen (configlist))
-		ent->client->votemenu_values.cfgptr = configlist;
-
-	while (ent->client->votemenu_values.cfgptr[i] && ent->client->votemenu_values.cfgptr[i] != '\n')
-		i++;
-
-	//memset (ent->client->votemenu_values.config, '\0', strlen (ent->client->votemenu_values.config));
-
-	// we reached the end of cfglist.. show '---'
-	if (!ent->client->votemenu_values.cfgptr[0])
-	{
-		strcpy (ent->client->votemenu_values.config, "---");
-		ent->client->votemenu_values.cfgptr = NULL;
-	}
+	if (ent->client->votemenu_values.decrease)
+		cfg_index--;
 	else
-	{
-		strncpy (ent->client->votemenu_values.config, ent->client->votemenu_values.cfgptr, i);
-		ent->client->votemenu_values.config[i] = '\0';
-		ent->client->votemenu_values.cfgptr += (i+1);
-	}
+		cfg_index++;
 
+	// don't show "---" twice if user decreased value at the start
+	if (cfg_index == -2)
+		cfg_index = cfg_count - 1;
+	// jump from the start of the list to the end 
+	else if (cfg_index < 0)
+		cfg_index = cfg_count;
+	// jump from the end of the list to the start
+	else if (cfg_index > cfg_count)
+		cfg_index = 0;
+
+	//memset (ent->client->votemenu_values.map, '\0', strlen (ent->client->votemenu_values.map));
+
+	// we reached the end of maplist.. show '---'
+	if (tdm_configlist[cfg_index] == NULL)
+		strcpy (ent->client->votemenu_values.config, "---");
+	else
+		strcpy (ent->client->votemenu_values.config, tdm_configlist[cfg_index]);
+
+	ent->client->votemenu_values.cfg_index = cfg_index;
 	VoteMenuUpdate (ent, VOTE_MENU_CONFIG);
 	PMenu_Update (ent);
 	gi.unicast (ent, true);
@@ -288,7 +292,10 @@ Vote menu timelimit change handler.
 */
 void VoteMenuTimelimit (edict_t *ent)
 {
-	ent->client->votemenu_values.timelimit = (ent->client->votemenu_values.timelimit % 30) + 5;
+	if (ent->client->votemenu_values.decrease)
+		ent->client->votemenu_values.timelimit = ((ent->client->votemenu_values.timelimit + 20) % 30) + 5;
+	else
+		ent->client->votemenu_values.timelimit = (ent->client->votemenu_values.timelimit % 30) + 5;
 
 	VoteMenuUpdate (ent, VOTE_MENU_TIMELIMIT);
 	PMenu_Update (ent);
@@ -303,8 +310,16 @@ Vote menu overtime change handler.
 */
 void VoteMenuOvertime (edict_t *ent)
 {
-	// we need to cycle from -1 up to 5
-	ent->client->votemenu_values.overtime = ((ent->client->votemenu_values.overtime + 2) % 7) - 1;
+	if (ent->client->votemenu_values.decrease)
+	{
+		// we need to cycle from 5 down to -1
+		ent->client->votemenu_values.overtime = ((ent->client->votemenu_values.overtime + 7) %7) - 1;
+	}
+	else
+	{
+		// we need to cycle from -1 up to 5
+		ent->client->votemenu_values.overtime = ((ent->client->votemenu_values.overtime + 2) % 7) - 1;
+	}
 
 	VoteMenuUpdate (ent, VOTE_MENU_OVERTIME);
 	PMenu_Update (ent);
@@ -319,6 +334,7 @@ Vote menu powerups change handler.
 */
 void VoteMenuPowerups (edict_t *ent)
 {
+	// only 2 values.. no need for decreasing
 	ent->client->votemenu_values.powerups = (ent->client->votemenu_values.powerups + 1) % 2;
 
 	VoteMenuUpdate (ent, VOTE_MENU_POWERUPS);
@@ -334,6 +350,7 @@ Vote menu BFG change handler.
 */
 void VoteMenuBFG (edict_t *ent)
 {
+	// only 2 values.. no need for decreasing
 	ent->client->votemenu_values.bfg = (ent->client->votemenu_values.bfg + 1) % 2;
 
 	VoteMenuUpdate (ent, VOTE_MENU_BFG);
@@ -351,15 +368,28 @@ void VoteMenuKick (edict_t *ent)
 {
 	edict_t	*victim;
 
-	if (ent->client->votemenu_values.kick == NULL)
-		victim = g_edicts + 1;
+	if (ent->client->votemenu_values.decrease)
+	{
+		if (ent->client->votemenu_values.kick == NULL)
+			victim = g_edicts + game.maxclients;
+		else
+			victim = ent->client->votemenu_values.kick - 1;
+
+		while (victim > g_edicts && (!victim->inuse || victim == ent || victim->client->pers.admin))
+			victim--;
+	}
 	else
-		victim = ent->client->votemenu_values.kick + 1;
+	{
+		if (ent->client->votemenu_values.kick == NULL)
+			victim = g_edicts + 1;
+		else
+			victim = ent->client->votemenu_values.kick + 1;
 
-	while (victim <= g_edicts + game.maxclients && (!victim->inuse || victim == ent || victim->client->pers.admin))
-		victim++;
+		while (victim <= g_edicts + game.maxclients && (!victim->inuse || victim == ent || victim->client->pers.admin))
+			victim++;
+	}
 
-	if (victim <= g_edicts + game.maxclients)
+	if (victim <= g_edicts + game.maxclients && victim > g_edicts)
 		ent->client->votemenu_values.kick = victim;
 	else
 		ent->client->votemenu_values.kick = NULL;
@@ -377,6 +407,7 @@ Vote menu chat change handler.
 */
 void VoteMenuChat (edict_t *ent)
 {
+	// only 2 values.. no need for decreasing
 	ent->client->votemenu_values.chat = (ent->client->votemenu_values.chat + 1) % 2;
 
 	VoteMenuUpdate (ent, VOTE_MENU_CHAT);
@@ -392,11 +423,30 @@ Vote menu bugs change handler.
 */
 void VoteMenuBugs (edict_t *ent)
 {
-	ent->client->votemenu_values.bugs = (ent->client->votemenu_values.bugs + 1) % 3;
+	if (ent->client->votemenu_values.decrease)
+		ent->client->votemenu_values.bugs = (ent->client->votemenu_values.bugs + 2) % 3;
+	else
+		ent->client->votemenu_values.bugs = (ent->client->votemenu_values.bugs + 1) % 3;
 
 	VoteMenuUpdate (ent, VOTE_MENU_BUGS);
 	PMenu_Update (ent);
 	gi.unicast (ent, true);
+}
+
+/*
+==============
+VoteMenuDecreaseValue
+==============
+Vote menu decrasing value done with invdrop.
+*/
+void VoteMenuDecreaseValue (edict_t *ent)
+{
+	pmenu_t *p;
+	
+	ent->client->votemenu_values.decrease = true;
+	p = (&ent->client->menu)->entries + (&ent->client->menu)->cur;
+	p->SelectFunc (ent);
+	ent->client->votemenu_values.decrease = false;
 }
 
 /*
@@ -439,7 +489,7 @@ void OpenVoteMenu (edict_t *ent)
 	else
 	{
 		strcpy (ent->client->votemenu_values.map, "---");
-		ent->client->votemenu_values.mapptr = NULL;
+		ent->client->votemenu_values.map_index = -1;
 	}
 
 	if (!g_allow_vote_config->value)
@@ -447,7 +497,7 @@ void OpenVoteMenu (edict_t *ent)
 	else
 	{
 		strcpy (ent->client->votemenu_values.config, "---");
-		ent->client->votemenu_values.cfgptr = NULL;
+		ent->client->votemenu_values.cfg_index = -1;
 	}
 
 	ent->client->votemenu_values.timelimit = ((int)g_match_time->value / 60);
@@ -473,11 +523,16 @@ void OpenVoteMenu (edict_t *ent)
 	ent->client->votemenu_values.chat = (int)g_chat_mode->value;
 	ent->client->votemenu_values.bugs = (int)g_bugs->value;
 
+	// set increasing values as default (used for invdrop)
+	ent->client->votemenu_values.decrease = false;
+
 	memcpy (ent->client->votemenu, votemenu, sizeof(votemenu));
 
 	VoteMenuUpdate (ent, VOTE_MENU_ALL);
 
 	// we are supposed to be here only from menu, so close it
 	PMenu_Close (ent);
+	
+	ent->client->votemenu_values.show = true;
 	PMenu_Open (ent, ent->client->votemenu, 0, MENUSIZE_JOINMENU, false);
 }

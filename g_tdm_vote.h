@@ -10,7 +10,7 @@ qboolean TDM_RateLimited (edict_t *ent, int penalty);
 void TDM_VoteWebConfigResult (edict_t *ent, int code, void *param);
 void TDM_SetupVote (edict_t *ent);
 void TDM_ConfigDownloaded (char *buff, int len, int code);
-char *TDM_ConfiglistString (void);
+void TDM_CreateConfiglist (void);
 void TDM_VoteMenuApply (edict_t *ent);
 
 int LookupPlayer (const char *match, edict_t **out, edict_t *ent);
@@ -66,6 +66,8 @@ extern const powerupinfo_t	powerupvotes[POWERUP_MAX];
 extern vote_t	vote;
 
 extern qboolean	tdm_settings_not_default;
+
+extern char			**tdm_configlist;
 
 #define WEAPON_SHOTGUN			(1<<1)
 #define	WEAPON_SSHOTGUN			(1<<2)

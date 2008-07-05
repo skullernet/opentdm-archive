@@ -25,6 +25,12 @@ void TDM_BeginCountdown (void);
 void TDM_BeginMatch (void);
 void TDM_EndMatch (void);
 
+qboolean TDM_Checkmap (edict_t *ent, const char *mapname);
+void TDM_CreateMaplist (void);
+
+extern char		**tdm_maplist;
+extern char		tdm_maplist_string[900];
+
 typedef enum
 {
 	DL_NONE,

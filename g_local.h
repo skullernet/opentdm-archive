@@ -1241,8 +1241,8 @@ typedef struct vote_menu_s
 	unsigned		chat;
 	unsigned		bugs;
 	int				overtime;
-	char			*mapptr;
-	char			*cfgptr;
+	int				map_index;		// index in array
+	int				cfg_index;		// index in array
 	char			map[MAX_QPATH];
 	char			config[MAX_QPATH];
 	edict_t			*kick;
@@ -1259,6 +1259,9 @@ typedef struct vote_menu_s
 	char			string_kick[32];
 	char			string_chat[32];
 	char			string_bugs[32];
+
+	qboolean		decrease;
+	qboolean		show;
 } vote_menu_t;
 
 enum

@@ -82,6 +82,9 @@ const char *soundnames[17] = {
 
 tdm_download_t	tdm_download;
 
+char		**tdm_maplist;
+char		tdm_maplist_string[900];
+
 //a note regarding matchinfo and teamplayers.
 //matchinfo is a structure containing information about a single match - from "Fight!" to a team winning.
 //it is not used for warmup or anything else like that, only initialized when the match actually begins.
@@ -2054,6 +2057,220 @@ void TDM_SetupSpawns (void)
 
 /*
 ==============
+TDM_CheckMap_FileExists
+==============
+Check map name.
+Not used since we don't check if file exists.
+*/
+qboolean TDM_CheckMapExists (const char *mapname)
+{
+	cvar_t	*gamedir;      // our mod dir
+	cvar_t	*basedir;      // our root dir
+	FILE	*mf;
+	char	buffer[MAX_QPATH + 1];
+
+	gamedir = gi.cvar ("gamedir", NULL, 0);   // created by engine, we need to expose it for mod
+	basedir = gi.cvar ("basedir", NULL, 0);   // created by engine, we need to expose it for mod
+
+	buffer[sizeof(buffer)-1] = '\0';
+
+	if (basedir)
+	{
+		// check basedir
+		snprintf (buffer, sizeof(buffer)-1, "%s/baseq2/maps/%s.bsp", basedir->string, mapname);
+
+		mf = fopen (buffer, "r");
+		if (mf != NULL)
+		{
+			fclose (mf);
+			return true;
+		}
+	}
+
+	if (gamedir)
+	{
+		// check gamedir
+		snprintf (buffer, sizeof(buffer), "%s/maps/%s.bsp", gamedir->string, mapname);
+		mf = fopen (buffer, "r");
+		if (mf == NULL)
+			return false;
+		else
+		{   
+			fclose (mf);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/*
+==============
+TDM_CreateMaplist
+==============
+Return array of allowed maps in maplist.
+*/
+void TDM_CreateMaplist (void)
+{
+	qboolean	start = true;
+	int			len;
+	int			entries_num = 100;
+	cvar_t		*gamedir;
+	int			i = 0, j = 0;
+	FILE		*maplst;
+	char		buffer[MAX_QPATH + 1];
+	char		*entry;
+
+	if (tdm_maplist)
+	{
+		gi.TagFree (tdm_maplist);
+		tdm_maplist = NULL;
+	}
+
+	// maplist is not in use
+	if (!g_maplistfile || !g_maplistfile->string[0])
+		return;
+
+	// created by engine, we need to expose it for mod
+	gamedir = gi.cvar ("gamedir", NULL, 0); 
+
+	// Make sure we can find the game directory.
+	if (!gamedir || !gamedir->string[0])
+		return;
+	
+	buffer[sizeof(buffer)-1] = '\0';
+
+	if (gamedir)
+	{
+		snprintf (buffer, sizeof(buffer)-1, "./%s/%s", gamedir->string, g_maplistfile->string);
+		maplst = fopen (buffer, "r");
+		if (maplst == NULL)
+			return;
+	}
+	else
+		return;
+
+	tdm_maplist = gi.TagMalloc (sizeof(char *) * entries_num, TAG_GAME);
+
+	for (;;)
+	{
+		entry = fgets (buffer, sizeof (buffer), maplst);
+
+		if (entry == NULL)
+			break;
+
+		len = strlen (buffer);
+
+		// cut only first column from the line
+		for (i = 0; i < len; i++)
+		{
+			if (buffer[i] == ' ' || (!isalnum (buffer[i]) && buffer[i] != '_' && buffer[i] != '-'))
+			{
+				buffer[i] = '\0';
+
+				if (start)
+					entry++;
+			}
+			else
+				start = false;
+		}
+
+		if (!entry[0])
+			continue;
+
+		tdm_maplist[j] = gi.TagMalloc (strlen(entry) + 1, TAG_GAME);
+		strcpy (tdm_maplist[j], entry);
+		j++;
+
+		// realloc
+		if (j % entries_num == 0)
+		{
+			char	**tmp;
+
+			tmp = gi.TagMalloc (sizeof(char *) * (j + entries_num), TAG_GAME);
+			memcpy (tmp, tdm_maplist, j * sizeof(char *));
+
+			gi.TagFree (tdm_maplist);
+			tdm_maplist = tmp;
+		}
+	}
+
+
+	// close the maplist
+	if (maplst != NULL)
+		fclose (maplst);
+
+	if (j)
+	{
+		// set NULL so we know where is the end
+		tdm_maplist[j] = NULL;
+
+		tdm_maplist_string[0] = '\0';
+		j = 0;
+
+		for (i = 0; tdm_maplist[i] != NULL; i++)
+		{
+			if (strlen(tdm_maplist[i]) + j >= sizeof(tdm_maplist_string)-16)
+			{
+				strcat (tdm_maplist_string, "  ...\n");
+				return;
+			}
+			sprintf (tdm_maplist_string + j, "  %s\n", tdm_maplist[i]);
+			j = strlen (tdm_maplist_string);
+		}
+	}
+	else
+	{
+		gi.TagFree (tdm_maplist);
+		tdm_maplist = NULL;
+	}
+}
+
+/*
+==============
+TDM_CheckMap
+==============
+Check map name.
+Modified code from QwazyWabbit. http://www.clanwos.org/forums/viewtopic.php?t=3983
+*/
+qboolean TDM_Checkmap (edict_t *ent, const char *mapname)
+{
+	int		i;
+	size_t	len;
+
+	len = strlen (mapname);
+
+	if (len >= MAX_QPATH - 1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Invalid map name.\n");
+		return false;
+	}
+
+	for (i = 0; i < len; i++)
+	{
+		if (!isalnum (mapname[i]) && mapname[i] != '_' && mapname[i] != '-')
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Invalid map name.\n");
+			return false;
+		}
+	}
+
+	// allow map on maplist failure
+	if (tdm_maplist == NULL)
+		return true;
+
+	for (i = 0; tdm_maplist[i] != NULL; i++)
+	{
+		if (!Q_stricmp (tdm_maplist[i], mapname) /* && TDM_CheckMapExists (buffer)) */)
+			return true;
+	}
+
+	gi.cprintf (ent, PRINT_HIGH, "Map '%s' was not found\n", mapname);
+	return false;
+}
+
+/*
+==============
 TDM_MapChanged
 ==============
 Called when a new level is about to begin.
@@ -2211,6 +2428,9 @@ void TDM_Init (void)
 	}
 
 	TDM_ResetGameState ();
+
+	TDM_CreateMaplist ();
+	TDM_CreateConfiglist ();
 }
 
 /*

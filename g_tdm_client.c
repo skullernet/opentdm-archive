@@ -427,9 +427,18 @@ Show/hide the join team menu
 */
 void TDM_ShowTeamMenu (edict_t *ent)
 {
-	//wision: toggle show/hide the menu
 	if (ent->client->menu.active)
-		PMenu_Close (ent);
+	{
+		// if the votemenu is open, go back to normal menu
+		// close the menu after this condition!
+		if (ent->client->votemenu_values.show)
+		{
+			PMenu_Close (ent);
+			PMenu_Open (ent, joinmenu, teamJoinEntries[ent->client->pers.team], MENUSIZE_JOINMENU, false);
+		}
+		else
+			PMenu_Close (ent);
+	}
 	else
 		PMenu_Open (ent, joinmenu, teamJoinEntries[ent->client->pers.team], MENUSIZE_JOINMENU, false);
 }

@@ -54,6 +54,7 @@ void PMenu_Close(edict_t *ent)
 		free (ent->client->menu.entries);
 
 	ent->client->menu.active = false;
+	ent->client->votemenu_values.show = false;
 }
 
 void PMenu_Update(edict_t *ent)
