@@ -705,7 +705,7 @@ qboolean infront (edict_t *self, edict_t *other)
 	VectorNormalize (vec);
 	dot = DotProduct (vec, forward);
 	
-	if (dot > 0.3)
+	if (dot > 0.3f)
 		return true;
 	return false;
 }

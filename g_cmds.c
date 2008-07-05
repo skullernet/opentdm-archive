@@ -990,13 +990,18 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 	// don't let text be too long for malicious reasons
 	text[256] = 0;
 
-	if (!text[0])
+	// no message!
+	if (!*(text + expandpoint))
 		return;
-
-	strcat(text, "\n");
 
 	if (ent->client->pers.team)
 		TDM_MacroExpand (ent, text + expandpoint, sizeof(text) - expandpoint - 1);
+
+	// macro expansion possibly removed the text?
+	if (!*(text + expandpoint))
+		return;
+
+	strcat(text, "\n");
 
 	//wision: fixed.. but still dunno how it does work :x
 	//wision: we don't want to block say_team

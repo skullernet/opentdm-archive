@@ -80,6 +80,9 @@ const char *TDM_NearByPlayers (edict_t *ent, qboolean teamOnly, size_t *length)
 	len = 0;
 	buff[0] = '\0';
 
+	if (ent->health < 0)
+		return buff;
+
 	for (e = g_edicts + 1; e <= g_edicts + game.maxclients; e++)
 	{
 		if (!e->inuse)
@@ -94,7 +97,7 @@ const char *TDM_NearByPlayers (edict_t *ent, qboolean teamOnly, size_t *length)
 		if (e->health <= 0)
 			continue;
 
-		if (!visible (ent, e, MASK_SHOT))
+		if (!visible (ent, e, MASK_SOLID))
 			continue;
 
 		if (len)
