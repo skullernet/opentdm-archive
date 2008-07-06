@@ -1754,22 +1754,22 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	{
 		if (client->pers.team == TEAM_SPEC)
 		{
-			// wision: toggle chase when specing
+			client->latched_buttons = (client->latched_buttons & ~BUTTON_ATTACK);
+			
+			// wision: hide menu after join
+			if (client->menu.active)
+			{
+				PMenu_Close (ent);
+				return;
+			}
+
+			// cycle between chase modes
 			if (!client->chase_target)
-				GetChaseTarget(ent);
+				GetChaseTarget (ent);
 			else
 				NextChaseMode (ent);
 
-			if (client->showscores || client->showoldscores) 
-				return;
-
-			//don't show menu during timeout, since invuse/etc are disallowed
-			// wision: hide menu after join
-			if (tdm_match_status != MM_TIMEOUT && ent->client->menu.active)
-			{
-				TDM_ShowTeamMenu (ent);
-				return;
-			}
+			return;
 		}
 		else 
 		{
