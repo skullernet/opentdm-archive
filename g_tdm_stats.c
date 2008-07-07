@@ -1578,7 +1578,7 @@ void TDM_SetupMatchInfoAndTeamPlayers (void)
 		//since we don't want to prematurely kill someone who may be taking a long time to connect (eg, map download)
 		if (!ent->inuse)
 		{
-			gi.dprintf ("TDM_SetupMatchInfoAndTeamPlayers: Unclean disconnect of client %d.\n", i - 1);
+			gi.dprintf ("TDM_SetupMatchInfoAndTeamPlayers: Unclean disconnect of client %d.\n", ent - g_edicts - 1);
 			memset (&ent->client->pers, 0, sizeof(ent->client->pers));
 			ent->solid = SOLID_NOT;
 			ent->s.modelindex = ent->s.effects = ent->s.sound = 0;

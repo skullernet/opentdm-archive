@@ -1160,7 +1160,7 @@ void TDM_EndMatch (void)
 		if (ent->inuse && ent->client->pers.team)
 		{
 			if (!ent->client->resp.teamplayerinfo)
-				TDM_Error ("TDM_EndMatch: Missing teamplayerinfo for client %d", ent - g_edicts);
+				TDM_Error ("TDM_EndMatch: Missing teamplayerinfo for client %d", ent - g_edicts - 1);
 
 			TDM_WriteStatsString (ent, ent->client->resp.teamplayerinfo);
 		}
@@ -1174,7 +1174,7 @@ void TDM_EndMatch (void)
 	{
 		winner = TEAM_SPEC;
 		loser = TEAM_SPEC;
-		gi.bprintf (PRINT_HIGH, "Match cancelled, no players remaining.\n");
+		gi.bprintf (PRINT_HIGH, "Match canceled, no players remaining.\n");
 	}
 	else if (teaminfo[TEAM_A].players == 0)
 	{
@@ -2759,7 +2759,7 @@ void TDM_Error (const char *fmt, ...)
 		if (!ent->inuse)
 			continue;
 
-		gi.dprintf ("%d: %s, connected %d, team %d, info %p\n", ent - g_edicts, ent->client->pers.netname, ent->client->pers.connected, ent->client->pers.team, ent->client->resp.teamplayerinfo);
+		gi.dprintf ("%d: %s, connected %d, team %d, info %p\n", ent - g_edicts - 1, ent->client->pers.netname, ent->client->pers.connected, ent->client->pers.team, ent->client->resp.teamplayerinfo);
 	}
 
 	gi.error (text);

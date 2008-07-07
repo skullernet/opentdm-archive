@@ -524,7 +524,7 @@ qboolean TDM_VoteTimeLimit (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
 			return false;			
 		
-		gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+		gi.bprintf (PRINT_HIGH, "Vote canceled!\n");
 		TDM_RemoveVote ();
 	}
 
@@ -581,7 +581,7 @@ qboolean TDM_VoteMap (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
 			return false;
 
-		gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+		gi.bprintf (PRINT_HIGH, "Vote canceled!\n");
 		TDM_RemoveVote ();
 	}
 
@@ -712,7 +712,7 @@ qboolean TDM_VoteWeapons (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
 			return false;
 
-		gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+		gi.bprintf (PRINT_HIGH, "Vote canceled!\n");
 		TDM_RemoveVote ();
 	}
 
@@ -767,7 +767,7 @@ qboolean TDM_VoteKick (edict_t *ent)
 			if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
 				return false;
 
-			gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+			gi.bprintf (PRINT_HIGH, "Vote canceled!\n");
 			TDM_RemoveVote ();
 		}
 
@@ -880,7 +880,7 @@ qboolean TDM_VotePowerups (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
 			return false;
 		
-		gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+		gi.bprintf (PRINT_HIGH, "Vote canceled!\n");
 		TDM_RemoveVote ();
 	}
 
@@ -939,7 +939,7 @@ qboolean TDM_VoteGameMode (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
 			return false;	
 		
-		gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+		gi.bprintf (PRINT_HIGH, "Vote canceled!\n");
 		TDM_RemoveVote ();
 	}
 
@@ -997,7 +997,7 @@ qboolean TDM_VoteTieMode (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
 			return false;
 
-		gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+		gi.bprintf (PRINT_HIGH, "Vote canceled!\n");
 		TDM_RemoveVote ();
 	}
 
@@ -1053,7 +1053,7 @@ qboolean TDM_VoteTeleMode (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
 			return false;
 
-		gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+		gi.bprintf (PRINT_HIGH, "Vote canceled!\n");
 		TDM_RemoveVote ();
 	}
 
@@ -1115,7 +1115,7 @@ qboolean TDM_VoteSwitchMode (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
 			return false;
 
-		gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+		gi.bprintf (PRINT_HIGH, "Vote canceled!\n");
 		TDM_RemoveVote ();
 	}
 
@@ -1168,7 +1168,7 @@ qboolean TDM_VoteOverTimeLimit (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
 			return false;
 
-		gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+		gi.bprintf (PRINT_HIGH, "Vote canceled!\n");
 		TDM_RemoveVote ();
 	}
 
@@ -1601,7 +1601,7 @@ qboolean TDM_VoteChat (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
 			return false;
 
-		gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+		gi.bprintf (PRINT_HIGH, "Vote canceled!\n");
 		TDM_RemoveVote ();
 	}
 
@@ -1683,7 +1683,7 @@ qboolean TDM_VoteBugs (edict_t *ent)
 		if (TDM_RateLimited (ent, SECS_TO_FRAMES(2)))
 			return false;	
 		
-		gi.bprintf (PRINT_HIGH, "Vote cancelled!\n");
+		gi.bprintf (PRINT_HIGH, "Vote canceled!\n");
 		TDM_RemoveVote ();
 	}
 
@@ -1898,7 +1898,7 @@ void TDM_CheckVote (void)
 
 	if ((vote.flags & VOTE_KICK) && !vote.victim->inuse)
 	{
-		gi.bprintf (PRINT_HIGH, "Vote cancelled.\n");
+		gi.bprintf (PRINT_HIGH, "Vote canceled.\n");
 		TDM_RemoveVote ();
 		return;
 	}
