@@ -1472,10 +1472,19 @@ void TDM_CheckTimes (void)
 		}
 	}
 
-	if (vote.active && level.framenum == vote.end_frame)
+	if (vote.active)
 	{
-		gi.bprintf (PRINT_HIGH, "Vote failed.\n");
-		TDM_RemoveVote ();
+		// update vote string every second since we display the timer
+		if ((vote.end_frame - level.framenum) % SERVER_FPS == 0)
+		{
+			TDM_UpdateVoteConfigString ();
+		}
+
+		if (level.framenum == vote.end_frame)
+		{
+			gi.bprintf (PRINT_HIGH, "Vote failed.\n");
+			TDM_RemoveVote ();
+		}
 	}
 	
 	if (tdm_match_status == MM_WARMUP && tdm_settings_not_default && level.framenum >= SECS_TO_FRAMES(300) &&

@@ -12,6 +12,7 @@ void TDM_SetupVote (edict_t *ent);
 void TDM_ConfigDownloaded (char *buff, int len, int code);
 void TDM_CreateConfiglist (void);
 void TDM_VoteMenuApply (edict_t *ent);
+void TDM_UpdateVoteConfigString (void);
 
 int LookupPlayer (const char *match, edict_t **out, edict_t *ent);
 

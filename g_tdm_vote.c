@@ -226,6 +226,7 @@ Display the vote on the screen during active vote.
 */
 void TDM_UpdateVoteConfigString (void)
 {
+	int		vote_time = 0;
 	int		vote_total = 0;
 	int		vote_hold = 0;
 	int		vote_yes = 0;
@@ -260,13 +261,14 @@ void TDM_UpdateVoteConfigString (void)
 		else
 			vote_total = ceil((float)vote_total/2.0f);
 
-		sprintf (vote_string, "Vote: %s. Yes: %d (%d) No: %d",
-			vote.vote_string, vote_yes, vote_total, vote_no);
+		vote_time = FRAMES_TO_SECS (vote.end_frame - level.framenum);
+		sprintf (vote_string, "Vote: %s. Yes: %d (%d) No: %d [%02d]",
+			vote.vote_string, vote_yes, vote_total, vote_no, vote_time);
 
 		if (strlen(vote_string) > 63)
 		{
-			sprintf (vote_string, "Vote: type 'vote' to see changes. Yes: %d (%d) No: %d",
-				vote_yes, vote_total, vote_no);
+			sprintf (vote_string, "Vote: type 'vote' to see changes. Yes: %d (%d) No: %d [%02d]",
+				vote_yes, vote_total, vote_no, vote_time);
 		}
 	}
 
@@ -451,7 +453,6 @@ static void TDM_AnnounceVote (void)
 	}
 
 	vote.vote_string = what;
-	TDM_UpdateVoteConfigString ();
 
 	gi.bprintf (PRINT_HIGH, "%s%s\n", message, what);
 }
@@ -1724,8 +1725,6 @@ void TDM_Vote_X (edict_t *ent, player_vote_t x, const char *whatisit)
 		ent->client->resp.vote = x;
 		gi.bprintf (PRINT_HIGH, "%s changed his vote to %s.\n", ent->client->pers.netname, whatisit);
 	}
-
-	TDM_UpdateVoteConfigString ();
 }
 
 /*

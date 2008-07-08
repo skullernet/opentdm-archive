@@ -737,7 +737,7 @@ const char *dm_statusbar =
 //  frags
 "xr	-50 "
 "yt 2 "
-"num 3 14 "
+"num 3 31 "
 
 // spectator
 "if 17 "

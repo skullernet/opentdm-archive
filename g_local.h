@@ -62,6 +62,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	STAT_HELPICON			11
 #define	STAT_SELECTED_ITEM		12
 #define	STAT_LAYOUTS			13
+// frag count for server browsers
 #define	STAT_FRAGS				14
 #define	STAT_FLASHES			15		// cleared each frame, 1 = health, 2 = armor
 #define STAT_CHASE				16
@@ -89,6 +90,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // another timer for pent so it doesn't overwrite quad
 #define	STAT_TIMER_PENT_ICON			29
 #define	STAT_TIMER_PENT					30
+// frags showed in the hud
+#define	STAT_SCORE					31
 // maximum 31!
 
 // dmflags->value flags

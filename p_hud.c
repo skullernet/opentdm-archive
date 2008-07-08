@@ -500,8 +500,11 @@ void G_SetStats (edict_t *ent)
 
 	ent->client->ps.stats[STAT_FIRST_TEAM_STATUS_INDEX] = CS_TDM_TEAM_A_STATUS + first_team - 1;
 	ent->client->ps.stats[STAT_SECOND_TEAM_STATUS_INDEX] = CS_TDM_TEAM_A_STATUS + (first_team % 2);
-	
+
+	// frags for server browser
 	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
+	// frags for ingame hud
+	ent->client->ps.stats[STAT_SCORE] = ent->client->resp.score;
 
 	ent->client->ps.stats[STAT_TIME_REMAINING] = CS_TDM_TIMELIMIT_STRING;
 
@@ -558,6 +561,9 @@ void G_SetSpectatorStats (edict_t *ent)
 			cl->ps.stats[STAT_FIRST_TEAM_SCORE] = 0;
 			cl->ps.stats[STAT_SECOND_TEAM_SCORE] = 0;
 		}
+
+		// wision: observers show 0 frags in server browser
+		cl->ps.stats[STAT_FRAGS] = 0;
 	}
 
 	cl->ps.stats[STAT_SPECTATOR] = 1;
