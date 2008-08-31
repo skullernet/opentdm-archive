@@ -1954,7 +1954,10 @@ void UpdateMatchStatus (void)
 	//unlock if a team emptied out
 	for (team = 1; team < MAX_TEAMS; team++)
 		if (teaminfo[team].players == 0)
+		{
 			teaminfo[team].locked = false;
+			teaminfo[team].speclocked = false;
+		}
 
 	if (tdm_match_status < MM_PLAYING || tdm_match_status == MM_SCOREBOARD)
 		return;
@@ -2922,4 +2925,143 @@ int TDM_GetTeamFromArg (edict_t *ent, const char *value)
 	}
 
 	return -1;
+}
+
+/*
+==============
+TDM_UpdateSpectator
+==============
+Updates the spectator according to chosen mode.
+*/
+void TDM_UpdateSpectator (edict_t *ent)
+{
+	int			score = -999;
+	edict_t		*target = NULL, *tmp = NULL;
+
+	for (target = g_edicts + 1; target <= g_edicts + game.maxclients; target++)
+	{
+		// skip if client is not a player or we are not allowed to spectate his team
+		if (!target->inuse || !target->client->pers.team ||
+				(teaminfo[target->client->pers.team].speclocked && !ent->client->pers.specinvite[target->client->pers.team]))
+			continue;
+
+		// find quadder
+		if (ent->client->resp.spec_mode == SPEC_QUAD)
+		{
+			if (target->client->quad_framenum > level.framenum)
+			{
+				SetChase (ent, target);
+				break;
+			}
+		}
+		// find invul guy
+		else if (ent->client->resp.spec_mode == SPEC_INVUL)
+		{
+			if (target->client->invincible_framenum > level.framenum)
+			{
+				SetChase (ent, target);
+				break;
+			}
+		}
+		// count frags and find top fragger
+		else if (ent->client->resp.spec_mode == SPEC_LEADER)
+		{
+			if (target->client->resp.score > score)
+			{
+				score = target->client->resp.score;
+				tmp = target;
+			}
+		}
+	}
+
+	if (ent->client->resp.spec_mode == SPEC_LEADER)
+			SetChase (ent, tmp);
+}
+
+/*
+==============
+TDM_UpdateSpectatorsOnEvent
+==============
+Updates all spectators when something happens.
+*/
+void TDM_UpdateSpectatorsOnEvent (int spec_mode, edict_t *target, edict_t *killer)
+{
+	int			score_a = -999, score_b = -999;
+	edict_t		*e, *top_fragger_a = NULL, *top_fragger_b = NULL, *new_target = NULL;
+
+	// calculate the top fragger
+	if (spec_mode == SPEC_KILLER)
+	{
+		for (e = g_edicts + 1; e <= g_edicts + game.maxclients; e++)
+		{
+			if (!e->inuse || !e->client->pers.team)
+				continue;
+
+			if (e->client->pers.team == TEAM_A)
+			{
+				if (e->client->resp.score > score_a)
+				{
+					score_a = e->client->resp.score;
+					top_fragger_a = e;
+				}
+			}
+			else if (e->client->pers.team == TEAM_B)
+			{
+				if (e->client->resp.score > score_b)
+				{
+					score_b = e->client->resp.score;
+					top_fragger_b = e;
+				}
+			}
+		}
+	}
+
+	for (e = g_edicts + 1; e <= g_edicts + game.maxclients; e++)
+	{
+		// we are looking for a spectator
+		if (!e->inuse || e->client->pers.team)
+			continue;
+
+		// don't bother with spectators who are not allowed to do watch anything
+		if (teaminfo[TEAM_A].speclocked && teaminfo[TEAM_B].speclocked &&
+				e->client->pers.specinvite[TEAM_A] && e->client->pers.specinvite[TEAM_B])
+			continue;
+
+		if (spec_mode == SPEC_KILLER)
+		{
+			// update spectators who use SPEC_KILLER and spectating the victim
+			if (e->client->resp.spec_mode == SPEC_KILLER && e->client->chase_target == target &&
+				(!teaminfo[target->client->pers.team].speclocked || e->client->pers.specinvite[target->client->pers.team]))
+			{
+				new_target = killer;
+			}
+			// check if the killer is not top fragger now and update spectators who us SPEC_LEADER
+			else if (e->client->resp.spec_mode == SPEC_LEADER)
+			{
+				if (score_a > score_b)
+				{
+					if (!teaminfo[TEAM_A].speclocked || e->client->pers.specinvite[TEAM_A])
+						new_target = top_fragger_a;
+					else if (e->client->chase_target != top_fragger_b)
+						new_target = top_fragger_b;
+				}
+				else if (score_b > score_a)
+				{
+					if (!teaminfo[TEAM_B].speclocked || e->client->pers.specinvite[TEAM_B])
+						new_target = top_fragger_b;
+					else if (e->client->chase_target != top_fragger_a)
+						new_target = top_fragger_a;
+				}
+			}
+		}
+		// some player took quad or invul, update all spectators with SPEC_QUAD on
+		else if ((spec_mode == SPEC_QUAD || spec_mode == SPEC_INVUL) && e->client->resp.spec_mode == spec_mode &&
+				(!teaminfo[target->client->pers.team].speclocked || e->client->pers.specinvite[target->client->pers.team]))
+		{
+			new_target = target;
+		}
+
+		if (new_target)
+			SetChase (e, new_target);
+	}
 }

@@ -244,7 +244,15 @@ void ClientEndServerFrames (void)
 	{
 		ent = g_edicts + 1 + i;
 
-		if (!ent->inuse || !ent->client || !ent->client->chase_target)
+		if (!ent->inuse || !ent->client)
+			continue;
+
+		if (ent->client->chase_mode == CHASE_LOCK)
+		{
+			UpdateLockCam (ent);
+			continue;
+		}
+		else if (!ent->client->chase_target)
 			continue;
 
 		//this copies before the stats

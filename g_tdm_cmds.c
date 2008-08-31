@@ -2095,6 +2095,176 @@ void TDM_Unmute_f (edict_t *ent)
 
 /*
 ==============
+TDM_Speclock_f
+==============
+Lock the team against spectators.
+*/
+void TDM_Speclock_f (edict_t *ent)
+{
+	int		team;
+
+	if (gi.argc() < 2 && ent->client->pers.admin && !ent->client->pers.team)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: speclock <team>\n");
+		return;
+	}
+
+	if (teaminfo[ent->client->pers.team].captain != ent && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can speclock team.\n");
+		return;
+	}
+
+	if (gi.argc() == 2 && ent->client->pers.admin)
+		team = TDM_GetTeamFromArg (ent, gi.argv(1));
+	else
+		team = ent->client->pers.team;
+
+	if (team != TEAM_A && team != TEAM_B)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Invalid team.\n");
+		return;
+	}
+
+	if (teaminfo[team].speclocked)
+	{
+		teaminfo[team].speclocked = false;
+		gi.cprintf (ent, PRINT_HIGH, "Team %sis unlocked against spectators.\n", ((ent->client->pers.admin) ? va("'%s' ", teaminfo[team].name) : ""));
+	}
+	else
+	{
+		edict_t		*e;
+		// reset all invites
+		for (e = g_edicts + 1; e <= g_edicts + game.maxclients; e++)
+			if (e->inuse)
+				e->client->pers.specinvite[team] = false;
+
+		teaminfo[team].speclocked = true;
+		gi.cprintf (ent, PRINT_HIGH, "Team %sis locked against spectators.\n", ((ent->client->pers.admin) ? va("'%s' ", teaminfo[team].name) : ""));
+	}
+}
+
+/*
+==============
+TDM_Specinvite_f
+==============
+Invite a spectator for speclocked team.
+*/
+void TDM_Specinvite_f (edict_t *ent)
+{
+	int			team;
+	edict_t		*victim;
+	const char	*value;
+
+	if (gi.argc() < 3 && ent->client->pers.admin && !ent->client->pers.team)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: specinvite <team> <name/id>\n");
+		TDM_PrintPlayers (ent);
+		return;
+	}
+
+	if (gi.argc() < 2)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: specinvite <name/id>\n");
+		TDM_PrintPlayers (ent);
+		return;
+	}
+
+	if (gi.argc() == 3 && ent->client->pers.admin)
+	{
+		team = TDM_GetTeamFromArg (ent, gi.argv(1));
+		value = gi.argv(2);
+	}
+	else
+	{
+		team = ent->client->pers.team;
+		value = gi.argv(1);
+	}
+
+	if (team != TEAM_A && team != TEAM_B)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Invalid team.\n");
+		return;
+	}
+
+	if (!teaminfo[team].speclocked)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Team is not locked against spectators.\n");
+		return;
+	}
+	
+	if (teaminfo[team].captain != ent && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Only team captains or admins can specinvite players.\n");
+		return;
+	}
+
+	if (LookupPlayer (value, &victim, ent))
+	{
+		if (victim->client->pers.team)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "%s is not a spectator.\n", victim->client->pers.netname);
+			return;
+		}
+
+		if (victim->client->pers.admin)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Admins can spectate anyone.\n");
+			return;
+		}
+
+		if (victim->client->pers.specinvite[team])
+		{
+			victim->client->pers.specinvite[team] = false;
+			gi.cprintf (ent, PRINT_HIGH, "%s was forbidden to spectate team '%s'.\n", victim->client->pers.netname, teaminfo[team].name);
+			gi.cprintf (victim, PRINT_HIGH, "You were forbidden by %s to spectate team '%s'.\n", ent->client->pers.netname, teaminfo[team].name);
+		}
+		else
+		{
+			victim->client->pers.specinvite[team] = true;
+			gi.cprintf (ent, PRINT_HIGH, "%s was invited to spectate team '%s'.\n", victim->client->pers.netname, teaminfo[team].name);
+			gi.cprintf (victim, PRINT_HIGH, "You were invited by %s to spectate team '%s'.\n", ent->client->pers.netname, teaminfo[team].name);
+		}
+	}
+}
+
+/*
+==============
+TDM_Spectate_f
+==============
+Move to spectator or change spetating mode.
+*/
+void TDM_Spectate_f (edict_t *ent)
+{
+	if (gi.argc() < 2 || !Q_stricmp (gi.argv(1), "none"))
+	{
+		ent->client->resp.spec_mode = SPEC_NONE;
+		ToggleChaseCam (ent);
+		return;
+	}
+
+	if (!Q_stricmp (gi.argv(1), "quad"))
+		ent->client->resp.spec_mode = SPEC_QUAD;
+	else if (!Q_stricmp (gi.argv(1), "invul") || !Q_stricmp (gi.argv(1), "pent") || !Q_stricmp (gi.argv(1), "666"))
+		ent->client->resp.spec_mode = SPEC_INVUL;
+	else if (!Q_stricmp (gi.argv(1), "killer"))
+		ent->client->resp.spec_mode = SPEC_KILLER;
+	else if (!Q_stricmp (gi.argv(1), "leader") || !Q_stricmp (gi.argv(1), "topfragger"))
+		ent->client->resp.spec_mode = SPEC_LEADER;
+	else
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: '%s' [quad/invul/killer/leader/none]\n", gi.argv(0));
+		return;
+	}
+
+	if (ent->client->pers.team)
+		ToggleChaseCam (ent);
+
+	TDM_UpdateSpectator (ent);
+}
+
+/*
+==============
 TDM_Command
 ==============
 Process TDM commands (from ClientCommand)
@@ -2206,7 +2376,7 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Win_f (ent);
 		else if (!Q_stricmp (cmd, "observer") || !Q_stricmp (cmd, "spectate") || !Q_stricmp (cmd, "chase") ||
 				!Q_stricmp (cmd, "spec") || !Q_stricmp (cmd, "obs"))
-			ToggleChaseCam (ent);
+			TDM_Spectate_f (ent);
 		else if (!Q_stricmp (cmd, "pickplayer") || !Q_stricmp (cmd, "pick"))
 			TDM_PickPlayer_f (ent);
 		else if (!Q_stricmp (cmd, "invite"))
@@ -2268,7 +2438,7 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Settings_f (ent);
 		else if (!Q_stricmp (cmd, "observer") || !Q_stricmp (cmd, "spectate") || !Q_stricmp (cmd, "chase") ||
 				!Q_stricmp (cmd, "spec") || !Q_stricmp (cmd, "obs"))
-			ToggleChaseCam (ent);
+			TDM_Spectate_f (ent);
 		else if (!Q_stricmp (cmd, "calltime") | !Q_stricmp (cmd, "pause") || !Q_stricmp (cmd, "ctime") || !Q_stricmp (cmd, "time") || !Q_stricmp (cmd, "hold"))
 			TDM_Timeout_f (ent);
 		else if (!Q_stricmp (cmd, "stats") || !Q_stricmp (cmd, "kills"))
@@ -2336,6 +2506,10 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Mute_f (ent);
 		else if (!Q_stricmp (cmd, "unmute"))
 			TDM_Unmute_f (ent);
+		else if (!Q_stricmp (cmd, "speclock"))
+			TDM_Speclock_f (ent);
+		else if (!Q_stricmp (cmd, "specinvite"))
+			TDM_Specinvite_f (ent);
 		else if (!Q_stricmp (cmd, "stopsound"))
 			return true;	//prevent chat from our stuffcmds on people who have no sound
 		else

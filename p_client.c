@@ -474,6 +474,8 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 		}
 
 		ValidateSelectedItem (self);
+		// update all spectating observers using SPEC_KILLER
+		TDM_UpdateSpectatorsOnEvent (SPEC_KILLER, self, attacker);
 	}
 
 	// remove powerups

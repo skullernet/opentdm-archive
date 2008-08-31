@@ -757,10 +757,7 @@ void Cmd_Kill_f (edict_t *ent)
 		return;
 #endif
 
-	if (tdm_match_status == MM_COUNTDOWN)
-		return;
-
-	if (tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
+	if (tdm_match_status == MM_COUNTDOWN || tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
 		return;
 
 	if (ent->health <= 0)

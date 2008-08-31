@@ -322,7 +322,10 @@ void Use_Quad (edict_t *ent, const gitem_t *item)
 	if (ent->client->quad_framenum > level.framenum)
 		ent->client->quad_framenum += timeout;
 	else
+	{
 		ent->client->quad_framenum = level.framenum + timeout;
+		TDM_UpdateSpectatorsOnEvent (SPEC_QUAD, ent, NULL);
+	}
 
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage.wav"), 1, ATTN_NORM, 0);
 }
@@ -367,7 +370,10 @@ void	Use_Invulnerability (edict_t *ent, const gitem_t *item)
 	if (ent->client->invincible_framenum > level.framenum)
 		ent->client->invincible_framenum += SECS_TO_FRAMES(30);
 	else
+	{
 		ent->client->invincible_framenum = level.framenum + SECS_TO_FRAMES(30);
+		TDM_UpdateSpectatorsOnEvent (SPEC_INVUL, ent, NULL);
+	}
 
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/protect.wav"), 1, ATTN_NORM, 0);
 }

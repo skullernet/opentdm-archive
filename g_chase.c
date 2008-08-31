@@ -89,6 +89,21 @@ void NextChaseMode (edict_t *ent)
 	}
 }
 
+void UpdateLockCam(edict_t *ent)
+{
+	/* position on the map */
+	ent->s.origin[0] = 0.0;
+	ent->s.origin[1] = 0.0;
+	ent->s.origin[2] = 4000.0;
+
+	/* view */
+	ent->client->ps.viewangles[ROLL] = 0;
+	ent->client->ps.viewangles[PITCH] = 90;
+	ent->client->ps.viewangles[YAW] = 0;
+
+	ent->client->ps.pmove.pm_type = PM_FREEZE;
+}
+
 void UpdateChaseCam(edict_t *ent)
 {
 	vec3_t o, ownerv, goal;
@@ -99,18 +114,21 @@ void UpdateChaseCam(edict_t *ent)
 	vec3_t oldgoal;
 	vec3_t angles;
 
-	// is our chase target gone?
-	if (!ent->client->chase_target->inuse || !ent->client->chase_target->client->pers.team)
+	targ = ent->client->chase_target;
+
+	// is our chase target gone? or team is speclocked and we are not allowed to spec
+	if (!targ->inuse || !targ->client->pers.team ||
+			(teaminfo[targ->client->pers.team].speclocked && !ent->client->pers.specinvite[targ->client->pers.team]))
 	{
-		edict_t *old = ent->client->chase_target;
 		ChaseNext(ent);
-		if (ent->client->chase_target == old)
+		if (ent->client->chase_target == targ)
 		{
 			DisableChaseCam (ent);
 			return;
 		}
 	}
 
+	/* update it again since it might be changed */
 	targ = ent->client->chase_target;
 
 	if (ent->client->chase_mode == CHASE_EYES)
@@ -187,15 +205,23 @@ void UpdateChaseCam(edict_t *ent)
 	gi.linkentity (ent);
 }
 
+void SetChase (edict_t *ent, edict_t *target)
+{
+	if (target != ent->client->chase_target && ent->client->chase_mode == CHASE_EYES)
+		ChaseEyeHack (ent, target, ent->client->chase_target);
+
+	ent->client->chase_target = target;
+	ent->client->update_chase = true;
+}
+
 void ChaseNext(edict_t *ent)
 {
 	int i;
-	edict_t *e, *old;
+	edict_t *e;
 
 	if (!ent->client->chase_target || tdm_match_status == MM_TIMEOUT)
 		return;
 
-	old = ent->client->chase_target;
 	i = ent->client->chase_target - g_edicts;
 	do
 	{
@@ -208,26 +234,20 @@ void ChaseNext(edict_t *ent)
 		if (!e->inuse)
 			continue;
 
-		if (e->client->pers.team)
+		if (e->client->pers.team && (!teaminfo[e->client->pers.team].speclocked || ent->client->pers.specinvite[e->client->pers.team]))
 			break;
 	} while (e != ent->client->chase_target);
 
-	if (e != old && ent->client->chase_mode == CHASE_EYES)
-		ChaseEyeHack (ent, e, old);
-
-	ent->client->chase_target = e;
-	ent->client->update_chase = true;
+	SetChase (ent, e);
 }
 
 void ChasePrev(edict_t *ent)
 {
 	int i;
-	edict_t *e, *old;
+	edict_t *e;
 
 	if (!ent->client->chase_target || tdm_match_status == MM_TIMEOUT)
 		return;
-
-	old = ent->client->chase_target;
 
 	i = ent->client->chase_target - g_edicts;
 	do
@@ -240,15 +260,11 @@ void ChasePrev(edict_t *ent)
 		if (!e->inuse)
 			continue;
 
-		if (e->client->pers.team)
+		if (e->client->pers.team && (!teaminfo[e->client->pers.team].speclocked || ent->client->pers.specinvite[e->client->pers.team]))
 			break;
 	} while (e != ent->client->chase_target);
 
-	if (e != old && ent->client->chase_mode == CHASE_EYES)
-		ChaseEyeHack (ent, e, old);
-
-	ent->client->chase_target = e;
-	ent->client->update_chase = true;
+	SetChase (ent, e);
 }
 
 void GetChaseTarget(edict_t *ent)
@@ -262,15 +278,23 @@ void GetChaseTarget(edict_t *ent)
 	for (i = 1; i <= game.maxclients; i++)
 	{
 		other = g_edicts + i;
-		if (other->inuse && other->client->pers.team)
+		if (other->inuse && other->client->pers.team &&
+				(!teaminfo[other->client->pers.team].speclocked || ent->client->pers.specinvite[other->client->pers.team]))
 		{
 			ent->client->chase_mode = CHASE_EYES;
-			ChaseEyeHack (ent, other, ent->client->chase_target);
-			ent->client->chase_target = other;
-			ent->client->update_chase = true;
+			SetChase (ent, other);
 			UpdateChaseCam(ent);
 			return;
 		}
+	}
+
+	/* lock spectator's view */
+	if (teaminfo[TEAM_A].speclocked && teaminfo[TEAM_B].speclocked)
+	{
+		ent->client->chase_mode = CHASE_LOCK;
+		gi.centerprintf(ent, "Both teams are locked against spectators.");
+		UpdateLockCam(ent);
+		return;
 	}
 
 	gi.centerprintf(ent, "No other players to chase.");

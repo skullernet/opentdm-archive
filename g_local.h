@@ -1046,6 +1046,7 @@ void G_RunEntity (edict_t *ent);
 //
 // g_chase.c
 //
+void UpdateLockCam(edict_t *ent);
 void UpdateChaseCam(edict_t *ent);
 void ChaseNext(edict_t *ent);
 void ChasePrev(edict_t *ent);
@@ -1053,6 +1054,7 @@ void GetChaseTarget(edict_t *ent);
 void DisableChaseCam (edict_t *ent);
 void NextChaseMode (edict_t *ent);
 void ChaseEyeHack (edict_t *ent, edict_t *newplayer, edict_t *oldplayer);
+void SetChase (edict_t *ent, edict_t *target);
 
 //opentdm
 
@@ -1103,6 +1105,7 @@ void TDM_ItemGrabbed (edict_t *ent, edict_t *player);
 
 void TDM_MacroExpand (edict_t *ent, char *text, int maxlength);
 void ToggleChaseCam (edict_t *ent);
+void TDM_UpdateSpectatorsOnEvent (int spec_mode, edict_t *target, edict_t *killer);
 
 extern matchmode_t	tdm_match_status;
 extern pmenu_t joinmenu[];
@@ -1298,6 +1301,7 @@ typedef struct
 	char		statname[32];
 	char		statstatus[16];
 	qboolean	locked;
+	qboolean	speclocked;
 	qboolean	ready;
 	edict_t		*captain;
 } teaminfo_t;
@@ -1335,6 +1339,16 @@ enum
 	CHASE_THIRDPERSON,
 	CHASE_FREE,
 	CHASE_MAX,
+	CHASE_LOCK,
+};
+
+enum
+{
+	SPEC_NONE,
+	SPEC_INVUL,
+	SPEC_QUAD,
+	SPEC_KILLER,
+	SPEC_LEADER,
 };
 
 typedef enum
@@ -1361,6 +1375,7 @@ typedef struct
 	const gitem_t	*last_weapon;
 	qboolean		shown_motd;
 	qboolean		disable_id_view;
+	qboolean		specinvite[MAX_TEAMS];
 
 	unsigned		mute_frame;		// mute player while game framenum < this
 } client_persistant_t;
@@ -1389,6 +1404,8 @@ typedef struct
 	int				last_id_health;
 	int				last_id_armor;
 	int				last_id_powerarmor;
+
+	int				spec_mode;				// bitmask
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),
