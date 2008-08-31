@@ -698,14 +698,6 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTwoClosest (void)
 	int		selection;
 	int		i;
 	float	range, range1, range2;
-
-	// wision: on maps with small number of spawns use just random spawn
-	if (level.numspawns < 6)
-	{
-		selection = genrand_int32() % level.numspawns;
-		spot = level.spawns[selection];
-		return spot;
-	}
 	
 	spot = NULL;
 	range1 = range2 = 99999;
@@ -741,6 +733,85 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTwoClosest (void)
 			range2 = range;
 			spot2 = spot;
 		}
+	}
+
+	if (g_debug_spawns->value)
+	{
+		if (spot1)
+		{
+			gi.WriteByte (svc_temp_entity);
+			gi.WriteByte (TE_DEBUGTRAIL);
+			gi.WritePosition (spot1->s.origin);
+			gi.WritePosition (player1->s.origin);
+			gi.multicast (NULL, MULTICAST_ALL);
+		}
+
+		if (spot2)
+		{
+			gi.WriteByte (svc_temp_entity);
+			gi.WriteByte (TE_DEBUGTRAIL);
+			gi.WritePosition (spot2->s.origin);
+			gi.WritePosition (player2->s.origin);
+			gi.multicast (NULL, MULTICAST_ALL);
+		}
+	}
+
+	if (!level.numspawns)
+		return NULL;
+
+	if (level.numspawns <= 2)
+		spot1 = spot2 = NULL;
+
+	do
+	{
+		selection = genrand_int32() % level.numspawns;
+		spot = level.spawns[selection];
+	} while (spot == spot1 || spot == spot2);
+
+	return spot;
+}
+
+
+/*
+================
+SelectRandomDeathmatchSpawnPointAvoidingTwoClosestBugged
+
+go to a random point, but NOT the two points closest
+to other players, buggy version
+================
+wision: this one ruins the game on small maps (i.e. with 4 spawn points)
+*/
+edict_t *SelectRandomDeathmatchSpawnPointAvoidingTwoClosestBugged (void)
+{
+	edict_t	*spot, *spot1, *spot2;
+	edict_t	*player, *player1, *player2;
+	int		selection;
+	int		i;
+	float	range, range1, range2;
+	
+	spot = NULL;
+	range1 = range2 = 99999;
+	spot1 = spot2 = NULL;
+	player1 = player2 = NULL;
+
+	for (i = 0; i < level.numspawns; i++)
+	{
+		spot = level.spawns[i];
+
+		range = PlayersRangeFromSpot(spot, &player);
+		if (range < range1)
+		{
+			player1 = player;
+			range1 = range;
+			spot1 = spot;
+		}
+		else if (range < range2)
+		{
+			player2 = player;
+			range2 = range;
+			spot2 = spot;
+		}
+
 	}
 
 	if (g_debug_spawns->value)
@@ -818,6 +889,16 @@ edict_t *SelectFarthestDeathmatchSpawnPoint (void)
 	return spot;
 }
 
+edict_t *SelectRandomDeathmatchSpawnPoint (void)
+{
+	edict_t	*spot;
+	int		selection;
+
+	selection = genrand_int32() % level.numspawns;
+	spot = level.spawns[selection];
+	return spot;
+}
+
 edict_t *SelectDeathmatchSpawnPoint (edict_t *player)
 {
 	//in the first 1 second of a match start, or the first 5 seconds of warmup, avoid telefrags above
@@ -829,9 +910,31 @@ edict_t *SelectDeathmatchSpawnPoint (edict_t *player)
 	}
 
 	if ( (int)(dmflags->value) & DF_SPAWN_FARTHEST)
+	{
 		return SelectFarthestDeathmatchSpawnPoint ();
+	}
 	else
-		return SelectRandomDeathmatchSpawnPointAvoidingTwoClosest ();
+	{
+		if (TDM_Is1V1())
+		{
+			if (level.numspawns < 6 && (int)g_1v1_spawn_mode->value & 4)
+				return SelectRandomDeathmatchSpawnPoint ();
+
+			if ((int)g_1v1_spawn_mode->value & 1)
+				return SelectRandomDeathmatchSpawnPointAvoidingTwoClosestBugged ();
+			else if ((int)g_1v1_spawn_mode->value & 2)
+				return SelectRandomDeathmatchSpawnPointAvoidingTwoClosest ();
+		}
+		else
+		{
+			if (g_tdm_spawn_mode->value == 0)
+				return SelectRandomDeathmatchSpawnPointAvoidingTwoClosestBugged ();
+			else if (g_tdm_spawn_mode->value == 1)
+				return SelectRandomDeathmatchSpawnPointAvoidingTwoClosest ();
+		}
+	}
+
+	return SelectRandomDeathmatchSpawnPoint ();
 }
 
 /*

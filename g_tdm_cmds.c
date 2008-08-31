@@ -805,6 +805,16 @@ char *TDM_SettingsString (void)
 	strcat (settings, "Gameplay bugs: ");
 	strcat (settings, TDM_SetColorText(va("%s\n", bugs_text[(int)g_bugs->value])));
 
+	strcat (settings, "1v1 Respawn mode: ");
+	if ((int)g_1v1_spawn_mode->value & 1)
+		strcat (settings, TDM_SetColorText(va ("%s", "avoid closest (bugged)")));
+	else if ((int)g_1v1_spawn_mode->value & 2)
+		strcat (settings, TDM_SetColorText(va ("%s", "avoid closest")));
+
+	if ((int)g_1v1_spawn_mode->value & 4)
+		strcat (settings, TDM_SetColorText(va ("%s", " (random on small maps)")));
+	strcat (settings, "\n");
+
 	return settings;
 }
 

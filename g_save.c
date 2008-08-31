@@ -260,6 +260,9 @@ void InitGame (void)
 
 	g_auto_rejoin_match = gi.cvar ("g_auto_rejoin_match", "1", 0);
 	g_auto_rejoin_map = gi.cvar ("g_auto_rejoin_map", "1", 0);
+
+	g_1v1_spawn_mode = gi.cvar ("g_1v1_spawn_mode", "1", 0);
+	g_tdm_spawn_mode = gi.cvar ("g_tdm_spawn_mode", "1", 0);
 	
 #ifdef _DEBUG
 	g_http_baseurl = gi.cvar ("g_http_baseurl", "http://localhost/api/", CVAR_NOSET);

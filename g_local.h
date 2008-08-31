@@ -820,6 +820,9 @@ extern	cvar_t	*g_allow_vote_config;
 extern	cvar_t	*g_auto_rejoin_match;
 extern	cvar_t	*g_auto_rejoin_map;
 
+extern	cvar_t	*g_1v1_spawn_mode;
+extern	cvar_t	*g_tdm_spawn_mode;
+
 #define world	(&g_edicts[0])
 
 // item spawnflags
