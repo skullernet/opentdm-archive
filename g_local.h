@@ -1239,6 +1239,9 @@ typedef struct vote_s
 	unsigned		overtimemins;
 	char			configname[MAX_QPATH];
 	char			*vote_string;
+
+	edict_t			*last_initiator;
+	unsigned		last_vote_end_frame;
 } vote_t;
 
 typedef struct vote_menu_s

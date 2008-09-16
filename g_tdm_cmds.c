@@ -645,7 +645,16 @@ void TDM_Timeout_f (edict_t *ent)
 		else
 		{
 			//someone tried to resume a time out
-			if (level.tdm_timeout_caller->client == NULL)
+			if (!level.tdm_timeout_caller)
+			{
+				//ugly fix for 0000096
+				if (!ent->client->pers.admin)
+				{
+					gi.cprintf (ent, PRINT_HIGH, "Only an admin can resume play.\n");
+					return;
+				}
+			}
+			else if (level.tdm_timeout_caller->client == NULL)
 			{
 				gi.cprintf (ent, PRINT_HIGH, "Match will automatically resume once %s reconnects.\n", level.tdm_timeout_caller->name);
 				return;
@@ -805,14 +814,27 @@ char *TDM_SettingsString (void)
 	strcat (settings, "Gameplay bugs: ");
 	strcat (settings, TDM_SetColorText(va("%s\n", bugs_text[(int)g_bugs->value])));
 
-	strcat (settings, "1v1 Respawn mode: ");
-	if ((int)g_1v1_spawn_mode->value & 1)
-		strcat (settings, TDM_SetColorText(va ("%s", "avoid closest (bugged)")));
-	else if ((int)g_1v1_spawn_mode->value & 2)
-		strcat (settings, TDM_SetColorText(va ("%s", "avoid closest")));
+	if (TDM_Is1V1())
+	{
+		strcat (settings, "1v1 Respawn mode: ");
+		if ((int)g_1v1_spawn_mode->value & 1)
+			strcat (settings, TDM_SetColorText(va ("%s", "avoid closest (bugged)")));
+		else if ((int)g_1v1_spawn_mode->value & 2)
+			strcat (settings, TDM_SetColorText(va ("%s", "avoid closest")));
 
-	if ((int)g_1v1_spawn_mode->value & 4)
-		strcat (settings, TDM_SetColorText(va ("%s", " (random on small maps)")));
+		if ((int)g_1v1_spawn_mode->value & 4)
+			strcat (settings, TDM_SetColorText(va ("%s", " (random on small maps)")));
+	}
+	else
+	{
+		strcat (settings, "TDM Respawn mode: ");
+		if (g_tdm_spawn_mode->value == 0)
+			strcat (settings, TDM_SetColorText(va ("%s", "avoid closest (bugged)")));
+		else if (g_tdm_spawn_mode->value == 1)
+			strcat (settings, TDM_SetColorText(va ("%s", "avoid closest")));
+		else
+			strcat (settings, TDM_SetColorText(va ("%s", "random")));
+	}
 	strcat (settings, "\n");
 
 	return settings;

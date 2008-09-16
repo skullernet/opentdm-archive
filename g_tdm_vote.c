@@ -466,8 +466,14 @@ Reset vote and all players' votes.
 void TDM_RemoveVote (void)
 {
 	edict_t	*ent;
+	edict_t	*initiator;
+
+	initiator = vote.initiator;
 
 	memset (&vote, 0, sizeof(vote));
+
+	vote.last_initiator = initiator;
+	vote.last_vote_end_frame = level.framenum;
 
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
@@ -1828,6 +1834,12 @@ void TDM_Vote_f (edict_t *ent)
 	if (vote.active && vote.initiator != ent && Q_stricmp (cmd, "yes") && Q_stricmp (cmd, "no"))
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Another vote is already in progress.\n");
+		return;
+	}
+
+	if (!ent->client->pers.admin && ent == vote.last_initiator && level.framenum - vote.last_vote_end_frame < SECS_TO_FRAMES(10))
+	{
+		gi.cprintf (ent, PRINT_HIGH, "You must wait a short time before proposing another vote.\n");
 		return;
 	}
 

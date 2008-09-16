@@ -117,7 +117,6 @@ void ChangeWeapon (edict_t *ent)
 			(ent->client->grenade_state == GRENADE_THROWN && g_bugs->value >= 1))
 		{
 			ent->client->grenade_time = level.time;
-			ent->client->weapon_sound = 0;
 			weapon_grenade_fire (ent, false);
 			ent->client->grenade_time = 0;
 		}
@@ -127,6 +126,7 @@ void ChangeWeapon (edict_t *ent)
 	ent->client->weapon = ent->client->newweapon;
 	ent->client->newweapon = NULL;
 	ent->client->machinegun_shots = 0;
+	ent->client->weapon_sound = 0;
 
 	SetVWepInfo (ent);
 

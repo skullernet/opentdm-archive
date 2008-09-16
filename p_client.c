@@ -931,6 +931,8 @@ edict_t *SelectDeathmatchSpawnPoint (edict_t *player)
 				return SelectRandomDeathmatchSpawnPointAvoidingTwoClosestBugged ();
 			else if (g_tdm_spawn_mode->value == 1)
 				return SelectRandomDeathmatchSpawnPointAvoidingTwoClosest ();
+			else if (g_tdm_spawn_mode->value == 2)
+				return SelectRandomDeathmatchSpawnPoint ();
 		}
 	}
 

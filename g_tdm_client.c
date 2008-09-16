@@ -135,8 +135,8 @@ void TDM_LeftTeam (edict_t *ent, qboolean notify)
 	if (teaminfo[oldteam].captain == ent)
 		TDM_SetCaptain (oldteam, TDM_FindPlayerForTeam (oldteam));
 
-	//resume play if this guy called time?
-	if (tdm_match_status == MM_TIMEOUT && level.tdm_timeout_caller->client == ent)
+	//resume play if this guy called time and game isn't already resuming?
+	if (tdm_match_status == MM_TIMEOUT && level.tdm_timeout_caller->client == ent && level.timeout_end_framenum)
 		TDM_ResumeGame ();
 }
 

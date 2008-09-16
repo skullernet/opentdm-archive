@@ -964,6 +964,12 @@ All players are ready so start the countdown
 */
 void TDM_BeginCountdown (void)
 {
+	//set this here so settingsstring knows about it
+	if (teaminfo[TEAM_A].players == 1 && teaminfo[TEAM_B].players == 1)
+		level.tdm_pseudo_1v1mode = true;
+	else
+		level.tdm_pseudo_1v1mode = false;
+
 	gi.bprintf (PRINT_HIGH, "Match Settings:\n%s", TDM_SettingsString ());
 
 	gi.bprintf (PRINT_CHAT, "All players ready! Starting countdown (%g secs)...\n", g_match_countdown->value);
@@ -973,11 +979,6 @@ void TDM_BeginCountdown (void)
 		TDM_RemoveVote ();
 
 	tdm_match_status = MM_COUNTDOWN;
-
-	if (teaminfo[TEAM_A].players == 1 && teaminfo[TEAM_B].players == 1)
-		level.tdm_pseudo_1v1mode = true;
-	else
-		level.tdm_pseudo_1v1mode = false;
 
 	//called to apply a temporary hack for people who do 1v1 on tdm mode
 	TDM_UpdateTeamNames ();
