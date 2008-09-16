@@ -468,7 +468,11 @@ void TDM_RemoveVote (void)
 	edict_t	*ent;
 	edict_t	*initiator;
 
-	initiator = vote.initiator;
+	//only track failed votes for anti-spam
+	if (vote.success != VOTE_SUCCESS)
+		initiator = vote.initiator;
+	else
+		initiator = NULL;
 
 	memset (&vote, 0, sizeof(vote));
 
