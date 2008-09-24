@@ -2060,8 +2060,11 @@ void TDM_SetupSpawns (void)
 		level.spawns[count] = spot;
 		count++;
 
-		if (count > 32)
+		if (count > TDM_MAX_MAP_SPAWNPOINTS)
+		{
+			TDM_Error ("TDM_SetupSpawns: too many spawn points");
 			break;
+		}
 	}
 
 	level.numspawns = count;
@@ -2975,7 +2978,7 @@ void TDM_UpdateSpectator (edict_t *ent)
 		}
 	}
 
-	if (ent->client->resp.spec_mode == SPEC_LEADER)
+	if (ent->client->resp.spec_mode == SPEC_LEADER && tmp)
 			SetChase (ent, tmp);
 }
 
@@ -3019,14 +3022,16 @@ void TDM_UpdateSpectatorsOnEvent (int spec_mode, edict_t *target, edict_t *kille
 
 	for (e = g_edicts + 1; e <= g_edicts + game.maxclients; e++)
 	{
-		// we are looking for a spectator
-		if (!e->inuse || e->client->pers.team)
+		// we are looking for a spectator who wants an auto-followed POV
+		if (!e->inuse || e->client->pers.team || e->client->resp.spec_mode == SPEC_NONE)
 			continue;
 
-		// don't bother with spectators who are not allowed to do watch anything
+		// don't bother with spectators who are not allowed to watch anything
 		if (teaminfo[TEAM_A].speclocked && teaminfo[TEAM_B].speclocked &&
 				e->client->pers.specinvite[TEAM_A] && e->client->pers.specinvite[TEAM_B])
 			continue;
+
+		new_target = NULL;
 
 		if (spec_mode == SPEC_KILLER)
 		{

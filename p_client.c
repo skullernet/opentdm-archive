@@ -591,6 +591,15 @@ float	PlayersRangeFromSpot (edict_t *spot, edict_t **closest_player)
 	return bestplayerdistance;
 }
 
+int EXPORT RandomSort (const void *a, const void *b)
+{
+	int	i;
+
+	i = (genrand_int31 () % 3) - 1;
+
+	return i;
+}
+
 /*
 ================
 SelectRandomDeathmatchSpawnPointAvoidingTelefrag
@@ -601,6 +610,8 @@ on them
 */
 edict_t *SelectRandomDeathmatchSpawnPointAvoidingTelefrag (edict_t *player)
 {
+	edict_t				*spawnlist[TDM_MAX_MAP_SPAWNPOINTS];
+
 	//nasty! but we only need origin and angles.
 	static edict_t		fake_spawn;
 
@@ -608,15 +619,17 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTelefrag (edict_t *player)
 	static vec3_t	mins = {-16, -16, -24};
 	static vec3_t	maxs = {16, 16, 32};
 
-	int				i, x;
+	int				i;
 	edict_t			*spawn;
 	edict_t			*occupier;
 
+	memcpy (spawnlist, level.spawns, sizeof(spawnlist));
+	qsort (spawnlist, level.numspawns, sizeof(spawnlist[0]), RandomSort);
+
 	//all spots could be taken, so don't while(1)
-	for (i = 0; i < 100; i++)
+	for (i = 0; i < level.numspawns; i++)
 	{
-		x = genrand_int32() % level.numspawns;
-		spawn = level.spawns[x];
+		spawn = spawnlist[i];
 
 		//64 should be safe enough...
 		if (PlayersRangeFromSpot (spawn, NULL) < 64)
@@ -625,12 +638,13 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTelefrag (edict_t *player)
 		return spawn;
 	}
 
+	gi.dprintf ("SelectRandomDeathmatchSpawnPointAvoidingTelefrag: All spawn points occupied, doing team search.\n");
+
 	//all spots were taken, so go again, this time looking for spawns taken by teammates
 	//and check if we can spawn next to them
-	for (i = 0; i < 100; i++)
+	for (i = 0; i < level.numspawns; i++)
 	{
-		x = genrand_int32() % level.numspawns;
-		spawn = level.spawns[x];
+		spawn = spawnlist[i];
 
 		//64 should be safe enough...
 		if (PlayersRangeFromSpot (spawn, &occupier) < 64)
@@ -643,6 +657,8 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTelefrag (edict_t *player)
 			//its occupied, is it a teammate?
 			if (occupier->client->pers.team != player->client->pers.team)
 				continue;
+
+			gi.dprintf ("SelectRandomDeathmatchSpawnPointAvoidingTelefrag: Trying to spawn %s next to %s\n", player->client->pers.netname, occupier->client->pers.netname);
 
 			AngleVectors (spawn->s.angles, forward, right, NULL);
 
@@ -663,21 +679,30 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTelefrag (edict_t *player)
 					VectorMA (start, 80, forward, test);
 
 				//check the player fits and there is clearance to the original spawn
+				//unlink the client who is already there first!
+				gi.unlinkentity (occupier);
 				tr = gi.trace (start, mins, maxs, test, spawn, MASK_PLAYERSOLID);
+				gi.linkentity (occupier);
+
 				if (!tr.allsolid && !tr.startsolid && tr.fraction == 1.0f)
 				{
+					gi.dprintf ("SelectRandomDeathmatchSpawnPointAvoidingTelefrag: Using fake spawn for %s\n", player->client->pers.netname);
 					VectorCopy (test, fake_spawn.s.origin);
 					VectorCopy (spawn->s.angles, fake_spawn.s.angles);
 					return &fake_spawn;
 				}
 			}
+
+			gi.dprintf ("SelectRandomDeathmatchSpawnPointAvoidingTelefrag: Failed to find space next to %s for %s\n", occupier->client->pers.netname, player->client->pers.netname);
 			
 			continue;
 		}
 
+		gi.dprintf ("SelectRandomDeathmatchSpawnPointAvoidingTelefrag: BUG: Spawn that was previously marked occupied became available!\n");
 		return spawn;
 	}
 
+	gi.dprintf ("SelectRandomDeathmatchSpawnPointAvoidingTelefrag: Failed to find ANY suitable spawn point, using random!!\n");
 	//oh well, whatever works..
 	return spawn;
 }

@@ -440,6 +440,8 @@ typedef struct
 #define WEAP_RAILGUN			10
 #define WEAP_BFG				11
 
+#define	TDM_MAX_MAP_SPAWNPOINTS	32
+
 typedef struct matchinfo_s matchinfo_t;
 typedef struct teamplayer_s teamplayer_t;
 
@@ -539,7 +541,7 @@ typedef struct
 	int				warmup_start_framenum;
 
 	int				numspawns;
-	edict_t			*spawns[32];
+	edict_t			*spawns[TDM_MAX_MAP_SPAWNPOINTS];
 } level_locals_t;
 
 

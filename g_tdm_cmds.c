@@ -2285,7 +2285,7 @@ void TDM_Spectate_f (edict_t *ent)
 		ent->client->resp.spec_mode = SPEC_LEADER;
 	else
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Usage: '%s' [quad/invul/killer/leader/none]\n", gi.argv(0));
+		gi.cprintf (ent, PRINT_HIGH, "Usage: %s [quad/invul/killer/leader/none]\n", gi.argv(0));
 		return;
 	}
 

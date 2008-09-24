@@ -301,7 +301,7 @@ char *TDM_BuildAccuracyString (edict_t *ent, teamplayer_t *info)
 	if (total_shot)
 		strcat (stats, va("Overall accuracy: %.1f%%\n", ((float)total_hit / (float)total_shot) * 100));
 	else
-		strcat (stats, "Overall accuracy: 0%%\n");
+		strcat (stats, "Overall accuracy: 0%\n");
 
 	return stats;
 }
@@ -375,7 +375,7 @@ char *TDM_BuildTeamAccuracyString (edict_t *ent, matchinfo_t *info, unsigned tea
 	if (total_shot)
 		strcat (stats, va("Overall accuracy: %.1f%%\n", ((float)total_hit / (float)total_shot) * 100));
 	else
-		strcat (stats, "Overall accuracy: 0%%\n");
+		strcat (stats, "Overall accuracy: 0%\n");
 
 	return stats;
 }
