@@ -1152,6 +1152,9 @@ void TDM_EndMatch (void)
 	int			winner, loser;
 	edict_t		*ent;
 
+	//cancel any mid-game vote (restart, etc)
+	TDM_RemoveVote ();
+
 	//have to set this here so the stats system doesn't think we're still playing
 	tdm_match_status = MM_SCOREBOARD;
 

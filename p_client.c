@@ -544,6 +544,16 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 =======================================================================
 */
 
+edict_t *SelectRandomDeathmatchSpawnPoint (void)
+{
+	edict_t	*spot;
+	int		selection;
+
+	selection = genrand_int32() % level.numspawns;
+	spot = level.spawns[selection];
+	return spot;
+}
+
 /*
 ================
 PlayersRangeFromSpot
@@ -703,8 +713,9 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTelefrag (edict_t *player)
 	}
 
 	gi.dprintf ("SelectRandomDeathmatchSpawnPointAvoidingTelefrag: Failed to find ANY suitable spawn point, using random!!\n");
+
 	//oh well, whatever works..
-	return spawn;
+	return SelectRandomDeathmatchSpawnPoint ();
 }
 
 /*
@@ -911,16 +922,6 @@ edict_t *SelectFarthestDeathmatchSpawnPoint (void)
 	// we have no choice to turn one into a telefrag meltdown
 	spot = G_Find (NULL, FOFS(classname), "info_player_deathmatch");
 
-	return spot;
-}
-
-edict_t *SelectRandomDeathmatchSpawnPoint (void)
-{
-	edict_t	*spot;
-	int		selection;
-
-	selection = genrand_int32() % level.numspawns;
-	spot = level.spawns[selection];
 	return spot;
 }
 
