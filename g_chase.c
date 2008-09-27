@@ -21,34 +21,42 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 void ChaseEyeHack (edict_t *ent, edict_t *newplayer, edict_t *oldplayer)
 {
+	if (newplayer)
+		ent->client->clientNum = newplayer - g_edicts - 1;
+	else
+		ent->client->clientNum = ent - g_edicts - 1;
+
 	//yes this is sent twice on purpose - sending unreliable will ensure model is hidden
 	//at the same time the new packetentities arrives, otherwise there will be a brief
 	//duration if there is pending reliable where the model blocks the view.
 
-	if (newplayer)
+	if (!(game.server_features & GMF_CLIENTNUM))
 	{
-		gi.WriteByte (svc_configstring);
-		gi.WriteShort (CS_PLAYERSKINS + (newplayer - g_edicts) - 1);
-		gi.WriteString (va ("%s\\opentdm/null", newplayer->client->pers.netname));
-		gi.unicast (ent, true);
+		if (newplayer)
+		{
+			gi.WriteByte (svc_configstring);
+			gi.WriteShort (CS_PLAYERSKINS + (newplayer - g_edicts) - 1);
+			gi.WriteString (va ("%s\\opentdm/null", newplayer->client->pers.netname));
+			gi.unicast (ent, true);
 
-		gi.WriteByte (svc_configstring);
-		gi.WriteShort (CS_PLAYERSKINS + (newplayer - g_edicts) - 1);
-		gi.WriteString (va ("%s\\opentdm/null", newplayer->client->pers.netname));
-		gi.unicast (ent, false);
-	}
+			gi.WriteByte (svc_configstring);
+			gi.WriteShort (CS_PLAYERSKINS + (newplayer - g_edicts) - 1);
+			gi.WriteString (va ("%s\\opentdm/null", newplayer->client->pers.netname));
+			gi.unicast (ent, false);
+		}
 
-	if (oldplayer)
-	{
-		gi.WriteByte (svc_configstring);
-		gi.WriteShort (CS_PLAYERSKINS + (oldplayer - g_edicts) - 1);
-		gi.WriteString (va ("%s\\%s", oldplayer->client->pers.netname, teaminfo[oldplayer->client->pers.team].skin));
-		gi.unicast (ent, true);
+		if (oldplayer)
+		{
+			gi.WriteByte (svc_configstring);
+			gi.WriteShort (CS_PLAYERSKINS + (oldplayer - g_edicts) - 1);
+			gi.WriteString (va ("%s\\%s", oldplayer->client->pers.netname, teaminfo[oldplayer->client->pers.team].skin));
+			gi.unicast (ent, true);
 
-		gi.WriteByte (svc_configstring);
-		gi.WriteShort (CS_PLAYERSKINS + (oldplayer - g_edicts) - 1);
-		gi.WriteString (va ("%s\\%s", oldplayer->client->pers.netname, teaminfo[oldplayer->client->pers.team].skin));
-		gi.unicast (ent, false);
+			gi.WriteByte (svc_configstring);
+			gi.WriteShort (CS_PLAYERSKINS + (oldplayer - g_edicts) - 1);
+			gi.WriteString (va ("%s\\%s", oldplayer->client->pers.netname, teaminfo[oldplayer->client->pers.team].skin));
+			gi.unicast (ent, false);
+		}
 	}
 }
 
@@ -64,6 +72,8 @@ void DisableChaseCam (edict_t *ent)
 	ent->client->ps.viewangles[ROLL] = 0;
 	ent->client->chase_target = NULL;
 	ent->client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
+
+	ent->client->clientNum = ent - g_edicts - 1;
 }
 
 void NextChaseMode (edict_t *ent)

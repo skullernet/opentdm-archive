@@ -498,6 +498,8 @@ typedef struct
 	int			num_items;
 
 	char		gamedir[MAX_QPATH];
+
+	int			server_features;
 } game_locals_t;
 
 
@@ -1423,6 +1425,7 @@ struct gclient_s
 	// known to server
 	player_state_t	ps;				// communicated by server to clients
 	int				ping;
+	int				clientNum;
 
 	// private to game
 	client_persistant_t	pers;
@@ -1700,3 +1703,16 @@ struct edict_s
 	enttype_t	enttype;
 };
 
+//server features
+// server is able to read clientNum field from gclient_s struct and hide appropriate entity from client
+// game DLL fills clientNum with useful information (current POV index)
+#define GMF_CLIENTNUM   1
+
+// game DLL always sets 'inuse' flag properly allowing the server to reject entities quickly
+#define GMF_PROPERINUSE 2
+
+// server will set '\mvdspec\<version>' key/value pair in userinfo string if (and only if) client is dummy MVD client (this client represents all MVD spectators and is needed for scoreboard support, etc)
+#define GMF_MVDSPEC     4
+
+// inform game DLL of disconnects between level changes
+#define GMF_WANT_ALL_DISCONNECTS 8

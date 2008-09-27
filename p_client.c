@@ -1155,6 +1155,8 @@ void PutClientInServer (edict_t *ent)
 	client->resp = respsaved;
 	client->pers = saved;
 
+	client->clientNum = ent - g_edicts - 1;
+
 	// copy some data from the client to the entity
 	//FetchClientEntData (ent);
 

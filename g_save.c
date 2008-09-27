@@ -130,6 +130,9 @@ is loaded.
 */
 void InitGame (void)
 {
+	cvar_t	*g_features;
+	cvar_t	*sv_features;
+
 	gi.dprintf ("==== InitGame ====\n");
 
 	init_genrand ((unsigned long)time(NULL));
@@ -283,6 +286,19 @@ void InitGame (void)
 	game.maxclients = (int)maxclients->value;
 	game.clients = gi.TagMalloc (game.maxclients * sizeof(game.clients[0]), TAG_GAME);
 	globals.num_edicts = game.maxclients+1;
+
+	//game/server feature suppotr - export what we support and read what the server supports
+
+	//ensure it has NOSET if it didn't exist
+	g_features = gi.cvar ("g_features", "0", CVAR_NOSET);
+	gi.cvar_forceset ("g_features", va("%d", GMF_CLIENTNUM | GMF_WANT_ALL_DISCONNECTS | GMF_PROPERINUSE));
+
+	//init server features
+	sv_features = gi.cvar ("sv_features", NULL, 0);
+	if (sv_features)
+		game.server_features = (int)sv_features->value;
+	else
+		game.server_features = 0;
 
 	TDM_Init ();
 }

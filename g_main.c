@@ -158,6 +158,8 @@ void ShutdownGame (void)
 {
 	gi.dprintf ("==== ShutdownGame ====\n");
 
+	gi.cvar_forceset ("g_features", "0");
+
 	gi.FreeTags (TAG_LEVEL);
 	gi.FreeTags (TAG_GAME);
 }
