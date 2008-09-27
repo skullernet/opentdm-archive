@@ -1576,13 +1576,16 @@ void TDM_SetupMatchInfoAndTeamPlayers (void)
 	{
 		//for old servers, we may need to detect and cleanup any stale clients from map changes. we do this here
 		//since we don't want to prematurely kill someone who may be taking a long time to connect (eg, map download)
-		if (!ent->inuse && ent->client->pers.connected)
+		if (!ent->inuse)
 		{
-			gi.dprintf ("TDM_SetupMatchInfoAndTeamPlayers: Unclean disconnect of client %d.\n", ent - g_edicts - 1);
-			memset (&ent->client->pers, 0, sizeof(ent->client->pers));
-			ent->solid = SOLID_NOT;
-			ent->s.modelindex = ent->s.effects = ent->s.sound = 0;
-			gi.unlinkentity (ent);
+			if (ent->client->pers.connected)
+			{
+				gi.dprintf ("TDM_SetupMatchInfoAndTeamPlayers: Unclean disconnect of client %d.\n", ent - g_edicts - 1);
+				memset (&ent->client->pers, 0, sizeof(ent->client->pers));
+				ent->solid = SOLID_NOT;
+				ent->s.modelindex = ent->s.effects = ent->s.sound = 0;
+				gi.unlinkentity (ent);
+			}
 			continue;
 		}
 

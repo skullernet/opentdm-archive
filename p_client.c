@@ -1588,18 +1588,19 @@ qboolean ClientConnect (edict_t *ent, char *userinfo)
 ClientDisconnect
 
 Called when a player drops from the server.
-Will not be called between levels.
+Will be called between levels on supported servers.
 ============
 */
 void ClientDisconnect (edict_t *ent)
 {
-	int		playernum;
+	int			playernum;
+	qboolean	wasInUse;
 
 	if (!ent->client)
 		return;
 
 	// send effect (only if they were in game)
-	if (ent->client->pers.team)
+	if (ent->client->pers.team && ent->inuse)
 	{
 		gi.WriteByte (svc_muzzleflash);
 		gi.WriteShort (ent-g_edicts);
@@ -1608,6 +1609,8 @@ void ClientDisconnect (edict_t *ent)
 	}
 
 	gi.unlinkentity (ent);
+
+	wasInUse = ent->inuse;
 
 	ent->inuse = false;
 
@@ -1624,7 +1627,8 @@ void ClientDisconnect (edict_t *ent)
 	ent->classname = "disconnected";
 	ent->client->pers.connected = false;
 
-	gi.bprintf (PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
+	if (wasInUse)
+		gi.bprintf (PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
 
 	playernum = ent-g_edicts-1;
 

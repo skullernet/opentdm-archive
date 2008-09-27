@@ -124,7 +124,8 @@ void TDM_LeftTeam (edict_t *ent, qboolean notify)
 {
 	int	oldteam;
 
-	gi.bprintf (PRINT_HIGH, "%s left team '%s'\n", ent->client->pers.netname, teaminfo[ent->client->pers.team].name);
+	if (notify)
+		gi.bprintf (PRINT_HIGH, "%s left team '%s'\n", ent->client->pers.netname, teaminfo[ent->client->pers.team].name);
 
 	oldteam = ent->client->pers.team;
 
