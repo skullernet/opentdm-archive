@@ -382,7 +382,8 @@ void TDM_BeginMatch (void)
 	//should already be 0, check this is needed
 	teaminfo[TEAM_A].score = teaminfo[TEAM_B].score = 0;
 
-	//put everyone in the server and go!
+	//psuedo-kill everyone first to prevent the spawnspot selection from being able to be controlled
+	//by positioning in warmup and also possible telefrag conditions
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
 		if (!ent->inuse)
@@ -396,6 +397,18 @@ void TDM_BeginMatch (void)
 			//fake kill them first so the spawnpoint code doesn't consider them standing on a spot
 			//if they were on one during warmup
 			ent->health = 0;
+			gi.unlinkentity (ent);
+		}
+	}
+
+	//put everyone in the server and go!
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+	{
+		if (!ent->inuse)
+			continue;
+
+		if (ent->client->pers.team)
+		{
 			respawn (ent);
 		}
 	}
