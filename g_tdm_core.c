@@ -855,7 +855,8 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			cl = &game.clients[i];
 			if (!cl_ent->inuse ||
 				cl_ent->solid != SOLID_NOT ||
-				cl_ent->client->pers.team != TEAM_SPEC)
+				cl_ent->client->pers.team != TEAM_SPEC ||
+				cl_ent->client->pers.mvdclient)
 				continue;
 
 			if (!drawn_header)
@@ -1679,6 +1680,9 @@ int LookupPlayer (const char *match, edict_t **out, edict_t *ent)
 			if (!p->inuse)
 				continue;
 
+			if (p->client->pers.mvdclient)
+				continue;
+
 			Q_strncpy (lowered, p->client->pers.netname, sizeof(lowered)-1);
 			Q_strlwr (lowered);
 
@@ -1711,7 +1715,7 @@ int LookupPlayer (const char *match, edict_t **out, edict_t *ent)
 	{
 		p = g_edicts + 1 + numericMatch;
 
-		if (!p->inuse)
+		if (!p->inuse || p->client->pers.mvdclient)
 		{
 			if (ent)
 				gi.cprintf (ent, PRINT_HIGH, "Client %d is not active.\n", numericMatch);
@@ -1952,8 +1956,11 @@ void CountPlayers (void)
 	{
 		if (ent->inuse)
 		{
-			teaminfo[ent->client->pers.team].players++;
-			total++;
+			if (!ent->client->pers.mvdclient)
+			{
+				teaminfo[ent->client->pers.team].players++;
+				total++;
+			}
 		}
 	}
 }
@@ -2510,19 +2517,7 @@ void TDM_SetSkins (void)
 				gi.configstring (CS_PLAYERSKINS + (ent - g_edicts) - 1, va("%s\\%s", ent->client->pers.netname, teaminfo[i].skin));
 			}	
 		}
-
-		//fix skin hack for spectators
-		for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
-		{
-			if (!ent->inuse)
-				continue;
-
-			if (ent->client->chase_target && ent->client->chase_mode == CHASE_EYES)
-				ChaseEyeHack (ent, ent->client->chase_target, NULL);
-		}
 	}
-
-	//TDM_UpdateSounds ();
 }
 
 /*

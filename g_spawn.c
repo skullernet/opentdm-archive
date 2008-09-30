@@ -925,8 +925,8 @@ void SP_worldspawn (edict_t *ent)
 
 	//this is to force precache of the opentdm 'invisible player' model so it
 	//is auto downloaded (hopefully!)
-	gi.modelindex ("players/opentdm/tris.md2");
-	gi.modelindex ("players/opentdm/weapon.md2");
+	//gi.modelindex ("players/opentdm/tris.md2");
+	//gi.modelindex ("players/opentdm/weapon.md2");
 
 	//gi.configstring (CS_PLAYERSKINS+255, "null\\opentdm/null");
 

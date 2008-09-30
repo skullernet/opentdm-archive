@@ -1077,6 +1077,9 @@ void Cmd_PlayerList_f (edict_t *ent)
 		if (!e2->inuse)
 			continue;
 
+		if (e2->client->pers.mvdclient)
+			continue;
+
 		if (ent->client->pers.admin)
 		{
 			char	*p;

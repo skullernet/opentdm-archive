@@ -1060,7 +1060,6 @@ void ChasePrev(edict_t *ent);
 void GetChaseTarget(edict_t *ent);
 void DisableChaseCam (edict_t *ent);
 void NextChaseMode (edict_t *ent);
-void ChaseEyeHack (edict_t *ent, edict_t *newplayer, edict_t *oldplayer);
 void SetChase (edict_t *ent, edict_t *target);
 
 //opentdm
@@ -1097,7 +1096,6 @@ void TDM_Disconnected (edict_t *ent);
 qboolean TDM_ServerCommand (const char *cmd);
 void TDM_UpdateTeamNames (void);
 void TDM_SetupSounds (void);
-void TDM_GlobalClientSound (edict_t *ent, int channel, int soundindex, float volume, float attenuation, float timeofs);
 char *TDM_SetColorText (char *buffer);
 void TDM_PlayerNameChanged (edict_t *ent);
 void TDM_WeaponFired (edict_t *ent);
@@ -1388,6 +1386,7 @@ typedef struct
 	qboolean		specinvite[MAX_TEAMS];
 
 	unsigned		mute_frame;		// mute player while game framenum < this
+	qboolean		mvdclient;
 } client_persistant_t;
 
 typedef struct

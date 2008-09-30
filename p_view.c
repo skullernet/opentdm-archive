@@ -142,7 +142,7 @@ void P_DamageFeedback (edict_t *player)
 			l = SND_PAIN75_1;
 		else
 			l = SND_PAIN100_1;
-		TDM_GlobalClientSound (player, CHAN_VOICE, soundcache[l + r], 1, ATTN_NORM, 0);
+		gi.sound (player, CHAN_VOICE, soundcache[l + r], 1, ATTN_NORM, 0);
 	}
 
 	// the total alpha of the blend is always proportional to count
@@ -559,9 +559,9 @@ void P_FallingDamage (edict_t *ent)
 		if (ent->health > 0)
 		{
 			if (delta >= 55)
-				TDM_GlobalClientSound (ent, CHAN_AUTO, soundcache[SND_FALL1], 1, ATTN_NORM, 0);
+				gi.sound (ent, CHAN_AUTO, soundcache[SND_FALL1], 1, ATTN_NORM, 0);
 			else
-				TDM_GlobalClientSound (ent, CHAN_AUTO, soundcache[SND_FALL2], 1, ATTN_NORM, 0);
+				gi.sound (ent, CHAN_AUTO, soundcache[SND_FALL2], 1, ATTN_NORM, 0);
 		}
 		ent->pain_debounce_time = level.time;	// no normal pain sound
 		damage = (delta-30)/2;
@@ -692,9 +692,9 @@ void P_WorldEffects (void)
 				if (current_player->health <= current_player->dmg)
 					gi.sound (current_player, CHAN_VOICE, gi.soundindex("player/drown1.wav"), 1, ATTN_NORM, 0);
 				else if (genrand_int32()&1)
-					TDM_GlobalClientSound (current_player, CHAN_VOICE, soundcache[SND_GURP1], 1, ATTN_NORM, 0);
+					gi.sound (current_player, CHAN_VOICE, soundcache[SND_GURP1], 1, ATTN_NORM, 0);
 				else
-					TDM_GlobalClientSound (current_player, CHAN_VOICE, soundcache[SND_GURP2], 1, ATTN_NORM, 0);
+					gi.sound (current_player, CHAN_VOICE, soundcache[SND_GURP2], 1, ATTN_NORM, 0);
 
 				current_player->pain_debounce_time = level.time;
 

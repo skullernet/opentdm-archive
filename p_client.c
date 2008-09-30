@@ -523,7 +523,7 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 				self->client->anim_end = FRAME_death308;
 				break;
 			}
-			TDM_GlobalClientSound (self, CHAN_VOICE, soundcache[SND_DEATH1 + genrand_int32() % 4], 1, ATTN_NORM, 0);
+			gi.sound (self, CHAN_VOICE, soundcache[SND_DEATH1 + genrand_int32() % 4], 1, ATTN_NORM, 0);
 		}
 	}
 
@@ -1416,6 +1416,18 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	{
 		strncpy (ent->client->pers.ip, Info_ValueForKey(userinfo, "ip"), sizeof(ent->client->pers.ip)-1);
 		strncpy (ent->client->pers.userinfo, userinfo, sizeof(ent->client->pers.userinfo)-1);
+
+		if (game.server_features & GMF_MVDSPEC)
+		{
+			s = Info_ValueForKey (userinfo, "mvdspec");
+			if (s[0])
+				ent->client->pers.mvdclient = true;
+			else
+				ent->client->pers.mvdclient = false;
+		}
+		else
+			ent->client->pers.mvdclient = false;
+
 		return;
 	}
 
@@ -1832,7 +1844,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 
 		if (ent->groundentity && !pm.groundentity && (pm.cmd.upmove >= 10) && (pm.waterlevel == 0))
 		{
-			TDM_GlobalClientSound (ent, CHAN_VOICE, soundcache[SND_JUMP1], 1, ATTN_NORM, 0);
+			gi.sound (ent, CHAN_VOICE, soundcache[SND_JUMP1], 1, ATTN_NORM, 0);
 		}
 
 		ent->viewheight = pm.viewheight;

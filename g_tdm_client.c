@@ -161,6 +161,12 @@ qboolean CanJoin (edict_t *ent, unsigned team)
 		return false;
 	}
 
+	if (ent->client->pers.mvdclient)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "MVD clients cannot join a team.\n");
+		return false;
+	}
+
 	//wision: forbid rejoining the team
 	if (ent->client->pers.team == team)
 	{
@@ -225,142 +231,6 @@ void JoinTeam2 (edict_t *ent)
 
 	ent->client->pers.team = TEAM_B;
 	JoinedTeam (ent, false, true);
-}
-
-/*
-==============
-TDM_GlobalClientSound
-==============
-Gross, ugly, disgustingly nasty hack for in-eyes mode. We run all the sound
-processing code ourselves, and we temporarily throw configstrings at in-eyes
-mode players to revert the sexed sound to the correct model, play the sound
-and then revert to invisible. Since no svc_frame comes in between this, client
-never notices except for sound purposes. Hah.
-*/
-void TDM_GlobalClientSound (edict_t *ent, int channel, int soundindex, float volume, float attenuation, float timeofs)
-{
-	int			entnum;
-	int			sendchan;
-    int			flags;
-	vec3_t		origin_v;
-	qboolean	use_phs;
-	qboolean	force_pos;
-	edict_t		*client;
-
-	entnum = ent - g_edicts;
-
-	if (channel & CHAN_NO_PHS_ADD)	// no PHS flag
-	{
-		use_phs = false;
-		channel &= 7;
-	}
-	else
-		use_phs = true;
-
-	sendchan = (entnum<<3) | (channel&7);
-
-	force_pos = false;
-	flags = 0;
-
-	if (volume != DEFAULT_SOUND_PACKET_VOLUME)
-		flags |= SND_VOLUME;
-
-	if (attenuation != DEFAULT_SOUND_PACKET_ATTENUATION)
-		flags |= SND_ATTENUATION;
-
-	if (attenuation == ATTN_NONE)
-	{
-		use_phs = false;
-	}
-	else
-	{
-		// the client doesn't know that bmodels have weird origins
-		// the origin can also be explicitly set
-		if ( (ent->svflags & SVF_NOCLIENT)
-			|| (ent->s.solid == SOLID_BSP)) {
-			flags |= SND_POS;
-			force_pos = true;
-			}
-
-		// use the entity origin unless it is a bmodel or explicitly specified
-		if (ent->solid == SOLID_BSP)
-		{
-			origin_v[0] = ent->s.origin[0]+0.5f*(ent->mins[0]+ent->maxs[0]);
-			origin_v[1] = ent->s.origin[1]+0.5f*(ent->mins[1]+ent->maxs[1]);
-			origin_v[2] = ent->s.origin[2]+0.5f*(ent->mins[2]+ent->maxs[2]);
-		}
-		else
-		{
-			VectorCopy (ent->s.origin, origin_v);
-		}
-	}
-
-	// always send the entity number for channel overrides
-	flags |= SND_ENT;
-
-	if (timeofs)
-		flags |= SND_OFFSET;
-
-	for (client = g_edicts + 1; client < g_edicts + game.maxclients; client++)
-	{
-		if (!client->inuse)
-			continue;
-
-		if (use_phs)
-		{
-			if (force_pos)
-			{
-				flags |= SND_POS;
-			}
-			else
-			{
-				if (!gi.inPHS (client->s.origin, origin_v))
-					continue;
-
-				if (!gi.inPVS (client->s.origin, origin_v))
-					flags |= SND_POS;
-				else
-					flags &= ~SND_POS;
-			}
-		}
-
-		if (client->client->chase_target && client->client->chase_mode == CHASE_EYES)
-		{
-			gi.WriteByte (svc_configstring);
-			gi.WriteShort (CS_PLAYERSKINS + (client->client->chase_target - g_edicts) -1);
-			gi.WriteString (va ("%s\\%s", client->client->chase_target->client->pers.netname, teaminfo[client->client->chase_target->client->pers.team].skin));
-			//gi.unicast (client, false);
-		}
-
-		gi.WriteByte (svc_sound);
-		gi.WriteByte (flags);
-		gi.WriteByte (soundindex);
-
-		if (flags & SND_VOLUME)
-			gi.WriteByte ((int)(volume*255));
-
-		if (flags & SND_ATTENUATION)
-			gi.WriteByte ((int)(attenuation*64));
-
-		if (flags & SND_OFFSET)
-			gi.WriteByte ((int)(timeofs*1000));
-
-		if (flags & SND_ENT)
-			gi.WriteShort (sendchan);
-
-		if (flags & SND_POS)
-			gi.WritePosition (origin_v);
-
-		if (client->client->chase_target && client->client->chase_mode == CHASE_EYES)
-		{
-			gi.WriteByte (svc_configstring);
-			gi.WriteShort (CS_PLAYERSKINS + (client->client->chase_target - g_edicts) -1);
-			gi.WriteString (va ("%s\\opentdm/null", client->client->chase_target->client->pers.netname));
-			//gi.unicast (client, false);
-		}
-
-		gi.unicast (client, false);
-	}
 }
 
 /*
@@ -562,6 +432,7 @@ qboolean TDM_ProcessJoinCode (edict_t *ent, unsigned value)
 
 	// wision: restore player's name
 	G_StuffCmd (ent, "set name \"%s\"\n", t->name);
+
 	//restore teamplayer links
 	ent->client->resp.teamplayerinfo = t;
 	t->client = ent;
@@ -609,8 +480,7 @@ void TDM_Disconnected (edict_t *ent)
 
 				//may have already been set by a player or previous client disconnect
 				if (tdm_match_status != MM_TIMEOUT)
-				{
-					
+				{	
 					edict_t		*opponent;
 
 					//timeout is called implicitly in 1v1 games or the other player would auto win
@@ -629,7 +499,6 @@ void TDM_Disconnected (edict_t *ent)
 					opponent = TDM_FindPlayerForTeam (TEAM_B);
 					if (opponent)
 						gi.cprintf (opponent, PRINT_HIGH, "Your opponent has disconnected. You can allow them %s to reconnect, or you can force a forfeit by typing 'win' in the console.\n", TDM_SecsToString (g_1v1_timeout->value));
-
 				}
 
 				//show a "ghost" player where the player was

@@ -19,51 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 #include "g_local.h"
 
-void ChaseEyeHack (edict_t *ent, edict_t *newplayer, edict_t *oldplayer)
-{
-	if (newplayer)
-		ent->client->clientNum = newplayer - g_edicts - 1;
-	else
-		ent->client->clientNum = ent - g_edicts - 1;
-
-	//yes this is sent twice on purpose - sending unreliable will ensure model is hidden
-	//at the same time the new packetentities arrives, otherwise there will be a brief
-	//duration if there is pending reliable where the model blocks the view.
-
-	if (!(game.server_features & GMF_CLIENTNUM))
-	{
-		if (newplayer)
-		{
-			gi.WriteByte (svc_configstring);
-			gi.WriteShort (CS_PLAYERSKINS + (newplayer - g_edicts) - 1);
-			gi.WriteString (va ("%s\\opentdm/null", newplayer->client->pers.netname));
-			gi.unicast (ent, true);
-
-			gi.WriteByte (svc_configstring);
-			gi.WriteShort (CS_PLAYERSKINS + (newplayer - g_edicts) - 1);
-			gi.WriteString (va ("%s\\opentdm/null", newplayer->client->pers.netname));
-			gi.unicast (ent, false);
-		}
-
-		if (oldplayer)
-		{
-			gi.WriteByte (svc_configstring);
-			gi.WriteShort (CS_PLAYERSKINS + (oldplayer - g_edicts) - 1);
-			gi.WriteString (va ("%s\\%s", oldplayer->client->pers.netname, teaminfo[oldplayer->client->pers.team].skin));
-			gi.unicast (ent, true);
-
-			gi.WriteByte (svc_configstring);
-			gi.WriteShort (CS_PLAYERSKINS + (oldplayer - g_edicts) - 1);
-			gi.WriteString (va ("%s\\%s", oldplayer->client->pers.netname, teaminfo[oldplayer->client->pers.team].skin));
-			gi.unicast (ent, false);
-		}
-	}
-}
-
 void DisableChaseCam (edict_t *ent)
 {
-	ChaseEyeHack (ent, NULL, ent->client->chase_target);
-
 	//remove a gun model if we were using one for in-eyes
 	ent->client->ps.gunframe = ent->client->ps.gunindex = 0;
 	VectorClear (ent->client->ps.gunoffset);
@@ -85,12 +42,13 @@ void NextChaseMode (edict_t *ent)
 
 	if (ent->client->chase_mode == CHASE_EYES)
 	{
-		ChaseEyeHack (ent, ent->client->chase_target, NULL);
+		//set clientnum to hide chased person on supported server
+		ent->client->clientNum = g_edicts - ent->client->chase_target - 1;
 	}
 	else if (ent->client->chase_mode == CHASE_THIRDPERSON)
 	{
-		//going 3rd person, remove gun and invisible player hack
-		ChaseEyeHack (ent,  NULL, ent->client->chase_target);
+		//going 3rd person, remove gun and invisible player
+		ent->client->clientNum = ent - g_edicts -1;
 		ent->client->ps.gunindex = ent->client->ps.gunframe = 0;
 	}
 	else if (ent->client->chase_mode == CHASE_FREE)
@@ -141,10 +99,43 @@ void UpdateChaseCam(edict_t *ent)
 	/* update it again since it might be changed */
 	targ = ent->client->chase_target;
 
+	VectorCopy(targ->client->v_angle, angles);
+
 	if (ent->client->chase_mode == CHASE_EYES)
 	{
 		VectorCopy (targ->s.origin, goal);
 		goal[2] += targ->viewheight;
+
+		//for old servers we have to spec in front of the player so they don't clip into the view
+		if (!(game.server_features & GMF_CLIENTNUM))
+		{
+			vec3_t	targorigin;
+
+			VectorCopy (goal, targorigin);
+
+			AngleVectors (angles, forward, right, NULL);
+			VectorMA (goal, 30, forward, goal);
+
+			// trace from targorigin to final chase origin goal
+			trace = gi.trace (targorigin, vec3_origin, vec3_origin, goal, targ, MASK_SOLID);
+
+			// test for hit so we don't go out of the map!
+			if (trace.fraction < 1)
+			{
+				vec3_t	temp;
+
+				// we hit something, need to do a bit of avoidance
+
+				// take real end point
+				VectorCopy (trace.endpos, goal);
+
+				// real dir vector
+				VectorSubtract (goal, targorigin, temp);
+
+				// scale it back bit more
+				VectorMA (targorigin, 0.9f, temp, goal);
+			}
+		}
 	}
 	else if (ent->client->chase_mode == CHASE_THIRDPERSON)
 	{
@@ -153,12 +144,12 @@ void UpdateChaseCam(edict_t *ent)
 
 		ownerv[2] += targ->viewheight;
 
-		VectorCopy(targ->client->v_angle, angles);
 		if (angles[PITCH] > 56)
 			angles[PITCH] = 56;
+
 		AngleVectors (angles, forward, right, NULL);
-		VectorNormalize(forward);
-		VectorMA(ownerv, -50, forward, o);
+		VectorNormalize (forward);
+		VectorMA (ownerv, -50, forward, o);
 
 		if (o[2] < targ->s.origin[2] + 20)
 			o[2] = targ->s.origin[2] + 20;
@@ -177,7 +168,8 @@ void UpdateChaseCam(edict_t *ent)
 		VectorCopy(goal, o);
 		o[2] += 6;
 		trace = gi.trace(goal, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
-		if (trace.fraction < 1) {
+		if (trace.fraction < 1)
+		{
 			VectorCopy(trace.endpos, goal);
 			goal[2] -= 6;
 		}
@@ -185,7 +177,8 @@ void UpdateChaseCam(edict_t *ent)
 		VectorCopy(goal, o);
 		o[2] -= 6;
 		trace = gi.trace(goal, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
-		if (trace.fraction < 1) {
+		if (trace.fraction < 1)
+		{
 			VectorCopy(trace.endpos, goal);
 			goal[2] += 6;
 		}
@@ -218,7 +211,7 @@ void UpdateChaseCam(edict_t *ent)
 void SetChase (edict_t *ent, edict_t *target)
 {
 	if (target != ent->client->chase_target && ent->client->chase_mode == CHASE_EYES)
-		ChaseEyeHack (ent, target, ent->client->chase_target);
+		ent->client->clientNum = target - g_edicts - 1;
 
 	ent->client->chase_target = target;
 	ent->client->update_chase = true;
