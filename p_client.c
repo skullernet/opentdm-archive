@@ -1326,6 +1326,7 @@ void ClientBeginDeathmatch (edict_t *ent)
 	gclient_t	*client;
 	char		userinfo[MAX_INFO_STRING];
 	char		saved_ip[24];
+	qboolean	saved_mvdclient;
 
 	G_InitEdict (ent);
 
@@ -1343,17 +1344,20 @@ void ClientBeginDeathmatch (edict_t *ent)
 	{
 		strcpy (userinfo, ent->client->pers.userinfo);
 		strcpy (saved_ip, ent->client->pers.ip);
+		saved_mvdclient = ent->client->pers.mvdclient;
 
 		memset (&client->pers, 0, sizeof(client->pers));
 
 		strcpy (ent->client->pers.ip, saved_ip);
+		ent->client->pers.mvdclient = saved_mvdclient;
 		ClientUserinfoChanged (ent, userinfo);
 
 		client->resp.enterframe = level.framenum;
 		client->pers.connected = true;
 		client->pers.joinstate = JS_FIRST_JOIN;
 
-		gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
+		if (!ent->client->pers.mvdclient)
+			gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
 	}
 
 	//spawn the client
@@ -1639,7 +1643,7 @@ void ClientDisconnect (edict_t *ent)
 	ent->classname = "disconnected";
 	ent->client->pers.connected = false;
 
-	if (wasInUse)
+	if (wasInUse && !ent->client->pers.mvdclient)
 		gi.bprintf (PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
 
 	playernum = ent-g_edicts-1;

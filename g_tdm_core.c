@@ -211,7 +211,7 @@ void TDM_SetFrameTime (void)
 	else
 	{
 		FRAMETIME = 1.0f / sv_fps->value;
-		SERVER_FPS = (int)sv_fps->intvalue;
+		SERVER_FPS = (int)sv_fps->value;
 	}
 
 	if ((int)(0.1f / FRAMETIME) == 0)
