@@ -833,11 +833,15 @@ int TDM_GetPlayerIdView (edict_t *ent)
 
 			if (best)
 			{
+				if (!best->client->pers.team)
+					TDM_Error ("TDM_GetPlayerIdView: Got a spectator via DotProduct with %d health (%s)", best->health, best->client->pers.netname);
 				//allow variable slop based on proximity
 				if ((bdistance < 150 && bd > 0.50f) || (bdistance < 250 && bd > 0.90f) || (bdistance < 600 && bd > 0.96f) || bd > 0.98f)
 					target = best;
 			}
 		}
+		else if (!target->client->pers.team)
+			TDM_Error ("TDM_GetPlayerIdView: Got a spectator via trace with %d health (%s)", target->health, target->client->pers.netname);
 	}
 
 	if (!target)

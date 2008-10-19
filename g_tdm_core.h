@@ -56,6 +56,7 @@ typedef struct tdm_download_s
 	char		name[32];
 	char		path[1024];
 	void		(*onFinish)(edict_t *, int, void *);
+	qboolean	inuse;
 } tdm_download_t;
 
 extern tdm_download_t	tdm_download;

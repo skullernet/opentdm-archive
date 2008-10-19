@@ -101,7 +101,10 @@ static void TDM_ApplyVote (void)
 	tdm_settings_not_default = true;
 
 	if (vote.flags & VOTE_CONFIG)
+	{
 		gi.bprintf (PRINT_CHAT, "New config: %s\n", vote.configname);
+		gi.AddCommandString (va ("exec configs/%s.cfg\nsv applysettings\n", vote.configname));
+	}
 	else if (vote.flags & VOTE_WEBCONFIG)
 		gi.bprintf (PRINT_CHAT, "New web config: %s\n", vote.configname);
 	
@@ -118,6 +121,17 @@ static void TDM_ApplyVote (void)
 		{
 			current_matchinfo.timelimit = g_match_time->value / 60;
 			level.match_end_framenum = level.match_start_framenum + (int)(g_match_time->value * SERVER_FPS);
+
+			//end immediately if timelimit was reduced
+			if (level.match_end_framenum < level.framenum)
+				level.match_end_framenum = level.framenum;
+
+			//tl was extended during OT, remove OT
+			if (level.match_end_framenum > level.framenum && (tdm_match_status == MM_OVERTIME || tdm_match_status == MM_SUDDEN_DEATH))
+			{
+				gi.bprintf (PRINT_HIGH, "Timelimit extended, %s canceled!\n",tdm_match_status == MM_OVERTIME ? "overtime" : "sudden death");
+				tdm_match_status = MM_PLAYING;
+			}				
 		}
 	}
 
@@ -294,7 +308,7 @@ static void TDM_AnnounceVote (void)
 	strcat (message, " started a vote: ");
 
 	if (vote.flags & VOTE_CONFIG)
-		sprintf (what, "config %s (", vote.configname);
+		sprintf (what, "config %s", vote.configname);
 	else if (vote.flags & VOTE_WEBCONFIG)
 		sprintf (what, "webconfig %s (", vote.configname);
 
@@ -433,7 +447,7 @@ static void TDM_AnnounceVote (void)
 			strcat (what, "allow all chat");
 	}
 
-	if (vote.flags & (VOTE_CONFIG|VOTE_WEBCONFIG))
+	if (vote.flags & (VOTE_WEBCONFIG))
 		strcat (what, ")");
 
 	if (vote.flags & VOTE_RESTART)
@@ -1306,14 +1320,11 @@ get applied at once.
 */
 qboolean TDM_VoteConfig (edict_t *ent)
 {
-	const char		*value;
-	char			*buff;
+	char			*value;
 	char			path[MAX_QPATH];
-	FILE			*confFile;
 	size_t			len;
 	size_t			i;
-	tdm_config_t	config;
-	qboolean		hasExtension;
+	FILE			*confFile;
 
 	if (!g_allow_vote_config->value)
 	{
@@ -1348,11 +1359,9 @@ qboolean TDM_VoteConfig (edict_t *ent)
 
 	if (!Q_stricmp (value + len - 4, ".cfg"))
 	{
-		hasExtension = true;
 		len -= 4;
+		*(value + len) = '\0';
 	}
-	else
-		hasExtension = false;
 
 	for (i = 0; i < len; i++)
 	{
@@ -1363,19 +1372,18 @@ qboolean TDM_VoteConfig (edict_t *ent)
 		}
 	}
 
-	if (hasExtension)
-		Com_sprintf (path, sizeof(path), "./%s/configs/%s", game.gamedir, value);
-	else
-		Com_sprintf (path, sizeof(path), "./%s/configs/%s.cfg", game.gamedir, value);
+	Com_sprintf (path, sizeof(path), "./%s/configs/%s.cfg", game.gamedir, value);
 
 	confFile = fopen (path, "rb");
 	if (!confFile)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Config '%s' not found on server.\n", value);
+		gi.cprintf (ent, PRINT_HIGH, "Config '%s.cfg' not found on server.\n", value);
 		return false;
 	}
 
-	if (fseek (confFile, 0, SEEK_END))
+	fclose (confFile);
+
+	/*if (fseek (confFile, 0, SEEK_END))
 	{
 		fclose (confFile);
 		gi.cprintf (ent, PRINT_HIGH, "Invalid config file.\n");
@@ -1410,9 +1418,9 @@ qboolean TDM_VoteConfig (edict_t *ent)
 
 	gi.TagFree (buff);
 
-	vote = config.settings;
+	vote = config.settings;*/
 
-	strcpy (vote.configname, config.name);
+	strcpy (vote.configname, value);
 	vote.flags |= VOTE_CONFIG;
 
 	return true;
@@ -1493,12 +1501,19 @@ qboolean TDM_VoteWebConfig (edict_t *ent)
 		last = t;
 	}
 
+	//prevent new player from overwriting old request
+	if (tdm_download.inuse)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Another config download is pending, please try again later.\n");
+		return false;
+	}
 
 	Com_sprintf (tdm_download.path , sizeof(tdm_download.path ), "configs/%s.cfg", value);
 	tdm_download.initiator = ent;
 	tdm_download.type = DL_CONFIG;
 	strncpy (tdm_download.name, value, sizeof(tdm_download.name)-1);
 	tdm_download.onFinish = TDM_VoteWebConfigResult;
+	tdm_download.inuse = true;
 
 	if (HTTP_QueueDownload (&tdm_download))
 		gi.cprintf (ent, PRINT_HIGH, "Fetching web config '%s', please wait...\n", value);
@@ -2251,6 +2266,7 @@ void TDM_ConfigDownloaded (char *buff, int len, int code)
 
 			gi.dprintf ("TDM_ConfigDownloaded: Parse failed.\n");
 			tdm_download.onFinish (tdm_download.initiator, 600, NULL);
+			tdm_download.inuse = false;
 			return;
 		}
 
@@ -2262,4 +2278,6 @@ void TDM_ConfigDownloaded (char *buff, int len, int code)
 	{
 		tdm_download.onFinish (tdm_download.initiator, code, NULL);
 	}
+
+	tdm_download.inuse = false;
 }

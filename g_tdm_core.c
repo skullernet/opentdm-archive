@@ -1240,7 +1240,7 @@ void TDM_EndMatch (void)
 
 void TDM_Overtime (void)
 {
-	level.match_end_framenum = level.framenum + (int)g_overtime->value * SERVER_FPS;
+	level.match_end_framenum = level.framenum + SECS_TO_FRAMES ((int)g_overtime->value);
 
 	gi.bprintf (PRINT_HIGH, "Scores are tied %d - %d, adding %g minute%s overtime.\n",
 		teaminfo[TEAM_A].score, teaminfo[TEAM_A].score, g_overtime->value / 60, g_overtime->value / 60 == 1 ? "" : "s");
@@ -1874,6 +1874,8 @@ void TDM_ResetVotableVariables (void)
 		dmflags = gi.cvar_set ("dmflags", g_tdmflags->string);
 	else if (g_gamemode->value == GAMEMODE_1V1)
 		dmflags = gi.cvar_set ("dmflags", g_1v1flags->string);
+
+	gi.AddCommandString ("exec defaults.cfg\nsv applysettings\n");
 
 	TDM_ResetLevel ();
 	TDM_UpdateConfigStrings (true);

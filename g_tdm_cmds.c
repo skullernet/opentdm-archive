@@ -842,6 +842,28 @@ char *TDM_SettingsString (void)
 
 /*
 ==============
+TDM_SV_ApplySettings_f
+==============
+A config was execed, update our internal state.
+*/
+void TDM_SV_ApplySettings_f (void)
+{
+	if (g_gamemode->latched_string) //can't use latched_string directly, cvar_forceset frees it
+		gi.cvar_forceset ("g_gamemode", va ("%d", atoi(g_gamemode->latched_string)));
+
+	if (g_gamemode->value == GAMEMODE_ITDM)
+		dmflags = gi.cvar_set ("dmflags", g_itdmflags->string);
+	else if (g_gamemode->value == GAMEMODE_TDM)
+		dmflags = gi.cvar_set ("dmflags", g_tdmflags->string);
+	else if (g_gamemode->value == GAMEMODE_1V1)
+		dmflags = gi.cvar_set ("dmflags", g_1v1flags->string);
+
+	TDM_ResetGameState ();
+	TDM_UpdateConfigStrings (true);
+}
+
+/*
+==============
 TDM_SV_Settings_f
 ==============
 Server admin wants to see current settings.
@@ -886,6 +908,8 @@ qboolean TDM_ServerCommand (const char *cmd)
 		TDM_SV_Settings_f ();
 	else if (!Q_stricmp (cmd, "savedefaults"))
 		TDM_SV_SaveDefaults_f ();
+	else if (!Q_stricmp (cmd, "applysettings"))
+		TDM_SV_ApplySettings_f ();
 	else
 		return false;
 
