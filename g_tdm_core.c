@@ -2376,6 +2376,7 @@ void TDM_ResetGameState (void)
 			ent->client->showoldscores = false;
 
 			ent->viewheight = 0;
+			ent->health = 0;
 
 			if (ent->client->pers.team != TEAM_SPEC && g_auto_rejoin_match->value)
 			{

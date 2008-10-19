@@ -632,7 +632,7 @@ void TDM_Timeout_f (edict_t *ent)
 	{
 		if (level.match_resume_framenum)
 		{
-			if (level.tdm_timeout_caller->client == ent)
+			if (level.tdm_timeout_caller && level.tdm_timeout_caller->client == ent)
 			{
 				gi.cprintf (ent, PRINT_HIGH, "You may not call another time out.\n");
 				return;
@@ -722,7 +722,7 @@ void TDM_Win_f (edict_t *ent)
 		return;
 	}
 
-	if (tdm_match_status != MM_TIMEOUT || level.tdm_timeout_caller->client)
+	if (tdm_match_status != MM_TIMEOUT || !level.tdm_timeout_caller || level.tdm_timeout_caller->client)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You can only cause a forfeit during a time out caused by your opponent disconnecting.\n");
 		return;

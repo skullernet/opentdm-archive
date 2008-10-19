@@ -137,7 +137,7 @@ void TDM_LeftTeam (edict_t *ent, qboolean notify)
 		TDM_SetCaptain (oldteam, TDM_FindPlayerForTeam (oldteam));
 
 	//resume play if this guy called time and game isn't already resuming?
-	if (tdm_match_status == MM_TIMEOUT && level.tdm_timeout_caller->client == ent && level.timeout_end_framenum)
+	if (tdm_match_status == MM_TIMEOUT && level.tdm_timeout_caller && level.tdm_timeout_caller->client == ent && level.timeout_end_framenum)
 		TDM_ResumeGame ();
 }
 
@@ -457,7 +457,7 @@ void TDM_Disconnected (edict_t *ent)
 	removeTimeout = false;
 
 	//have to check this right up here since we nuke the teamplayer just below!
-	if (tdm_match_status == MM_TIMEOUT && level.tdm_timeout_caller->client == ent)
+	if (tdm_match_status == MM_TIMEOUT && level.tdm_timeout_caller && level.tdm_timeout_caller->client == ent)
 		removeTimeout = true;
 
 	//we remove this up here so TDM_LeftTeam doesn't try to resume if we become implicit timeout caller
