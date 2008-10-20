@@ -103,7 +103,7 @@ static void TDM_ApplyVote (void)
 	if (vote.flags & VOTE_CONFIG)
 	{
 		gi.bprintf (PRINT_CHAT, "New config: %s\n", vote.configname);
-		gi.AddCommandString (va ("exec configs/%s.cfg\nsv applysettings\n", vote.configname));
+		gi.AddCommandString (va ("exec configs/%s\nsv applysettings\n", vote.configname));
 	}
 	else if (vote.flags & VOTE_WEBCONFIG)
 		gi.bprintf (PRINT_CHAT, "New web config: %s\n", vote.configname);
@@ -1322,6 +1322,7 @@ qboolean TDM_VoteConfig (edict_t *ent)
 {
 	char			*value;
 	char			path[MAX_QPATH];
+	char			configname[MAX_QPATH];
 	size_t			len;
 	size_t			i;
 	FILE			*confFile;
@@ -1357,6 +1358,7 @@ qboolean TDM_VoteConfig (edict_t *ent)
 		return false;
 	}
 
+	//strip .cfg before sanitizing
 	if (!Q_stricmp (value + len - 4, ".cfg"))
 	{
 		len -= 4;
@@ -1372,12 +1374,14 @@ qboolean TDM_VoteConfig (edict_t *ent)
 		}
 	}
 
-	Com_sprintf (path, sizeof(path), "./%s/configs/%s.cfg", game.gamedir, value);
+	Com_sprintf (configname, sizeof(configname), "%s.cfg", value);
+
+	Com_sprintf (path, sizeof(path), "./%s/configs/%s", game.gamedir, configname);
 
 	confFile = fopen (path, "rb");
 	if (!confFile)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Config '%s.cfg' not found on server.\n", value);
+		gi.cprintf (ent, PRINT_HIGH, "Config '%s' not found on server.\n", configname);
 		return false;
 	}
 
@@ -1420,7 +1424,7 @@ qboolean TDM_VoteConfig (edict_t *ent)
 
 	vote = config.settings;*/
 
-	strcpy (vote.configname, value);
+	strcpy (vote.configname, configname);
 	vote.flags |= VOTE_CONFIG;
 
 	return true;
