@@ -1346,20 +1346,22 @@ void TDM_Talk_f (edict_t *ent)
 	{
 		if (victim == ent)
 		{
-			gi.cprintf (ent, PRINT_HIGH, "You cannot talk to yourself.");
+			gi.cprintf (ent, PRINT_HIGH, "You cannot talk to yourself.\n");
 			return;
 		}
+
 		if (tdm_match_status >= MM_PLAYING)
 		{
 			if (ent->client->pers.team == TEAM_SPEC && victim->client->pers.team != TEAM_SPEC)
 			{
-				gi.cprintf (ent, PRINT_HIGH, "Spectators cannot talk to players during the match.");
+				gi.cprintf (ent, PRINT_HIGH, "Spectators cannot talk to players during the match.\n");
 				return;
 			}
 		}
+
 		if (g_chat_mode->value == 2 && ent->client->pers.team == TEAM_SPEC && !victim->client->pers.admin)
 		{
-			gi.cprintf (ent, PRINT_HIGH, "Spectators cannot talk during shutup mode.");
+			gi.cprintf (ent, PRINT_HIGH, "Spectators cannot talk during shutup mode.\n");
 			return;
 		}
 
@@ -1379,7 +1381,7 @@ void TDM_Talk_f (edict_t *ent)
 			p[strlen(p)-1] = '\0';
 		}
 
-		strcpy(text, p);
+		strcpy (text, p);
 
 		if (!text[0])
 			return;
@@ -2084,7 +2086,7 @@ void TDM_Mute_f (edict_t *ent)
 	{
 		if (victim == ent)
 		{
-			gi.cprintf (ent, PRINT_HIGH, "You cannot mute yourself.");
+			gi.cprintf (ent, PRINT_HIGH, "You cannot mute yourself.\n");
 			return;
 		}
 
