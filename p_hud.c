@@ -59,6 +59,9 @@ void MoveClientToIntermission (edict_t *ent)
 	ent->client->grenade_state = GRENADE_NONE;
 	ent->client->grenade_time = 0;
 
+	ent->waterlevel = 0;
+	ent->watertype = 0;
+
 	//simulate player height
 	ent->viewheight = 22;
 
