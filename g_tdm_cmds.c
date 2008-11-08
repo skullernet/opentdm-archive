@@ -517,34 +517,35 @@ Enable/disable observer talk during the match. values: speak, whisper, shutup
 void TDM_Obsmode_f (edict_t *ent)
 {
 	const char	*input;
-	char 		value[10] = { 0 };
+	int			value;
+	char		*mode;
 
 	input = gi.argv(1);
 
 	if (!input[0] || !ent->client->pers.admin)
 	{
 		if (g_chat_mode->value == 0)
-			sprintf(value, "speak");
+			mode = "speak";
 		else if (g_chat_mode->value == 1)
-			sprintf(value, "whisper");
+			mode = "whisper";
 		else
-			sprintf(value, "shutup");
-		gi.cprintf (ent, PRINT_HIGH, "Obsmode is %s.\n", value);
+			mode = "shutup";
+		gi.cprintf (ent, PRINT_HIGH, "Obsmode is %s.\n", mode);
 		return;
 	}
 	else if (!Q_stricmp (input, "speak") || !Q_stricmp (input, "0"))
-		value[0] = '0';
+		value = 0;
 	else if (!Q_stricmp (input, "whisper") || !Q_stricmp (input, "1"))
-		value[0] = '1';
+		value = 1;
 	else if (!Q_stricmp (input, "shutup") || !Q_stricmp (input, "2"))
-		value[0] = '2';
+		value = 2;
 	else
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Usage: obsmode speak/whisper/shutup\n");
 		return;
 	}
 
-	g_chat_mode = gi.cvar_set ("g_chat_mode", value);
+	g_chat_mode = gi.cvar_set ("g_chat_mode", va("%d", value));
 	gi.bprintf (PRINT_HIGH, "Obsmode is set to %s.\n", input);
 }
 
@@ -746,7 +747,7 @@ char *TDM_SettingsString (void)
 	static const char *gamemode_text[] = {"Team Deathmatch", "Instagib Team Deathmatch", "1 vs 1 duel"};
 	static const char *switchmode_text[] = {"normal", "faster", "instant", "insane", "extreme"};
 	static const char *telemode_text[] = {"normal", "no freeze"};
-	static const char *bugs_text[] = {"all bugs fixed", "serious bugs fixed", "default q2 behavior"};
+	static const char *bugs_text[] = {"all gameplay bugs fixed", "serious gameplay bugs fixed", "no gameplay bugs fixed"};
 
 	settings[0] = 0;
 

@@ -2322,6 +2322,10 @@ void TDM_MapChanged (void)
 	if (g_gamemode->value > 2 || g_gamemode->value < 0)
 		gi.error ("g_gamemode: invalid value");
 
+	//check for common config error
+	if (timelimit->value)
+		gi.dprintf ("WARNING: The cvar 'timelimit' is no longer used. Did you intend to set g_match_time?\n");
+
 	TDM_ResetGameState ();
 	TDM_SetSkins ();
 	TDM_SetupSounds ();
@@ -3053,7 +3057,9 @@ void TDM_UpdateSpectatorsOnEvent (int spec_mode, edict_t *target, edict_t *kille
 			if (e->client->resp.spec_mode == SPEC_KILLER && e->client->chase_target == target &&
 				(!teaminfo[target->client->pers.team].speclocked || e->client->pers.specinvite[target->client->pers.team]))
 			{
-				new_target = killer;
+				//could be worldspawn!
+				if (killer->client)
+					new_target = killer;
 			}
 			// check if the killer is not top fragger now and update spectators who us SPEC_LEADER
 			else if (e->client->resp.spec_mode == SPEC_LEADER)

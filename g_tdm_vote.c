@@ -48,6 +48,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	VOTE_BUGS		0x8000
 
+#define VOTE_TDM_SPAWNMODE	0x10000
+#define VOTE_1V1_SPAWNMODE	0x20000
+
 //the ordering of weapons must match ITEM_ defines too!
 const weaponinfo_t	weaponvotes[WEAPON_MAX] = 
 {
@@ -229,6 +232,18 @@ static void TDM_ApplyVote (void)
 	{
 		sprintf (value, "%d", vote.bugs);
 		g_bugs = gi.cvar_set ("g_bugs", value);
+	}
+
+	if (vote.flags & VOTE_TDM_SPAWNMODE)
+	{
+		sprintf (value, "%d", vote.spawn_mode);
+		g_tdm_spawn_mode = gi.cvar_set ("g_tdm_spawn_mode", value);
+	}
+
+	if (vote.flags & VOTE_1V1_SPAWNMODE)
+	{
+		sprintf (value, "%d", vote.spawn_mode);
+		g_1v1_spawn_mode = gi.cvar_set ("g_1v1_spawn_mode", value);
 	}
 }
 
@@ -441,14 +456,14 @@ static void TDM_AnnounceVote (void)
 		if (what[0])
 			strcat (what, ", ");
 
-		if (vote.newchatmode == 1)
+		//note, 2 is not votable by clients
+		if (vote.newchatmode == 2)
 			strcat (what, "no spectator chat");
+		else if (vote.newchatmode == 1)
+			strcat (what, "no global spectator chat");
 		else
 			strcat (what, "allow all chat");
 	}
-
-	if (vote.flags & (VOTE_WEBCONFIG))
-		strcat (what, ")");
 
 	if (vote.flags & VOTE_RESTART)
 		strcat (what, "restart the match");
@@ -465,6 +480,22 @@ static void TDM_AnnounceVote (void)
 		else if (vote.bugs == 2)
 			strcat (what, "no q2 gameplay bugs fixed");
 	}
+
+	if (vote.flags & (VOTE_1V1_SPAWNMODE | VOTE_TDM_SPAWNMODE))
+	{
+		if (what[0])
+			strcat (what, ", ");
+
+		if (vote.spawn_mode == 0)
+			strcat (what, "respawn avoid closest");
+		else if (vote.spawn_mode == 1)
+			strcat (what, "respawn avoid closest (fixed)");
+		else if (vote.spawn_mode == 2)
+			strcat (what, "respawn random");
+	}
+
+	if (vote.flags & (VOTE_WEBCONFIG))
+		strcat (what, ")");
 
 	vote.vote_string = what;
 
@@ -2158,7 +2189,6 @@ qboolean TDM_ParseVoteConfigLine (char *line, int line_number, void *param)
 	if (!p)
 	{
 		gi.dprintf ("WARNING: Malformed line %d '%s'\n", line_number, line);
-		return false;
 	}
 
 	p[0] = 0;
@@ -2169,7 +2199,6 @@ qboolean TDM_ParseVoteConfigLine (char *line, int line_number, void *param)
 	if (!p[0])
 	{
 		gi.dprintf ("WARNING: Malformed line %d '%s'\n", line_number, line);
-		return false;
 	}
 
 	//no validation is done here to keep things small - these should be validated serverside
@@ -2228,10 +2257,25 @@ qboolean TDM_ParseVoteConfigLine (char *line, int line_number, void *param)
 	{
 		Q_strncpy (c->description, p, sizeof(c->description)-1);
 	}
+	else if (!strcmp (variable, "bugs"))
+	{
+		c->settings.bugs = atoi (p);
+		c->settings.flags |= VOTE_BUGS;
+	}
+	else if (!strcmp (variable, "tdm_spawnmode"))
+	{
+		c->settings.spawn_mode = atoi (p);
+		c->settings.flags |= VOTE_TDM_SPAWNMODE;
+	}
+	else if (!strcmp (variable, "1v1_spawnmode"))
+	{
+		c->settings.spawn_mode = atoi (p);
+		c->settings.flags |= VOTE_1V1_SPAWNMODE;
+	}
 	else
 	{
-		gi.dprintf ("WARNING: Unknown variable  on line %d '%s'\n", line_number, variable);
-		return false;
+		gi.dprintf ("WARNING: Unknown variable '%s' on line %d of config. Check you are using the latest version of OpenTDM.\n", variable, line_number);
+		//return false;
 	}
 
 	return true;

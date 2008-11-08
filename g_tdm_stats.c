@@ -183,10 +183,10 @@ void TDM_Damage (edict_t *ent, edict_t *victim, edict_t *inflictor, int damage)
 
 	//For damage tracking we DO want to count every shot
 	if (!victim->client->resp.teamplayerinfo)
-		TDM_Error ("TDM_Damage: Trying to track stats but no teamplayerinfo for victim %s", victim->client->pers.netname);
+		TDM_Error ("TDM_Damage: Trying to track stats but no teamplayerinfo for victim %s, attacker %s", victim->client->pers.netname, ent->client->pers.netname);
 
 	if (!ent->client->resp.teamplayerinfo)
-		TDM_Error ("TDM_Damage: Trying to track stats but no teamplayerinfo for attacker %s", ent->client->pers.netname);
+		TDM_Error ("TDM_Damage: Trying to track stats but no teamplayerinfo for attacker %s, victim %s", ent->client->pers.netname, victim->client->pers.netname);
 
 	victim->client->resp.teamplayerinfo->damage_received[weapon] += damage;
 	
