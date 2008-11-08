@@ -530,7 +530,7 @@ void G_RunFrame (void)
 	TDM_CheckTimes ();
 	
 	// see if it is time to end a deathmatch
-	CheckDMRules ();
+	//CheckDMRules ();
 
 	// build the playerstate_t structures for all players
 	ClientEndServerFrames ();
