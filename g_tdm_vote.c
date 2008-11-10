@@ -2189,6 +2189,7 @@ qboolean TDM_ParseVoteConfigLine (char *line, int line_number, void *param)
 	if (!p)
 	{
 		gi.dprintf ("WARNING: Malformed line %d '%s'\n", line_number, line);
+		return false;
 	}
 
 	p[0] = 0;
@@ -2199,6 +2200,7 @@ qboolean TDM_ParseVoteConfigLine (char *line, int line_number, void *param)
 	if (!p[0])
 	{
 		gi.dprintf ("WARNING: Malformed line %d '%s'\n", line_number, line);
+		return false;
 	}
 
 	//no validation is done here to keep things small - these should be validated serverside
