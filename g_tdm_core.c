@@ -57,6 +57,10 @@ cvarsave_t preserved_vars[] =
 	{"g_teleporter_nofreeze", NULL},
 	{"g_fast_weap_switch", NULL},
 	{"g_overtime", NULL},
+	{"g_bugs", NULL},
+	{"g_chat_mode", NULL},
+	{"g_tdm_spawn_mode", NULL},
+	{"g_1v1_spawn_mode", NULL},
 	{NULL, NULL},
 };
 
