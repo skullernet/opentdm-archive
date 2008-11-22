@@ -30,13 +30,13 @@ Return true if the client has used a command that prints global info or similar 
 */
 qboolean TDM_RateLimited (edict_t *ent, int penalty)
 {
-	if (level.framenum < ent->client->resp.last_command_frame)
+	if (level.realframenum < ent->client->resp.last_command_frame)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Command ignored due to rate limiting, wait a little longer.\n");
 		return true;
 	}
 
-	ent->client->resp.last_command_frame = level.framenum + penalty;
+	ent->client->resp.last_command_frame = level.realframenum + penalty;
 	return false;
 }
 
@@ -1894,7 +1894,7 @@ void TDM_Motd_f (edict_t *ent)
 		return;
 	}
 
-	if (ent->client->menu.active)
+	if (ent->client->pers.menu.active)
 		PMenu_Close (ent);
 
 	ent->client->showscores = false;

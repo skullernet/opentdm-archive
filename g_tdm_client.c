@@ -79,6 +79,8 @@ A player just joined a team, so do things.
 */
 void JoinedTeam (edict_t *ent, qboolean reconnected, qboolean notify)
 {
+	PMenu_Close (ent);
+
 	if (notify)
 	{
 		if (g_gamemode->value != GAMEMODE_1V1)
@@ -270,7 +272,7 @@ void SelectNextHelpPage (edict_t *ent)
 {
 /*	int		i;
 
-	if (!ent->client->menu.active)
+	if (!ent->client->pers.menu.active)
 	{
 		PMenu_Open (ent, helpmenu[0], 0, 0, false);
 		return;
@@ -278,7 +280,7 @@ void SelectNextHelpPage (edict_t *ent)
 
 	for (i = 0; i < 3; i++)
 	{
-		if (ent->client->menu.entries = helpmenu[i])
+		if (ent->client->pers.menu.entries = helpmenu[i])
 		{
 			PMenu_Close (ent);
 			PMenu_Open (ent, helpmenu[i+1], 0, 0, false);
@@ -298,11 +300,11 @@ Show/hide the join team menu
 */
 void TDM_ShowTeamMenu (edict_t *ent)
 {
-	if (ent->client->menu.active)
+	if (ent->client->pers.menu.active)
 	{
 		// if the votemenu is open, go back to normal menu
 		// close the menu after this condition!
-		if (ent->client->votemenu_values.show)
+		if (ent->client->pers.votemenu_values.show)
 		{
 			PMenu_Close (ent);
 			PMenu_Open (ent, joinmenu, teamJoinEntries[ent->client->pers.team], MENUSIZE_JOINMENU, false);

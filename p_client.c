@@ -464,7 +464,16 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 		TossClientWeapon (self);
 
-		Cmd_Help_f (self);		// show scores
+		//r1: dont run cmd_help, since that putaways menus, explicitly show scores
+		if (!self->client->pers.menu.active)
+		{
+			self->client->showmotd = false;
+			self->client->showoldscores = false;
+			self->client->showscores = true;
+			DeathmatchScoreboard (self);
+		}
+
+		//Cmd_Help_f (self);		// show scores
 
 		// clear inventory
 		// this is kind of ugly, but it's how we want to handle keys in coop
@@ -473,7 +482,9 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 			self->client->inventory[n] = 0;
 		}
 
-		ValidateSelectedItem (self);
+		//explicit set to avoid using selectnext if we have a menu up
+		self->client->selected_item = -1;
+
 		// update all spectating observers using SPEC_KILLER
 		TDM_UpdateSpectatorsOnEvent (SPEC_KILLER, self, attacker);
 	}
@@ -1360,6 +1371,9 @@ void ClientBeginDeathmatch (edict_t *ent)
 			gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
 	}
 
+	//no cross-level menus!
+	PMenu_Close (ent);
+
 	//spawn the client
 	if (ent->client->pers.team && tdm_match_status == MM_WARMUP && g_auto_rejoin_map->value)
 	{
@@ -1377,6 +1391,10 @@ void ClientBeginDeathmatch (edict_t *ent)
 		gi.WriteByte (MZ_LOGIN);
 		gi.unicast (ent, false);
 	}
+
+	// make sure all spectators are counted
+	CountPlayers ();
+	UpdateTeamMenu ();
 
 	// make sure all view stuff is valid
 	ClientEndServerFrame (ent);
@@ -1912,7 +1930,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 			client->latched_buttons = (client->latched_buttons & ~BUTTON_ATTACK);
 			
 			// wision: hide menu after join
-			if (client->menu.active)
+			if (client->pers.menu.active)
 			{
 				PMenu_Close (ent);
 				return;

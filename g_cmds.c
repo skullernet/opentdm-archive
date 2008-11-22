@@ -76,7 +76,7 @@ void SelectNextItem (edict_t *ent, int itflags)
 
 	cl = ent->client;
 
-	if (cl->menu.active)
+	if (cl->pers.menu.active)
 	{
 		PMenu_Next(ent);
 		return;
@@ -117,7 +117,7 @@ void SelectPrevItem (edict_t *ent, int itflags)
 
 	cl = ent->client;
 
-	if (cl->menu.active)
+	if (cl->pers.menu.active)
 	{
 		PMenu_Prev(ent);
 		return;
@@ -152,6 +152,9 @@ void ValidateSelectedItem (edict_t *ent)
 	gclient_t	*cl;
 
 	cl = ent->client;
+
+	if (cl->selected_item == -1)
+		return;		// still invalid!
 
 	if (cl->inventory[cl->selected_item])
 		return;		// valid
@@ -551,7 +554,7 @@ void Cmd_InvUse_f (edict_t *ent)
 {
 	const gitem_t		*it;
 
-	if (ent->client->menu.active)
+	if (ent->client->pers.menu.active)
 	{
 		PMenu_Select (ent);
 		return;
@@ -707,7 +710,7 @@ void Cmd_InvDrop_f (edict_t *ent)
 	const gitem_t		*it;
 
 	// wision: decrease a value in voting menu if it's up
-	if (ent->client->votemenu_values.show)
+	if (ent->client->pers.votemenu_values.show)
 	{
 		VoteMenuDecreaseValue (ent);
 		return;
@@ -783,7 +786,7 @@ void Cmd_PutAway_f (edict_t *ent)
 	//ent->client->showhelp = false;
 	//ent->client->showinventory = false;
 
-	if (ent->client->menu.active)
+	if (ent->client->pers.menu.active)
 		PMenu_Close (ent);
 }
 

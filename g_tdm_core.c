@@ -302,6 +302,46 @@ void TDM_ResetLevel (void)
 		//wision: add/remove items
 		if (ent->item)
 		{
+			// some items will be prevented in deathmatch
+			if ( (int)dmflags->value & DF_NO_ARMOR )
+			{
+				if (ITEM_INDEX(ent->item) == ITEM_ITEM_ARMOR_BODY || ITEM_INDEX(ent->item) == ITEM_ITEM_ARMOR_COMBAT || ITEM_INDEX(ent->item) == ITEM_ITEM_ARMOR_JACKET ||
+					ITEM_INDEX(ent->item) == ITEM_ITEM_ARMOR_SHARD || ITEM_INDEX(ent->item) == ITEM_ITEM_POWER_SCREEN || ITEM_INDEX(ent->item) == ITEM_ITEM_POWER_SHIELD)
+				{
+					G_FreeEdict (ent);
+					continue;
+				}
+			}
+
+			if ( (int)dmflags->value & DF_NO_ITEMS )
+			{
+				if (ITEM_INDEX(ent->item) == ITEM_ITEM_QUAD || ITEM_INDEX(ent->item) == ITEM_ITEM_INVULNERABILITY || ITEM_INDEX(ent->item) == ITEM_ITEM_SILENCER ||
+					ITEM_INDEX(ent->item) == ITEM_ITEM_BREATHER || ITEM_INDEX(ent->item) == ITEM_ITEM_ENVIRO || ITEM_INDEX(ent->item) == ITEM_ITEM_ADRENALINE ||
+					ITEM_INDEX(ent->item) == ITEM_ITEM_BANDOLIER || ITEM_INDEX(ent->item) == ITEM_ITEM_PACK)
+				{
+					G_FreeEdict (ent);
+					continue;
+				}
+			}
+
+			if ( (int)dmflags->value & DF_NO_HEALTH )
+			{
+				if (ITEM_INDEX(ent->item) == ITEM_ITEM_HEALTH || ITEM_INDEX(ent->item) == ITEM_ITEM_ANCIENT_HEAD)
+				{
+					G_FreeEdict (ent);
+					continue;
+				}
+			}
+
+			if ( (int)dmflags->value & DF_INFINITE_AMMO )
+			{
+				if (ent->item->flags & (IT_AMMO|IT_WEAPON))
+				{
+					G_FreeEdict (ent);
+					continue;
+				}
+			}
+
 			for (i = 0; i < sizeof(weaponvotes) / sizeof(weaponinfo_t); i++)
 			{
 				//this item isn't removed
@@ -2047,7 +2087,7 @@ void UpdateTeamMenu (void)
 
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
 	{
-		if (ent->inuse && ent->client->menu.active && ent->client->menu.entries == joinmenu)
+		if (ent->inuse && ent->client->pers.menu.active && ent->client->pers.menu.entries == joinmenu)
 		{
 			PMenu_Update (ent);
 			gi.unicast (ent, true);

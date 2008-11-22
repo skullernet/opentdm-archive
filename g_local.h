@@ -1029,7 +1029,8 @@ void MoveClientToIntermission (edict_t *client);
 void G_SetStats (edict_t *ent);
 void G_SetSpectatorStats (edict_t *ent);
 void ValidateSelectedItem (edict_t *ent);
-void DeathmatchScoreboardMessage (edict_t *client, edict_t *killer);
+//void DeathmatchScoreboardMessage (edict_t *client, edict_t *killer);
+void DeathmatchScoreboard (edict_t *ent);
 
 //
 // g_pweapon.c
@@ -1111,6 +1112,9 @@ void TDM_ItemGrabbed (edict_t *ent, edict_t *player);
 void TDM_MacroExpand (edict_t *ent, char *text, int maxlength);
 void ToggleChaseCam (edict_t *ent);
 void TDM_UpdateSpectatorsOnEvent (int spec_mode, edict_t *target, edict_t *killer);
+
+void CountPlayers (void);
+void UpdateTeamMenu (void);
 
 extern matchmode_t	tdm_match_status;
 extern pmenu_t joinmenu[];
@@ -1389,6 +1393,15 @@ typedef struct
 
 	unsigned		mute_frame;		// mute player while game framenum < this
 	qboolean		mvdclient;
+
+	// persist menu across death
+	pmenuhnd_t		menu;
+
+	// stored info about values changed in vote menu
+	vote_menu_t	votemenu_values;
+
+	// we need separate vote menu for all players
+	pmenu_t		votemenu[19];
 } client_persistant_t;
 
 typedef struct
@@ -1522,13 +1535,6 @@ struct gclient_s
 
 	const gitem_t	*weapon;
 	const gitem_t	*lastweapon;
-
-	pmenuhnd_t	menu;
-
-	// stored info about values changed in vote menu
-	vote_menu_t	votemenu_values;
-	// we need separate vote menu for all players
-	pmenu_t		votemenu[19];
 
 	unsigned	last_command_frame;
 	unsigned	last_activity_frame;

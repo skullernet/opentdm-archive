@@ -264,7 +264,7 @@ void Cmd_Score_f (edict_t *ent)
 	//ent->client->showinventory = false;
 	//ent->client->showhelp = false;
 
-	if (ent->client->menu.active)
+	if (ent->client->pers.menu.active)
 	{
 		PMenu_Close (ent);
 		return;
@@ -462,7 +462,7 @@ void G_SetStats (edict_t *ent)
 	ent->client->ps.stats[STAT_LAYOUTS] = 0;
 
 	if (ent->health <= 0 || tdm_match_status == MM_SCOREBOARD || ent->client->showscores ||
-			ent->client->menu.active || ent->client->showoldscores || ent->client->showmotd)
+			ent->client->pers.menu.active || ent->client->showoldscores || ent->client->showmotd)
 		ent->client->ps.stats[STAT_LAYOUTS] |= 1;
 
 	ent->client->ps.stats[STAT_GAME_STATUS_STRING_INDEX] = CS_TDM_GAME_STATUS;
@@ -574,7 +574,7 @@ void G_SetSpectatorStats (edict_t *ent)
 	// layouts are independant in spectator
 	cl->ps.stats[STAT_LAYOUTS] = 0;
 
-	if (tdm_match_status == MM_SCOREBOARD || cl->menu.active || ent->client->showscores ||
+	if (tdm_match_status == MM_SCOREBOARD || cl->pers.menu.active || ent->client->showscores ||
 			ent->client->showoldscores || ent->client->showmotd)
 		cl->ps.stats[STAT_LAYOUTS] |= 1;
 

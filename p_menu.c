@@ -14,13 +14,13 @@ void PMenu_Open(edict_t *ent, pmenu_t *entries, int cur, int num, qboolean dynam
 	ent->client->showscores = false;
 	ent->client->showmotd = false;
 
-	if (ent->client->menu.active)
+	if (ent->client->pers.menu.active)
 	{
 		gi.dprintf("warning, ent already has a menu\n");
 		PMenu_Close(ent);
 	}
 
-	hnd = &ent->client->menu;
+	hnd = &ent->client->pers.menu;
 
 	hnd->active = true;
 	hnd->dynamic = dynamic;
@@ -47,14 +47,14 @@ void PMenu_Open(edict_t *ent, pmenu_t *entries, int cur, int num, qboolean dynam
 
 void PMenu_Close(edict_t *ent)
 {
-	if (!ent->client->menu.active)
+	if (!ent->client->pers.menu.active)
 		return;
 
-	if (ent->client->menu.dynamic)
-		free (ent->client->menu.entries);
+	if (ent->client->pers.menu.dynamic)
+		free (ent->client->pers.menu.entries);
 
-	ent->client->menu.active = false;
-	ent->client->votemenu_values.show = false;
+	ent->client->pers.menu.active = false;
+	ent->client->pers.votemenu_values.show = false;
 }
 
 void PMenu_Update(edict_t *ent)
@@ -67,13 +67,13 @@ void PMenu_Update(edict_t *ent)
 	const char	*t;
 	qboolean	alt = false;
 
-	if (!ent->client->menu.active)
+	if (!ent->client->pers.menu.active)
 	{
 		gi.dprintf("warning:  ent has no menu\n");
 		return;
 	}
 
-	hnd = &ent->client->menu;
+	hnd = &ent->client->pers.menu;
 
 	strcpy(string, "xv 32 yv 8 picn inventory ");
 
@@ -119,13 +119,13 @@ void PMenu_Next(edict_t *ent)
 	int i;
 	pmenu_t *p;
 
-	if (!ent->client->menu.active)
+	if (!ent->client->pers.menu.active)
 	{
 		gi.dprintf("warning:  ent has no menu\n");
 		return;
 	}
 
-	hnd = &ent->client->menu;
+	hnd = &ent->client->pers.menu;
 
 	if (hnd->cur < 0)
 		return; // no selectable entries
@@ -152,13 +152,13 @@ void PMenu_Prev(edict_t *ent)
 	int i;
 	pmenu_t *p;
 
-	if (!ent->client->menu.active)
+	if (!ent->client->pers.menu.active)
 	{
 		gi.dprintf("warning:  ent has no menu\n");
 		return;
 	}
 
-	hnd = &ent->client->menu;
+	hnd = &ent->client->pers.menu;
 
 	if (hnd->cur < 0)
 		return; // no selectable entries
@@ -186,13 +186,13 @@ void PMenu_Select(edict_t *ent)
 	pmenuhnd_t *hnd;
 	pmenu_t *p;
 
-	if (!ent->client->menu.active)
+	if (!ent->client->pers.menu.active)
 	{
 		gi.dprintf("warning:  ent has no menu\n");
 		return;
 	}
 
-	hnd = &ent->client->menu;
+	hnd = &ent->client->pers.menu;
 
 	if (hnd->cur < 0)
 		return; // no selectable entries
