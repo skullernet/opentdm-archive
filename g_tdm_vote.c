@@ -173,6 +173,28 @@ static void TDM_ApplyVote (void)
 		//g_gamemode is latched otherwise to prevent server op from changing it
 		//via rcon / console mid game and ruining things.
 		gi.cvar_forceset ("g_gamemode", va ("%d", vote.gamemode));
+
+		//0000129: Possible to start 1v1 with more than 2 players 
+		if (vote.gamemode == GAMEMODE_1V1)
+		{
+			edict_t	*ent;
+			int		i;
+
+			for (i = 1; i <= game.maxclients; i++)
+			{
+				ent = g_edicts + i;
+
+				if (!ent->inuse)
+					continue;
+
+				if (ent->client->pers.team && teaminfo[ent->client->pers.team].captain != ent)
+				{
+					TDM_LeftTeam (ent, false);
+					respawn (ent);
+				}
+			}
+		}
+
 		TDM_ResetGameState ();
 		TDM_UpdateConfigStrings (true);
 	}

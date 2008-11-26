@@ -1830,12 +1830,6 @@ gives +1 to maximum health
 */
 void SP_item_health (edict_t *self)
 {
-	if ((int)dmflags->value & DF_NO_HEALTH)
-	{
-		G_FreeEdict (self);
-		return;
-	}
-
 	self->model = "models/items/healing/medium/tris.md2";
 	self->count = 10;
 	SpawnItem (self, GETITEM (ITEM_ITEM_HEALTH));
@@ -1846,12 +1840,6 @@ void SP_item_health (edict_t *self)
 */
 void SP_item_health_small (edict_t *self)
 {
-	if ((int)dmflags->value & DF_NO_HEALTH)
-	{
-		G_FreeEdict (self);
-		return;
-	}
-
 	self->model = "models/items/healing/stimpack/tris.md2";
 	self->count = 2;
 	SpawnItem (self, GETITEM (ITEM_ITEM_HEALTH));
@@ -1863,12 +1851,6 @@ void SP_item_health_small (edict_t *self)
 */
 void SP_item_health_large (edict_t *self)
 {
-	if ((int)dmflags->value & DF_NO_HEALTH)
-	{
-		G_FreeEdict (self);
-		return;
-	}
-
 	self->model = "models/items/healing/large/tris.md2";
 	self->count = 25;
 	SpawnItem (self, GETITEM (ITEM_ITEM_HEALTH));
@@ -1879,12 +1861,6 @@ void SP_item_health_large (edict_t *self)
 */
 void SP_item_health_mega (edict_t *self)
 {
-	if ((int)dmflags->value & DF_NO_HEALTH)
-	{
-		G_FreeEdict (self);
-		return;
-	}
-
 	self->model = "models/items/mega_h/tris.md2";
 	self->count = 100;
 	SpawnItem (self, GETITEM (ITEM_ITEM_HEALTH));

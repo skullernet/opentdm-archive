@@ -137,6 +137,11 @@ void InitGame (void)
 
 	init_genrand ((unsigned long)time(NULL));
 
+	gi.cvar("time_remaining", "N/A", CVAR_SERVERINFO | CVAR_NOSET);
+	gi.cvar("match_type", "N/A", CVAR_SERVERINFO | CVAR_NOSET);
+	gi.cvar("Score_B", "N/A", CVAR_SERVERINFO | CVAR_NOSET);
+	gi.cvar("Score_A", "N/A", CVAR_SERVERINFO | CVAR_NOSET);
+
 	gun_x = gi.cvar ("gun_x", "0", 0);
 	gun_y = gi.cvar ("gun_y", "0", 0);
 	gun_z = gi.cvar ("gun_z", "0", 0);

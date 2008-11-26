@@ -1373,19 +1373,35 @@ Update server info visible to browsers.
 */
 void TDM_UpdateServerInfo (void)
 {
-	char		buff[128];
+	char		buff[12];
 
 	if (tdm_match_status < MM_PLAYING)
 	{
-		Com_sprintf (buff, sizeof(buff), "set Score_A \"WARMUP\" s\nset Score_B \"WARMUP\" s\nset time_remaining \"WARMUP\" s\n");
+		gi.cvar_forceset("time_remaining", "WARMUP");
+		gi.cvar_forceset("Score_B", "WARMUP");
+		gi.cvar_forceset("Score_A", "WARMUP");
 	}
 	else
 	{
-		Com_sprintf (buff, sizeof(buff), "set Score_A \"%d\" s\nset Score_B \"%d\"\nset time_remaining \"%s\"\n", 
-			teaminfo[TEAM_A].score, teaminfo[TEAM_B].score, TDM_SecsToString (FRAMES_TO_SECS(level.match_end_framenum - level.framenum)));
+		if (level.match_end_framenum - level.framenum >= 0)
+			gi.cvar_forceset("time_remaining", TDM_SecsToString (FRAMES_TO_SECS(level.match_end_framenum - level.framenum)));
+		else
+			gi.cvar_forceset("time_remaining", "N/A");
+
+		sprintf(buff, "%d", teaminfo[TEAM_B].score);
+		gi.cvar_forceset("Score_B", buff);
+		sprintf(buff, "%d", teaminfo[TEAM_A].score);
+		gi.cvar_forceset("Score_A", buff);
 	}
 
-	gi.AddCommandString (buff);
+	if (g_gamemode->value == GAMEMODE_TDM && !(level.tdm_pseudo_1v1mode))
+		gi.cvar_forceset("match_type", "TDM");
+	else if (level.tdm_pseudo_1v1mode || g_gamemode->value == GAMEMODE_1V1)
+		gi.cvar_forceset("match_type", "Duel");
+	else if (g_gamemode->value == GAMEMODE_ITDM)
+		gi.cvar_forceset("match_type", "ITDM");
+	else
+		gi.cvar_forceset("match_type", "N/A");
 }
 
 /*
