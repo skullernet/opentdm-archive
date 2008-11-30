@@ -1908,7 +1908,8 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 			other->touch (other, ent, NULL, NULL);
 		}
 
-		G_TouchProjectiles (ent, start_origin);
+		if (ent->movetype != MOVETYPE_NOCLIP)
+			G_TouchProjectiles (ent, start_origin);
 	}
 
 	if (client->oldbuttons != client->buttons)
