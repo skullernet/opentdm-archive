@@ -2386,6 +2386,8 @@ void TDM_MapChanged (void)
 	if (timelimit->value)
 		gi.dprintf ("WARNING: The cvar 'timelimit' is no longer used. Did you intend to set g_match_time?\n");
 
+	//cancel any vote if the map was changed by admin
+	TDM_RemoveVote ();
 	TDM_ResetGameState ();
 	TDM_SetSkins ();
 	TDM_SetupSounds ();
