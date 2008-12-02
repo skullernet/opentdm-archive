@@ -92,6 +92,8 @@ qboolean		tdm_settings_not_default;
 char			**tdm_configlist;
 char			tdm_configlist_string[900];
 
+tdm_download_t	tdm_vote_download;
+
 /*
 ==============
 TDM_ApplyVote
@@ -1570,20 +1572,21 @@ qboolean TDM_VoteWebConfig (edict_t *ent)
 	}
 
 	//prevent new player from overwriting old request
-	if (tdm_download.inuse)
+	if (tdm_vote_download.inuse)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Another config download is pending, please try again later.\n");
 		return false;
 	}
 
-	Com_sprintf (tdm_download.path , sizeof(tdm_download.path ), "configs/%s.cfg", value);
-	tdm_download.initiator = ent;
-	tdm_download.type = DL_CONFIG;
-	strncpy (tdm_download.name, value, sizeof(tdm_download.name)-1);
-	tdm_download.onFinish = TDM_VoteWebConfigResult;
-	tdm_download.inuse = true;
+	Com_sprintf (tdm_vote_download.path , sizeof(tdm_vote_download.path ), "configs/%s.cfg", value);
+	tdm_vote_download.initiator = ent;
+	tdm_vote_download.type = DL_CONFIG;
+	strncpy (tdm_vote_download.name, value, sizeof(tdm_vote_download.name)-1);
+	tdm_vote_download.onFinish = TDM_ConfigDownloaded;
+	tdm_vote_download.inuse = true;
+	tdm_vote_download.unique_id = ent->client->pers.uniqueid;
 
-	if (HTTP_QueueDownload (&tdm_download))
+	if (HTTP_QueueDownload (&tdm_vote_download))
 		gi.cprintf (ent, PRINT_HIGH, "Fetching web config '%s', please wait...\n", value);
 
 	//we never legitimately start a vote yet, it's handled when the config is actually downloaded
@@ -1598,15 +1601,15 @@ A web config finished downloading. Be very careful here as the game or player st
 between when the config was requested and when we get called! Note, the download core checks if the
 player disconnected, so we don't need to worry about things like that - only game state.
 */
-void TDM_VoteWebConfigResult (edict_t *ent, int code, void *param)
+void TDM_VoteWebConfigResult (edict_t *ent, int code, tdm_config_t *config)
 {
-	tdm_config_t	*config;
-
-	config = (tdm_config_t *)param;
+	//client disconnected
+	if (!ent)
+		return;
 
 	if (code == 404)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Web config '%s' was not found. Visit www.opentdm.net for more information on web configs.\n", tdm_download.name);
+		gi.cprintf (ent, PRINT_HIGH, "Web config '%s' was not found. Visit www.opentdm.net for more information on web configs.\n", tdm_vote_download.name);
 		return;
 	}
 	else if (code == 600)
@@ -1623,19 +1626,19 @@ void TDM_VoteWebConfigResult (edict_t *ent, int code, void *param)
 
 	if (tdm_match_status != MM_WARMUP)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Web config '%s' was found, but it is too late to propose settings now.\n", tdm_download.name);
+		gi.cprintf (ent, PRINT_HIGH, "Web config '%s' was found, but it is too late to propose settings now.\n", tdm_vote_download.name);
 		return;
 	}
 
 	if (!ent->client->pers.team)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Web config '%s' was found, but you are no longer on a team!\n", tdm_download.name);
+		gi.cprintf (ent, PRINT_HIGH, "Web config '%s' was found, but you are no longer on a team!\n", tdm_vote_download.name);
 		return;
 	}
 
 	if (vote.active)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Web config '%s' was found, but another vote has already started.\n", tdm_download.name);
+		gi.cprintf (ent, PRINT_HIGH, "Web config '%s' was found, but another vote has already started.\n", tdm_vote_download.name);
 		return;
 	}
 
@@ -2342,7 +2345,7 @@ qboolean TDM_ParseVoteConfigLine (char *line, int line_number, void *param)
 	}
 	else
 	{
-		gi.dprintf ("WARNING: Unknown variable '%s' on line %d of config. Check you are using the latest version of OpenTDM.\n", variable, line_number);
+		gi.dprintf ("WARNING: Unknown variable '%s' on line %d of web config. Check you are using the latest version of OpenTDM.\n", variable, line_number);
 		//return false;
 	}
 
@@ -2355,7 +2358,7 @@ TDM_ConfigDownloaded
 ==============
 A downloaded config finished, store it in memory temporarily
 */
-void TDM_ConfigDownloaded (char *buff, int len, int code)
+void TDM_ConfigDownloaded (tdm_download_t *download, int code, byte *buff, int len)
 {
 	tdm_config_t	*t, *last;
 
@@ -2373,7 +2376,7 @@ void TDM_ConfigDownloaded (char *buff, int len, int code)
 
 		t = t->next;
 
-		strcpy (t->name, tdm_download.name);
+		strcpy (t->name, tdm_vote_download.name);
 
 		if (!TDM_ProcessText (buff, len, TDM_ParseVoteConfigLine, t))
 		{
@@ -2381,19 +2384,19 @@ void TDM_ConfigDownloaded (char *buff, int len, int code)
 			last->next = NULL;
 
 			gi.dprintf ("TDM_ConfigDownloaded: Parse failed.\n");
-			tdm_download.onFinish (tdm_download.initiator, 600, NULL);
-			tdm_download.inuse = false;
+			TDM_VoteWebConfigResult (tdm_vote_download.initiator, 600, NULL);
+			tdm_vote_download.inuse = false;
 			return;
 		}
 
 		t->last_downloaded = time(NULL);
 
-		tdm_download.onFinish (tdm_download.initiator, code, t);
+		TDM_VoteWebConfigResult (tdm_vote_download.initiator, code, t);
 	}
 	else
 	{
-		tdm_download.onFinish (tdm_download.initiator, code, NULL);
+		TDM_VoteWebConfigResult (tdm_vote_download.initiator, code, NULL);
 	}
 
-	tdm_download.inuse = false;
+	tdm_vote_download.inuse = false;
 }

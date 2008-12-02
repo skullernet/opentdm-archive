@@ -1665,6 +1665,61 @@ void TDM_Kick_f (edict_t *ent)
 	}
 }
 
+qboolean TDM_ValidateModelSkin (const char *value)
+{
+	char		*skin;
+	char		*model;
+	size_t		len;
+	unsigned	i;
+
+	model = G_CopyString (value);
+
+	skin = strchr (model, '/');
+	if (!skin)
+	{
+		gi.TagFree (model);
+		return false;
+	}
+
+	skin[0] = 0;
+	skin++;
+
+	if (!skin[0])
+	{
+		gi.TagFree (model);
+		return false;
+	}
+
+	if (!Q_stricmp (model, "opentdm"))
+	{
+		gi.TagFree (model);
+		return false;
+	}
+
+	len = strlen (model);
+	for (i = 0; i < len; i++)
+	{
+		if (!isalnum (model[i]) && model[i] != '_' && model[i] != '-')
+		{
+			gi.TagFree (model);
+			return false;
+		}
+	}
+	
+	len = strlen (skin);
+	for (i = 0; i < len; i++)
+	{
+		if (!isalnum (skin[i]) && skin[i] != '_' && skin[i] != '-')
+		{
+			gi.TagFree (model);
+			return false;
+		}
+	}
+
+	gi.TagFree (model);
+	return true;
+}
+
 /*
 ==============
 TDM_Teamskin_f
@@ -1674,13 +1729,7 @@ Set teamskin (captain/admin only).
 void TDM_Teamskin_f (edict_t *ent)
 {
 	const char *value;
-
-	char	*model;
-	char	*skin;
-
 	int			team;
-	unsigned	i;
-	size_t		len;
 
 	if (g_locked_skins->value)
 	{
@@ -1734,55 +1783,11 @@ void TDM_Teamskin_f (edict_t *ent)
 		char	*p = g_allowed_skins->string;
 		while (*/
 
-	model = G_CopyString (value);
-	skin = strchr (model, '/');
-	if (!skin)
+	if (!TDM_ValidateModelSkin (value))
 	{
-		gi.TagFree (model);
-		gi.cprintf (ent, PRINT_HIGH, "Skin must be in the format model/skin.\n");
+		gi.cprintf (ent, PRINT_HIGH, "Invalid model/skin.\n");
 		return;
 	}
-
-	skin[0] = 0;
-	skin++;
-
-	if (!skin[0])
-	{
-		gi.TagFree (model);
-		gi.cprintf (ent, PRINT_HIGH, "Skin must be in the format model/skin.\n");
-		return;
-	}
-
-	if (!Q_stricmp (model, "opentdm"))
-	{
-		gi.TagFree (model);
-		gi.cprintf (ent, PRINT_HIGH, "You cannot use the OpenTDM invisible player model!\n");
-		return;
-	}
-
-	len = strlen (model);
-	for (i = 0; i < len; i++)
-	{
-		if (!isalnum (model[i]) && model[i] != '_' && model[i] != '-')
-		{
-			gi.TagFree (model);
-			gi.cprintf (ent, PRINT_HIGH, "Invalid model name.\n");
-			return;
-		}
-	}
-	
-	len = strlen (skin);
-	for (i = 0; i < len; i++)
-	{
-		if (!isalnum (skin[i]) && skin[i] != '_' && skin[i] != '-')
-		{
-			gi.TagFree (model);
-			gi.cprintf (ent, PRINT_HIGH, "Invalid skin name.\n");
-			return;
-		}
-	}
-
-	gi.TagFree (model);
 
 	if (tdm_match_status != MM_WARMUP && !ent->client->pers.admin)
 	{
@@ -2324,6 +2329,34 @@ void TDM_Spectate_f (edict_t *ent)
 
 /*
 ==============
+TDM_TeamEnemySkin_f
+==============
+Set team or enemy skin.
+*/
+void TDM_TeamEnemySkin_f (edict_t *ent, qboolean team)
+{
+	if (gi.argc() < 2)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Usage: %s model/skin\n", gi.argv(0));
+		return;
+	}
+
+	if (!TDM_ValidateModelSkin (gi.argv(1)))
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Invalid model/skin.\n");
+		return;
+	}
+
+	if (team)
+		strncpy (ent->client->pers.config.teamskin, gi.argv(1), sizeof(ent->client->pers.config.teamskin)-1);
+	else
+		strncpy (ent->client->pers.config.enemyskin, gi.argv(1), sizeof(ent->client->pers.config.enemyskin)-1);
+
+	TDM_SetTeamSkins (ent, NULL);
+}
+
+/*
+==============
 TDM_Command
 ==============
 Process TDM commands (from ClientCommand)
@@ -2569,6 +2602,10 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Speclock_f (ent);
 		else if (!Q_stricmp (cmd, "specinvite"))
 			TDM_Specinvite_f (ent);
+		else if (!Q_stricmp (cmd, "tskin"))
+			TDM_TeamEnemySkin_f (ent, true);
+		else if (!Q_stricmp (cmd, "eskin"))
+			TDM_TeamEnemySkin_f (ent, false);
 		else if (!Q_stricmp (cmd, "stopsound"))
 			return true;	//prevent chat from our stuffcmds on people who have no sound
 		else

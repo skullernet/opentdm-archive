@@ -84,8 +84,6 @@ const char *soundnames[17] = {
 	"pain100_2.wav",
 };
 
-tdm_download_t	tdm_download;
-
 char		**tdm_maplist;
 char		tdm_maplist_string[900];
 
@@ -1022,6 +1020,8 @@ All players are ready so start the countdown
 */
 void TDM_BeginCountdown (void)
 {
+	edict_t *client;
+
 	//set this here so settingsstring knows about it
 	if (teaminfo[TEAM_A].players == 1 && teaminfo[TEAM_B].players == 1)
 		level.tdm_pseudo_1v1mode = true;
@@ -1044,15 +1044,10 @@ void TDM_BeginCountdown (void)
 	level.match_start_framenum = level.framenum + (int)(g_match_countdown->value * SERVER_FPS);
 
 	// wision: force players to record
-	if (g_force_record->value == 1)
+	for (client = g_edicts + 1; client <= g_edicts + game.maxclients; client++)
 	{
-		edict_t *client;
-
-		for (client = g_edicts + 1; client <= g_edicts + game.maxclients; client++)
-		{
-			if (client->inuse && client->client->pers.team)
-				G_StuffCmd (client, "record \"%s\"\n", TDM_MakeDemoName (client));
-		}
+		if (client->inuse && client->client->pers.team && (g_force_record->value == 1 || client->client->pers.config.auto_record))
+			G_StuffCmd (client, "record \"%s\"\n", TDM_MakeDemoName (client));
 	}
 }
 
@@ -1064,25 +1059,22 @@ Intermission timer expired or all clients are ready. Reset for another game.
 */
 void TDM_EndIntermission (void)
 {
-	int		i;
+	edict_t		*client;
+	int			i;
 
 	//for test server
 	gi.bprintf (PRINT_CHAT, "Please report any bugs at www.opentdm.net.\n");
 
 	// wision: stop demo recording if we enforce it
-	if (g_force_record->value == 1)
+	for (client = g_edicts + 1; client <= g_edicts + game.maxclients; client++)
 	{
-		edict_t		*client;
+		if (!client->inuse)
+			continue;
 
-		for (client = g_edicts + 1; client <= g_edicts + game.maxclients; client++)
-		{
-			if (!client->inuse)
-				continue;
-
-			if (client->client->pers.team)
-				G_StuffCmd (client, "stop\n");
-		}
+		if (client->client->pers.team && (g_force_record->value == 1 || client->client->pers.config.auto_record))
+			G_StuffCmd (client, "stop\n");
 	}
+
 
 	//shuffle current stats to old and cleanup any players who never reconnected
 	if (current_matchinfo.teamplayers)
@@ -1544,7 +1536,7 @@ void TDM_CheckTimes (void)
 				if (!client->inuse)
 					continue;
 
-				if (client->client->pers.team && g_force_screenshot->value == 1)
+				if (client->client->pers.team && (g_force_screenshot->value == 1 || client->client->pers.config.auto_screenshot))
 					G_StuffCmd (client, "screenshot\n");
 			}
 		}
@@ -2543,6 +2535,80 @@ void TDM_Init (void)
 
 /*
 ==============
+TDM_SetTeamSkins
+==============
+Setup teamskin/enemyskin configstrings.
+*/
+void TDM_SetTeamSkins (edict_t *cl, edict_t *target_to_set_skins_for)
+{
+	edict_t		*ent;
+	const char	*teamskin, *enemyskin;
+
+	//not using teamskins
+	if (!cl->client->pers.config.teamskin[0] && !cl->client->pers.config.enemyskin[0])
+		return;
+
+	teamskin = cl->client->pers.config.teamskin;
+	enemyskin = cl->client->pers.config.enemyskin;
+
+	if (!enemyskin[0])
+	{
+		//don't care about enemyskin
+		if (!strcmp (teamskin, g_team_a_skin->string))
+			enemyskin = g_team_b_skin->string;
+		else
+			enemyskin = g_team_a_skin->string;
+	}
+	else if (!teamskin[0])
+	{
+		//don't care about teamskin
+		if (!strcmp (enemyskin, g_team_a_skin->string))
+			teamskin = g_team_b_skin->string;
+		else
+			teamskin = g_team_a_skin->string;
+	}
+
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+	{
+		if (target_to_set_skins_for && ent != target_to_set_skins_for)
+			continue;
+
+		if (!ent->inuse)
+			continue;
+
+		if (ent->client->pers.team)
+		{
+			gi.WriteByte (svc_configstring);
+			gi.WriteShort (CS_PLAYERSKINS + (ent - g_edicts) -1);
+
+			//spectators get team A as teamskin, team B as enemyskin
+			if (ent->client->pers.team == cl->client->pers.team ||
+				(cl->client->pers.team == TEAM_SPEC && ent->client->pers.team == TEAM_A))
+				gi.WriteString (va ("%s\\%s", ent->client->pers.netname, teamskin));
+			else
+				gi.WriteString (va ("%s\\%s", ent->client->pers.netname, enemyskin));
+
+			gi.unicast (cl, true);
+		}	
+	}
+}
+
+void TDM_SetAllTeamSkins (edict_t *target_to_set_skins_for)
+{
+	edict_t	*ent;
+
+	//now reset anyone who had teamskin/enemyskin set. ew.
+	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+	{
+		if (!ent->inuse)
+			continue;
+
+		TDM_SetTeamSkins (ent, target_to_set_skins_for);
+	}
+}
+
+/*
+==============
 TDM_SetSkins
 ==============
 Setup skin configstrings.
@@ -2587,6 +2653,8 @@ void TDM_SetSkins (void)
 			}	
 		}
 	}
+
+	TDM_SetAllTeamSkins (NULL);
 }
 
 /*
@@ -2954,27 +3022,25 @@ TDM_HandleDownload
 ==============
 A download we requested for something has finished. Do stuff.
 */
-void TDM_HandleDownload (char *buff, int len, int code)
+void TDM_HandleDownload (tdm_download_t *download, char *buff, int len, int code)
 {
 	//player left before download finished, lame!
 	//note on an extremely poor connection it's possible another player since occupied their slot, but
 	//for that to happen, the download must take 3+ seconds which should be unrealistic, so i don't
 	//deal with it.
-	if (!tdm_download.initiator->inuse)
-		return;
+	if (!download->initiator->inuse || download->initiator->client->pers.uniqueid != download->unique_id)
+		download->initiator = NULL;
 
-	//oops, i'm doing something to the site
-	if (code == 500)
-	{
-		gi.cprintf (tdm_download.initiator, PRINT_HIGH, "The OpenTDM web service is currently unavailable. Please try again later.\n");
-		return;
-	}
+	download->onFinish (download, code, buff, len);
 
-	switch (tdm_download.type)
+	/*switch (download->type)
 	{
 		case DL_CONFIG:
 			TDM_ConfigDownloaded (buff, len, code);
 			break;
+
+		case DL_PLAYER_CONFIG:
+			TDM_
 
 		case DL_POST_STATS:
 			break;
@@ -2982,7 +3048,7 @@ void TDM_HandleDownload (char *buff, int len, int code)
 		default:
 			TDM_Error ("TDM_HandleDownload: Unrequested/unknown type");
 			break;
-	}
+	}*/
 }
 
 /*

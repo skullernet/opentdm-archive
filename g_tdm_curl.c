@@ -33,16 +33,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 typedef struct dlhandle_s
 {
-	CURL		*curl;
-	size_t		fileSize;
-	size_t		position;
-	double		speed;
-	char		filePath[1024];
-	char		URL[2048];
-	char		*tempBuffer;
+	CURL			*curl;
+	size_t			fileSize;
+	size_t			position;
+	double			speed;
+	char			filePath[1024];
+	char			URL[2048];
+	char			*tempBuffer;
+	qboolean		inuse;
+	tdm_download_t	*tdm_handle;
 } dlhandle_t;
 
-dlhandle_t	download;
+//we need this high in case a sudden server switch causes a bunch of people
+//to connect, we want to be able to download their configs
+#define MAX_DOWNLOADS	16
+
+dlhandle_t	downloads[MAX_DOWNLOADS];
 
 static CURLM		*multi = NULL;
 static unsigned		handleCount = 0;
@@ -304,6 +310,7 @@ static void HTTP_FinishDownload (void)
 	long		responseCode;
 	double		timeTaken;
 	double		fileSize;
+	unsigned	i;
 
 	do
 	{
@@ -323,9 +330,16 @@ static void HTTP_FinishDownload (void)
 
 		curl = msg->easy_handle;
 
-		dl = &download;
-		if (dl->curl != curl)
-			TDM_Error ("HTTP_FinishDownload: We're not ourselves!");
+		for (i = 0; i < MAX_DOWNLOADS; i++)
+		{
+			if (downloads[i].curl == curl)
+				break;
+		}
+
+		if (i == MAX_DOWNLOADS)
+			TDM_Error ("HTTP_FinishDownload: Handle not found!");
+
+		dl = &downloads[i];
 
 		result = msg->data.result;
 
@@ -338,19 +352,20 @@ static void HTTP_FinishDownload (void)
 				curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &responseCode);
 				if (responseCode == 404)
 				{
-					TDM_HandleDownload (NULL, 0, responseCode);
+					TDM_HandleDownload (dl->tdm_handle, NULL, 0, responseCode);
 					gi.dprintf ("HTTP: %s: 404 File Not Found\n", dl->URL);
 					curl_multi_remove_handle (multi, dl->curl);
+					dl->inuse = false;
 					continue;
 				}
 				else if (responseCode == 200)
 				{
-					TDM_HandleDownload (dl->tempBuffer, dl->fileSize, responseCode);
+					TDM_HandleDownload (dl->tdm_handle, dl->tempBuffer, dl->position, responseCode);
 					gi.TagFree (dl->tempBuffer);
 				}
 				else
 				{
-					TDM_HandleDownload (NULL, 0, responseCode);
+					TDM_HandleDownload (dl->tdm_handle, NULL, 0, responseCode);
 					if (dl->tempBuffer)
 						gi.TagFree (dl->tempBuffer);
 				}
@@ -358,9 +373,10 @@ static void HTTP_FinishDownload (void)
 
 			//fatal error
 			default:
-				TDM_HandleDownload (NULL, 0, 0);
+				TDM_HandleDownload (dl->tdm_handle, NULL, 0, 0);
 				gi.dprintf ("HTTP Error: %s: %s\n", dl->URL, curl_easy_strerror (result));
 				curl_multi_remove_handle (multi, dl->curl);
+				dl->inuse = false;
 				continue;
 		}
 
@@ -375,26 +391,47 @@ static void HTTP_FinishDownload (void)
 		//out why, please let me know.
 		curl_multi_remove_handle (multi, dl->curl);
 
+		dl->inuse = false;
+
 		gi.dprintf ("HTTP: Finished %s: %.f bytes, %.2fkB/sec\n", dl->URL, fileSize, (fileSize / 1024.0) / timeTaken);
 	} while (msgs_in_queue > 0);
 }
 
 qboolean HTTP_QueueDownload (tdm_download_t *d)
 {
-	if (handleCount)
+	unsigned	i;
+
+	if (handleCount == MAX_DOWNLOADS)
 	{
-		gi.cprintf (d->initiator, PRINT_HIGH, "Another download is already pending, please wait.\n");
+		if (d->type == DL_CONFIG)
+			gi.cprintf (d->initiator, PRINT_HIGH, "Another download is already pending, please try again later.\n");
 		return false;
 	}
 
 	if (!g_http_enabled->value)
 	{
-		gi.cprintf (d->initiator, PRINT_HIGH, "HTTP functions are disabled on this server.\n");
+		if (d->type == DL_CONFIG)
+			gi.cprintf (d->initiator, PRINT_HIGH, "HTTP functions are disabled on this server.\n");
 		return false;
 	}
 
-	strncpy (download.filePath, d->path, sizeof(download.filePath)-1);
-	HTTP_StartDownload (&download);
+	for (i = 0; i < MAX_DOWNLOADS; i++)
+	{
+		if (!downloads[i].inuse)
+			break;
+	}
+
+	if (i == MAX_DOWNLOADS)
+	{
+		if (d->type == DL_CONFIG)
+			gi.cprintf (d->initiator, PRINT_HIGH, "The server is too busy to download configs right now.\n");
+		return false;
+	}
+
+	downloads[i].tdm_handle = d;
+	downloads[i].inuse = true;
+	strncpy (downloads[i].filePath, d->path, sizeof(downloads[i].filePath)-1);
+	HTTP_StartDownload (&downloads[i]);
 
 	return true;
 }
@@ -443,7 +480,8 @@ void HTTP_Init (void)
 
 qboolean HTTP_QueueDownload (tdm_download_t *d)
 {
-	gi.cprintf (d->initiator, PRINT_HIGH, "HTTP functions are not compiled on this server.\n");
+	if (d->type == DL_CONFIG)
+		gi.cprintf (d->initiator, PRINT_HIGH, "HTTP functions are not compiled on this server.\n");
 	return false;
 }
 #endif

@@ -107,6 +107,12 @@ void JoinedTeam (edict_t *ent, qboolean reconnected, qboolean notify)
 	//wision: set skin for new player
 	gi.configstring (CS_PLAYERSKINS + (ent - g_edicts) - 1, va("%s\\%s", ent->client->pers.netname, teaminfo[ent->client->pers.team].skin));
 
+	//set everyone elses teamskin for this player based on what team he is on
+	TDM_SetAllTeamSkins (ent);
+
+	//set this players teamskins based on his team
+	TDM_SetTeamSkins (ent, NULL);
+
 	if (g_gamemode->value != GAMEMODE_1V1)
 		gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, va ("%s (%s)", ent->client->pers.netname, teaminfo[ent->client->pers.team].name));
 	else
@@ -540,6 +546,98 @@ void TDM_Disconnected (edict_t *ent)
 	ent->client->ps.stats[STAT_FRAGS] = 0;
 }
 
+qboolean TDM_ParsePlayerConfigLine (char *line, int line_number, void *param)
+{
+	playerconfig_t	*c;
+	char			*p, *variable;
+
+	c = (playerconfig_t *)param;
+
+	p = strchr (line, '\t');
+	if (!p)
+	{
+		gi.dprintf ("WARNING: Malformed line %d '%s'\n", line_number, line);
+		return false;
+	}
+
+	p[0] = 0;
+	p++;
+
+	variable = line;
+
+	if (!p[0])
+	{
+		gi.dprintf ("WARNING: Malformed line %d '%s'\n", line_number, line);
+		return false;
+	}
+
+	//no validation is done here to keep things small - these should be validated serverside
+	//already. yes, we're trusting the server not to lie to us :).
+	if (!strcmp (variable, "teamskin"))
+		Q_strncpy (c->teamskin, p, sizeof(c->teamskin)-1);
+	else if (!strcmp (variable, "enemyskin"))
+		Q_strncpy (c->enemyskin, p, sizeof(c->enemyskin)-1);
+	else if (!strcmp (variable, "autorecord"))
+		c->auto_record = atoi (p);
+	else if (!strcmp (variable, "autoscreenshot"))
+		c->auto_screenshot = atoi (p);
+	else
+		gi.dprintf ("Unknown player config variable '%s'. Check you are using the latest version of OpenTDM.\n", variable);
+
+	return true;
+}
+
+void TDM_PlayerConfigDownloaded (tdm_download_t *download, int code, byte *buff, int len)
+{
+	playerconfig_t	config;
+
+	if (!download->initiator || !buff)
+		return;
+
+	if (!TDM_ProcessText (buff, len, TDM_ParsePlayerConfigLine, &config))
+	{
+		gi.dprintf ("TDM_PlayerConfigDownloaded: Parse failed.\n");
+	}
+	else
+	{
+		download->initiator->client->pers.config = config;
+		gi.cprintf (download->initiator, PRINT_HIGH, "Your opentdm.net player config was loaded successfully.\n");
+		TDM_SetTeamSkins (download->initiator, NULL);
+	}
+}
+
+/*
+==============
+TDM_DownloadPlayerConfig
+==============
+Queue up a player config download if possible.
+*/
+void TDM_DownloadPlayerConfig (edict_t *ent)
+{
+	const char	*stats_id;
+
+	stats_id = Info_ValueForKey (ent->client->pers.userinfo, "stats_id");
+	if (!stats_id[0])
+		return;
+
+	//prevent new player from overwriting old request
+	if (ent->client->pers.download.inuse)
+	{
+		//FIXME: shouldn't get here.
+		return;
+	}
+
+	Com_sprintf (ent->client->pers.download.path , sizeof(ent->client->pers.download.path ), "playerconfigs/%s", stats_id);
+	ent->client->pers.download.initiator = ent;
+	ent->client->pers.download.type = DL_PLAYER_CONFIG;
+	strncpy (ent->client->pers.download.name, stats_id, sizeof(ent->client->pers.download.name)-1);
+	ent->client->pers.download.onFinish = TDM_PlayerConfigDownloaded;
+	ent->client->pers.download.inuse = true;
+	ent->client->pers.download.unique_id = ent->client->pers.uniqueid;
+
+	HTTP_QueueDownload (&ent->client->pers.download);
+}
+
 /*
 ==============
 TDM_SetupClient
@@ -547,11 +645,16 @@ TDM_SetupClient
 Setup the client after an initial connection. Called on first spawn
 on every map load. Returns true if a join code was used to respawn
 a full player, so that PutClientInServer knows about it.
+
+FIXME: Is this only called once? I don't think its called every map
+load any more.
 */
 qboolean TDM_SetupClient (edict_t *ent)
 {
 	ent->client->pers.team = TEAM_SPEC;
 	TDM_TeamsChanged ();
+
+	TDM_DownloadPlayerConfig (ent);
 
 	if (!TDM_ProcessJoinCode (ent, 0))
 	{

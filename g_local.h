@@ -1335,6 +1335,33 @@ typedef enum
 	VOTE_NO
 } player_vote_t;
 
+typedef enum
+{
+	DL_NONE,
+	DL_CONFIG,
+	DL_PLAYER_CONFIG,
+	DL_POST_STATS,
+} dltype_t;
+
+typedef struct tdm_download_s
+{
+	edict_t		*initiator;
+	unsigned	unique_id;
+	dltype_t	type;
+	char		name[32];
+	char		path[1024];
+	void		(*onFinish)(struct tdm_download_s *, int, byte *, int);
+	qboolean	inuse;
+} tdm_download_t;
+
+typedef struct
+{
+	int		auto_record;
+	int		auto_screenshot;
+	char	teamskin[64];
+	char	enemyskin[64];
+} playerconfig_t;
+
 extern matchmode_t	tdm_match_status;
 extern teaminfo_t	teaminfo[MAX_TEAMS];
 
@@ -1398,10 +1425,15 @@ typedef struct
 	pmenuhnd_t		menu;
 
 	// stored info about values changed in vote menu
-	vote_menu_t	votemenu_values;
+	vote_menu_t		votemenu_values;
 
 	// we need separate vote menu for all players
-	pmenu_t		votemenu[19];
+	pmenu_t			votemenu[19];
+
+	// per-client download handle (configs)
+	tdm_download_t	download;
+	playerconfig_t	config;
+	unsigned		uniqueid;
 } client_persistant_t;
 
 typedef struct
