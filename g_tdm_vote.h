@@ -7,7 +7,7 @@ void TDM_RemoveVote (void);
 void TDM_Vote_f (edict_t *ent);
 qboolean TDM_ParseVoteConfigLine (char *line, int line_number, void *param);
 qboolean TDM_RateLimited (edict_t *ent, int penalty);
-void TDM_VoteWebConfigResult (edict_t *ent, int code, void *param);
+void TDM_VoteWebConfigResult (edict_t *ent, int code, tdm_config_t *param);
 void TDM_SetupVote (edict_t *ent);
 void TDM_ConfigDownloaded (tdm_download_t *download, int code, byte *buff, int len);
 void TDM_CreateConfiglist (void);
