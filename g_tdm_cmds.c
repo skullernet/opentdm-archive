@@ -175,6 +175,14 @@ void TDM_Timelimit_f (edict_t *ent)
 	}
 
 	limit = strtoul (input, NULL, 10);
+	if (limit < 1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Invalid timelimit value '%s'.\n", input);
+		return;
+	}
+
+	tdm_settings_not_default = true;
+
 	sprintf (seconds, "%d", limit * 60);
 	g_match_time = gi.cvar_set ("g_match_time", seconds);
 
@@ -183,6 +191,10 @@ void TDM_Timelimit_f (edict_t *ent)
 		current_matchinfo.timelimit = g_match_time->value / 60;
 		level.match_end_framenum = level.match_start_framenum + (int)(g_match_time->value * SERVER_FPS);
 	}
+
+	//wision: FIXME: remove _only_ timelimit vote (fix other commands too)
+	if (vote.flags & VOTE_TIMELIMIT)
+		TDM_RemoveVote ();
 
 	gi.bprintf (PRINT_HIGH, "Timelimit set to %s.\n", input);
 }
@@ -242,9 +254,15 @@ void TDM_Powerups_f (edict_t *ent)
 		return;
 	}
 
+	tdm_settings_not_default = true;
+
 	sprintf (value, "%d", flags);
 	g_powerupflags = gi.cvar_set ("g_powerupflags", value);
 	TDM_ResetLevel ();
+
+	if (vote.flags & VOTE_POWERUPS)
+		TDM_RemoveVote ();
+
 	gi.bprintf (PRINT_HIGH, "Powerups set to %s.\n", input);
 }
 
@@ -291,9 +309,15 @@ void TDM_Bfg_f (edict_t *ent)
 		return;
 	}
 
+	tdm_settings_not_default = true;
+
 	sprintf (value, "%d", flags);
 	g_itemflags = gi.cvar_set ("g_itemflags", value);
 	TDM_ResetLevel ();
+
+	if (vote.flags & VOTE_WEAPONS)
+		TDM_RemoveVote ();
+
 	gi.bprintf (PRINT_HIGH, "Bfg set to %s.\n", input);
 }
 
@@ -311,15 +335,9 @@ void TDM_Changemap_f (edict_t *ent)
 	if (!mapname[0])
 	{
 		if (tdm_maplist != NULL)
-		{
-			gi.cprintf (ent, PRINT_HIGH, "Allowed maplist:\n"
-					"----------------\n\n"
-					"%s\n"
-					"Usage: changemap <mapname>\n", tdm_maplist_string);
-		}
-		else
-			gi.cprintf (ent, PRINT_HIGH, "Usage: changemap <mapname>\n");
+			TDM_WriteMaplist (ent);
 
+		gi.cprintf (ent, PRINT_HIGH, "Usage: changemap <mapname>\n");
 		return;
 	}
 
@@ -397,9 +415,13 @@ void TDM_Overtime_f (edict_t *ent)
 		return;
 	}
 
+	tdm_settings_not_default = true;
+
 	sprintf (value, "%d", tiemode);
 	g_tie_mode = gi.cvar_set ("g_tie_mode", value);
 
+	if (vote.flags & VOTE_OVERTIME)
+		TDM_RemoveVote ();
 
 	if (tiemode == 1)
 	{
@@ -502,6 +524,9 @@ void TDM_Kickban_f (edict_t *ent)
 			return;
 		}
 
+		if (vote.flags & VOTE_KICK && vote.victim == victim)
+			TDM_RemoveVote ();
+
 		SVCmd_AddIP_f (ent, victim->client->pers.ip, 60);
 
 		gi.AddCommandString (va ("kick %d\n", (int)(victim - g_edicts - 1)));
@@ -544,6 +569,8 @@ void TDM_Obsmode_f (edict_t *ent)
 		gi.cprintf (ent, PRINT_HIGH, "Usage: obsmode speak/whisper/shutup\n");
 		return;
 	}
+
+	tdm_settings_not_default = true;
 
 	g_chat_mode = gi.cvar_set ("g_chat_mode", va("%d", value));
 	gi.bprintf (PRINT_HIGH, "Obsmode is set to %s.\n", input);
@@ -1310,7 +1337,7 @@ void TDM_PrintPlayers (edict_t *ent)
 		if (!e2->inuse)
 			continue;
 
-		Com_sprintf (st, sizeof(st), "  %3d  %s\n", e2 - g_edicts - 1, e2->client->pers.netname);
+		Com_sprintf (st, sizeof(st), "  %3d  %s\n", (int)(e2 - g_edicts - 1), e2->client->pers.netname);
 
 		if (strlen(text) > 900)
 		{
@@ -1660,6 +1687,9 @@ void TDM_Kick_f (edict_t *ent)
 			gi.cprintf (ent, PRINT_HIGH, "You cannot kick an admin!\n");
 			return;
 		}
+
+		if (vote.flags & VOTE_KICK && vote.victim == victim)
+			TDM_RemoveVote ();
 
 		gi.AddCommandString (va ("kick %d\n", (int)(victim - g_edicts - 1)));
 	}
@@ -2448,20 +2478,9 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Commands_f (ent);
 		else if (!Q_stricmp (cmd, "settings") || !Q_stricmp (cmd, "matchinfo"))
 			TDM_Settings_f (ent);
-		else if (!Q_stricmp (cmd, "calltime") | !Q_stricmp (cmd, "pause") || !Q_stricmp (cmd, "ctime") || !Q_stricmp (cmd, "time") || !Q_stricmp (cmd, "hold"))
+		else if (!Q_stricmp (cmd, "calltime") | !Q_stricmp (cmd, "pause") || !Q_stricmp (cmd, "ctime") ||
+				!Q_stricmp (cmd, "time") || !Q_stricmp (cmd, "hold"))
 			TDM_Timeout_f (ent);
-		else if (!Q_stricmp (cmd, "stats") || !Q_stricmp (cmd, "kills"))
-			TDM_Stats_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "accuracy"))
-			TDM_Accuracy_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "damage"))
-			TDM_Damage_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "items"))
-			TDM_Items_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "weapons"))
-			TDM_Weapons_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "teamstats"))
-			TDM_TeamStats_f (ent, &current_matchinfo);
 		else if (!Q_stricmp (cmd, "ghost") || !Q_stricmp (cmd, "restore") || !Q_stricmp (cmd, "recover") | !Q_stricmp (cmd, "rejoin"))
 			TDM_Ghost_f (ent);
 		else if (!Q_stricmp (cmd, "win"))
@@ -2531,48 +2550,40 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 		else if (!Q_stricmp (cmd, "observer") || !Q_stricmp (cmd, "spectate") || !Q_stricmp (cmd, "chase") ||
 				!Q_stricmp (cmd, "spec") || !Q_stricmp (cmd, "obs"))
 			TDM_Spectate_f (ent);
-		else if (!Q_stricmp (cmd, "calltime") | !Q_stricmp (cmd, "pause") || !Q_stricmp (cmd, "ctime") || !Q_stricmp (cmd, "time") || !Q_stricmp (cmd, "hold"))
+		else if (!Q_stricmp (cmd, "calltime") | !Q_stricmp (cmd, "pause") || !Q_stricmp (cmd, "ctime") ||
+				!Q_stricmp (cmd, "time") || !Q_stricmp (cmd, "hold"))
 			TDM_Timeout_f (ent);
-		else if (!Q_stricmp (cmd, "stats") || !Q_stricmp (cmd, "kills"))
+		// stats.. this could use some cleanup
+		else if (!Q_stricmp (cmd, "stats") || !Q_stricmp (cmd, "kills") || !Q_stricmp (cmd, "accuracy") ||
+				!Q_stricmp (cmd, "damage") || !Q_stricmp (cmd, "weapons") || !Q_stricmp (cmd, "items") ||
+				!Q_stricmp (cmd, "killstats") || !Q_stricmp (cmd, "deathstats"))
 			TDM_Stats_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "accuracy"))
-			TDM_Accuracy_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "teamaccuracy"))
-			TDM_TeamAccuracy_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "damage"))
-			TDM_Damage_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "teamdamage"))
-			TDM_TeamDamage_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "teamweapons"))
-			TDM_TeamWeapons_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "items"))
-			TDM_Items_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "weapons"))
-			TDM_Weapons_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "teamitems"))
-			TDM_TeamItems_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "teamstats"))
-			TDM_TeamStats_f (ent, &current_matchinfo);
-		else if (!Q_stricmp (cmd, "oldstats") || !Q_stricmp (cmd, "oldkills") || (!Q_stricmp (cmd, "laststats") || !Q_stricmp (cmd, "lastkills") ))
+		else if (!Q_stricmp (cmd, "oldstats") || !Q_stricmp (cmd, "oldkills") || !Q_stricmp (cmd, "laststats") ||
+				!Q_stricmp (cmd, "lastkills") || !Q_stricmp (cmd, "oldaccuracy") || !Q_stricmp (cmd, "lastaccuracy") ||
+				!Q_stricmp (cmd, "olddamage") || !Q_stricmp (cmd, "lastdamage") || !Q_stricmp (cmd, "oldweapons") ||
+				!Q_stricmp (cmd, "lastweapons") || !Q_stricmp (cmd, "olditems") || !Q_stricmp (cmd, "lastitems") ||
+				!Q_stricmp (cmd, "oldkillstats") || !Q_stricmp (cmd, "lastkillstats") || !Q_stricmp (cmd, "lastdeathstats") ||
+				!Q_stricmp (cmd, "olddeathstats"))
 			TDM_Stats_f (ent, &old_matchinfo);
-		else if (!Q_stricmp (cmd, "oldaccuracy") || !Q_stricmp (cmd, "lastaccuracy"))
-			TDM_Accuracy_f (ent, &old_matchinfo);
-		else if (!Q_stricmp (cmd, "oldteamaccuracy") || !Q_stricmp (cmd, "lastteamaccuracy"))
-			TDM_TeamAccuracy_f (ent, &old_matchinfo);
-		else if (!Q_stricmp (cmd, "olddamage") || !Q_stricmp (cmd, "lastdamage"))
-			TDM_Damage_f (ent, &old_matchinfo);
-		else if (!Q_stricmp (cmd, "oldweapons") || !Q_stricmp (cmd, "lastweapons"))
-			TDM_Weapons_f (ent, &old_matchinfo);
-		else if (!Q_stricmp (cmd, "oldteamdamage") || !Q_stricmp (cmd, "lastteamdamage"))
-			TDM_TeamDamage_f (ent, &old_matchinfo);
-		else if (!Q_stricmp (cmd, "olditems") || !Q_stricmp (cmd, "lastitems"))
-			TDM_Items_f (ent, &old_matchinfo);
-		else if (!Q_stricmp (cmd, "oldteamitems") || !Q_stricmp (cmd, "lastteamitems"))
-			TDM_TeamItems_f (ent, &old_matchinfo);
-		else if (!Q_stricmp (cmd, "oldteamstats") || !Q_stricmp (cmd, "lastteamstats"))
+		else if (!Q_stricmp (cmd, "teamstats") || !Q_stricmp (cmd, "teamkills") || !Q_stricmp (cmd, "teamaccuracy") ||
+				!Q_stricmp (cmd, "teamdamage") || !Q_stricmp (cmd, "teamweapons") || !Q_stricmp (cmd, "teamitems") ||
+				!Q_stricmp (cmd, "teamkillstats") || !Q_stricmp (cmd, "teamdeathstats"))
+			TDM_TeamStats_f (ent, &current_matchinfo);
+		else if (!Q_stricmp (cmd, "oldteamstats") || !Q_stricmp (cmd, "oldteamkills") || !Q_stricmp (cmd, "lastteamstats") ||
+				!Q_stricmp (cmd, "lastteamkills") || !Q_stricmp (cmd, "oldteamaccuracy") || !Q_stricmp (cmd, "lastteamaccuracy") ||
+				!Q_stricmp (cmd, "oldteamdamage") || !Q_stricmp (cmd, "lastteamdamage") || !Q_stricmp (cmd, "oldteamweapons") ||
+				!Q_stricmp (cmd, "lastteamweapons") || !Q_stricmp (cmd, "oldteamitems") || !Q_stricmp (cmd, "lastteamitems") ||
+				!Q_stricmp (cmd, "oldteamkillstats") || !Q_stricmp (cmd, "lastteamkillstats") || !Q_stricmp (cmd, "lastteamdeathstats") ||
+				!Q_stricmp (cmd, "oldteamdeathstats"))
 			TDM_TeamStats_f (ent, &old_matchinfo);
-		else if (!Q_stricmp (cmd, "oldteamweapons") || !Q_stricmp (cmd, "lastteamweapons"))
-			TDM_TeamWeapons_f (ent, &old_matchinfo);
+ 		else if (!Q_stricmp (cmd, "topshots"))
+ 			TDM_TopBottomShots_f (ent, false, true);
+ 		else if (!Q_stricmp (cmd, "teamtopshots"))
+ 			TDM_TopBottomShots_f (ent, true, true);
+ 		else if (!Q_stricmp (cmd, "bottomshots"))
+ 			TDM_TopBottomShots_f (ent, false, false);
+ 		else if (!Q_stricmp (cmd, "teambottomshots"))
+ 			TDM_TopBottomShots_f (ent, true, false);
 		else if (!Q_stricmp (cmd, "oldscores") || !Q_stricmp (cmd, "oldscore") || !Q_stricmp (cmd, "lastscores") || !Q_stricmp (cmd, "lastscore"))
 			TDM_OldScores_f (ent);
 		else if (!Q_stricmp (cmd, "ghost") || !Q_stricmp (cmd, "restore") || !Q_stricmp (cmd, "recover") | !Q_stricmp (cmd, "rejoin"))

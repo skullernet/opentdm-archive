@@ -1063,7 +1063,12 @@ void Cmd_PlayerList_f (edict_t *ent)
 	char	st[128];
 	char	text[1024];
 	char	ip[32];
+	int		players = 0;
+	cvar_t	*sv_reserved_slots;
 	edict_t	*e2;
+
+	// find out how many reserved slots there are
+	sv_reserved_slots = gi.cvar ("sv_reserved_slots", NULL, 0);
 
 	// show players' ips for admin
 	if (ent->client->pers.admin)
@@ -1098,7 +1103,7 @@ void Cmd_PlayerList_f (edict_t *ent)
 		}
 
 		Com_sprintf (st, sizeof(st), "%2d  %3d:%02d  %4d     %3d %s %-13s %s%s\n",
-			e2 - g_edicts - 1,
+			(int)(e2 - g_edicts - 1),
 			(level.framenum - e2->client->resp.enterframe) / 600,
 			((level.framenum - e2->client->resp.enterframe) % 600)/10,
 			e2->client->ping,
@@ -1109,13 +1114,34 @@ void Cmd_PlayerList_f (edict_t *ent)
 			e2->client->pers.team == TEAM_SPEC && e2->client->chase_target ? 
 				va ("->%s", e2->client->chase_target->client->pers.netname) : "");
 
-		if (strlen(text) > 800)
+		if (strlen(text) + 1 + strlen(st) > sizeof(text) - 50)
 		{
 			gi.cprintf (ent, PRINT_HIGH, "%s", text);
 			text[0] = 0;
 		}
 
 		strcat (text, st);
+		players++;
+	}
+
+	//force flush just to be safe
+	gi.cprintf (ent, PRINT_HIGH, "%s", text);
+	text[0] = 0;
+
+	strcat (text, va ("\nServer status: "));
+	if (sv_reserved_slots)
+	{
+		if (players >= game.maxclients - sv_reserved_slots->intvalue)
+			strcat (text, TDM_SetColorText (va ("%d/%d\n", players, game.maxclients - sv_reserved_slots->intvalue)));
+		else
+			strcat (text, va("%d/%d\n", players, game.maxclients - sv_reserved_slots->intvalue));
+	}
+	else
+	{
+		if (players >= game.maxclients)
+			strcat (text, TDM_SetColorText (va ("%d/%d\n", players, game.maxclients)));
+		else
+			strcat (text, va("%d/%d\n", players, game.maxclients));
 	}
 
 	gi.cprintf (ent, PRINT_HIGH, "%s", text);

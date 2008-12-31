@@ -39,9 +39,9 @@ void TDM_BeginMatch (void);
 void TDM_EndMatch (void);
 
 qboolean TDM_Checkmap (edict_t *ent, const char *mapname);
+void TDM_WriteMaplist (edict_t *ent);
 void TDM_CreateMaplist (void);
 
 extern char		**tdm_maplist;
-extern char		tdm_maplist_string[900];
 
 extern tdm_download_t	tdm_vote_download;

@@ -85,7 +85,6 @@ const char *soundnames[17] = {
 };
 
 char		**tdm_maplist;
-char		tdm_maplist_string[900];
 
 //a note regarding matchinfo and teamplayers.
 //matchinfo is a structure containing information about a single match - from "Fight!" to a team winning.
@@ -598,11 +597,8 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			firstteam = TEAM_A;
 			secondteam = TEAM_B;
 		}
-	
-		if (total[0] > total[1])
-			maxplayers = total[0];
-		else
-			maxplayers = total[1];
+
+		maxplayers = total[firstteam-1];
 
 		for (i = 0; i < MAX_TEAMS - 1; i++)
 		{
@@ -632,7 +628,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 		{
 			sprintf (tmpstr, "oldscoreboard: %s", level.mapname);
 			sprintf (string + strlen(string), "xv %d yv 24 string2 \"%s\" ",
-					((36-strlen(tmpstr))/2)*8 + 8,
+					(int)((36-strlen(tmpstr))/2)*8 + 8,
 					tmpstr
 					);
 		}
@@ -641,14 +637,14 @@ char *TDM_ScoreBoardString (edict_t *ent)
 		sprintf (tmpstr, "%s:%.f(%s)", teaminfo[firstteam].name, averageping[firstteam-1], teaminfo[firstteam].skin);
 		sprintf (string + strlen(string),
 			"xv %d yv 40 string \"%s\" ",
-			((36-strlen(tmpstr))/2)*8 + 8,
+			(int)((36-strlen(tmpstr))/2)*8 + 8,
 			tmpstr
  			);
  
 		sprintf (tmpstr, "%s:%.f(%s)", teaminfo[secondteam].name, averageping[secondteam-1], teaminfo[secondteam].skin);
  		sprintf (string + strlen(string),
 			"xv %d yv %d string \"%s\" ",
-			((36-strlen(tmpstr))/2)*8 + 8,
+			(int)((36-strlen(tmpstr))/2)*8 + 8,
 			offset + 40, tmpstr
 			);
 
@@ -666,7 +662,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 		//now the players
 		for (i = 0; i < current_matchinfo.num_teamplayers; i++)
 		{
-			if (i >= maxplayers)
+			if (i >= total[firstteam-1] && i >= total[secondteam-1])
 				break; // we're done
 
 			// top (winning team)
@@ -808,7 +804,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				"xv %d yv 40 string \"%s\" "
 				// draw name on X=0 later, so we don't have to set it for all the players below
 				"xv 264 yv 48 string2 \"Ping\" xv 8 string2 \" Name\" ",
-				((36-strlen(tmpstr))/2)*8 + 8,
+				(int)((36-strlen(tmpstr))/2)*8 + 8,
 				tmpstr
 				);
 		}
@@ -819,7 +815,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 				"xv %d yv %d string \"%s\" "
 				// draw name on X=0 later, so we don't have to set it for all the players below
 				"xv 264 yv %d string2 \"Ping\" xv 8 string2 \" Name\" ",
-				((36-strlen(tmpstr))/2)*8 + 8, offset + 40,
+				(int)((36-strlen(tmpstr))/2)*8 + 8, offset + 40,
 				tmpstr,	offset + 48
 				);
 		}
@@ -829,7 +825,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 		//now the players
 		for (i = 0; i < 16; i++)
 		{
-			if (i >= maxplayers)
+			if (i >= total[firstteam-1] && i >= total[secondteam-1])
 				break; // we're done
 
 			// top
@@ -1030,7 +1026,7 @@ void TDM_BeginCountdown (void)
 
 	gi.bprintf (PRINT_HIGH, "Match Settings:\n%s", TDM_SettingsString ());
 
-	gi.bprintf (PRINT_CHAT, "All players ready! Starting countdown (%g secs)...\n", g_match_countdown->value);
+	gi.bprintf (PRINT_HIGH, "All players ready! Starting countdown (%g secs)...\n", g_match_countdown->value);
 
 	//remove any vote so it doesn't change settings mid-match :D
 	if (vote.active)
@@ -1216,7 +1212,7 @@ void TDM_EndMatch (void)
 			if (!ent->client->resp.teamplayerinfo)
 				TDM_Error ("TDM_EndMatch: Missing teamplayerinfo for client %d", ent - g_edicts - 1);
 
-			TDM_WriteStatsString (ent, ent->client->resp.teamplayerinfo);
+			TDM_Stats_f (ent, ent->client->resp.teamplayerinfo->matchinfo);
 		}
 	}
 
@@ -1260,9 +1256,15 @@ void TDM_EndMatch (void)
 	if (winner)
 	{
 		if (forfeit)
+		{
+			gi.bprintf (PRINT_HIGH, "Match ended.\n");
 			gi.bprintf (PRINT_HIGH, "%s wins by forfeit!\n", teaminfo[winner].name);
+		}
 		else
+		{
+			gi.bprintf (PRINT_HIGH, "Timelimit hit. Match ended.\n");
 			gi.bprintf (PRINT_HIGH, "%s wins, %d to %d.\n", teaminfo[winner].name, teaminfo[winner].score, teaminfo[loser].score);
+		}
 	}
 
 	current_matchinfo.winning_team = winner;
@@ -1556,7 +1558,7 @@ void TDM_CheckTimes (void)
 			TDM_RemoveVote ();
 		}
 	}
-	
+
 	if (tdm_match_status == MM_WARMUP && tdm_settings_not_default && level.framenum >= SECS_TO_FRAMES(300) &&
 		teaminfo[TEAM_A].players == 0 && teaminfo[TEAM_B].players == 0)
 	{
@@ -2199,6 +2201,44 @@ qboolean TDM_CheckMapExists (const char *mapname)
 
 /*
 ==============
+TDM_WriteMaplist
+==============
+Prints the maplist to the client.
+*/
+void TDM_WriteMaplist (edict_t *ent)
+{
+	int				i, j;
+	static char		maplist_string[1024];
+	static qboolean	short_maplist = false;
+
+	// maplist fits the string, so no need to create new maplist again
+	if (short_maplist)
+		gi.cprintf (ent, PRINT_HIGH, "%s", maplist_string);
+	else
+	{
+		short_maplist = true;
+
+		maplist_string[0] = 0;
+		j = sprintf (maplist_string, "Allowed maplist:\n----------------\n");
+
+		for (i = 0; tdm_maplist[i] != NULL; i++)
+		{
+			if (strlen(tdm_maplist[i]) + 4 + j >= sizeof(maplist_string) - 1)
+			{
+				j = 0;
+				short_maplist = false;
+				gi.cprintf (ent, PRINT_HIGH, "%s", maplist_string);
+				maplist_string[j] = 0;
+			}
+			j += sprintf (maplist_string + j, "  %s\n", tdm_maplist[i]);
+		}
+
+		gi.cprintf (ent, PRINT_HIGH, "%s", maplist_string);
+	}
+}
+
+/*
+==============
 TDM_CreateMaplist
 ==============
 Return array of allowed maps in maplist.
@@ -2233,14 +2273,9 @@ void TDM_CreateMaplist (void)
 	
 	buffer[sizeof(buffer)-1] = '\0';
 
-	if (gamedir)
-	{
-		snprintf (buffer, sizeof(buffer)-1, "./%s/%s", gamedir->string, g_maplistfile->string);
-		maplst = fopen (buffer, "r");
-		if (maplst == NULL)
-			return;
-	}
-	else
+	snprintf (buffer, sizeof(buffer)-1, "./%s/%s", gamedir->string, g_maplistfile->string);
+	maplst = fopen (buffer, "r");
+	if (maplst == NULL)
 		return;
 
 	tdm_maplist = gi.TagMalloc (sizeof(char *) * entries_num, TAG_GAME);
@@ -2288,30 +2323,13 @@ void TDM_CreateMaplist (void)
 		}
 	}
 
-
 	// close the maplist
 	if (maplst != NULL)
 		fclose (maplst);
 
 	if (j)
-	{
 		// set NULL so we know where is the end
 		tdm_maplist[j] = NULL;
-
-		tdm_maplist_string[0] = '\0';
-		j = 0;
-
-		for (i = 0; tdm_maplist[i] != NULL; i++)
-		{
-			if (strlen(tdm_maplist[i]) + j >= sizeof(tdm_maplist_string)-16)
-			{
-				strcat (tdm_maplist_string, "  ...\n");
-				return;
-			}
-			sprintf (tdm_maplist_string + j, "  %s\n", tdm_maplist[i]);
-			j = strlen (tdm_maplist_string);
-		}
-	}
 	else
 	{
 		gi.TagFree (tdm_maplist);
@@ -2915,7 +2933,7 @@ void TDM_Error (const char *fmt, ...)
 	gi.dprintf ("Team status: %d - %d - %d\n", teaminfo[TEAM_SPEC].players, teaminfo[TEAM_A].players, teaminfo[TEAM_B].players);
 	gi.dprintf ("Level times: frame: %d, start: %d, end: %d, resume: %d, scores: %d\n", level.framenum, level.match_start_framenum, level.match_end_framenum,
 		level.match_resume_framenum, level.match_score_end_framenum);
-	gi.dprintf ("Vote status: Active: %d, type: %d, end: %d, initiator %d\n", vote.active, vote.flags, vote.end_frame, vote.initiator ? vote.initiator - g_edicts : 0);
+	gi.dprintf ("Vote status: Active: %d, type: %d, end: %d, initiator %d\n", vote.active, vote.flags, vote.end_frame, vote.initiator ? (int)(vote.initiator - g_edicts) : 0);
 	
 	gi.dprintf ("Client dump:\n");
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
@@ -2923,7 +2941,7 @@ void TDM_Error (const char *fmt, ...)
 		if (!ent->inuse)
 			continue;
 
-		gi.dprintf ("%d: %s, connected %d, team %d, info %p\n", ent - g_edicts - 1, ent->client->pers.netname, ent->client->pers.connected, ent->client->pers.team, ent->client->resp.teamplayerinfo);
+		gi.dprintf ("%d: %s, connected %d, team %d, info %p\n", (int)(ent - g_edicts - 1), ent->client->pers.netname, ent->client->pers.connected, ent->client->pers.team, ent->client->resp.teamplayerinfo);
 	}
 
 	gi.error (text);
@@ -3031,7 +3049,7 @@ void TDM_HandleDownload (tdm_download_t *download, char *buff, int len, int code
 	if (!download->initiator->inuse || download->initiator->client->pers.uniqueid != download->unique_id)
 		download->initiator = NULL;
 
-	download->onFinish (download, code, buff, len);
+	download->onFinish (download, code, (byte *)buff, len);
 
 	/*switch (download->type)
 	{
@@ -3090,9 +3108,11 @@ void TDM_UpdateSpectator (edict_t *ent)
 
 	for (target = g_edicts + 1; target <= g_edicts + game.maxclients; target++)
 	{
-		// skip if client is not a player or we are not allowed to spectate his team
+		// skip if client is not a player or we are not allowed to spectate his team and we are not an admin
 		if (!target->inuse || !target->client->pers.team ||
-				(teaminfo[target->client->pers.team].speclocked && !ent->client->pers.specinvite[target->client->pers.team]))
+				(teaminfo[target->client->pers.team].speclocked &&
+				 !ent->client->pers.specinvite[target->client->pers.team] &&
+				 !ent->client->pers.admin))
 			continue;
 
 		// find quadder

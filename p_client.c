@@ -315,6 +315,9 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 					self->client->resp.teamplayerinfo->deaths++;
 					attacker->client->resp.teamplayerinfo->enemy_kills++;
 				}
+
+				if (mod == MOD_TELEFRAG)
+					attacker->client->resp.teamplayerinfo->telefrags++;
 			}
 		}
 		return;

@@ -66,8 +66,6 @@ extern const powerupinfo_t	powerupvotes[POWERUP_MAX];
 
 extern vote_t	vote;
 
-extern qboolean	tdm_settings_not_default;
-
 extern char			**tdm_configlist;
 
 #define WEAPON_SHOTGUN			(1<<1)
@@ -88,3 +86,30 @@ extern char			**tdm_configlist;
 #define POWERUP_SILENCER		(1<<5)
 #define POWERUP_REBREATHER		(1<<6)
 #define	POWERUP_ENVIROSUIT		(1<<7)
+
+#define VOTE_TIMELIMIT	0x1
+#define VOTE_MAP		0x2
+#define	VOTE_KICK		0x4
+#define VOTE_WEAPONS	0x8
+#define VOTE_POWERUPS	0x10
+#define VOTE_GAMEMODE	0x20
+
+#define VOTE_TELEMODE	0x80
+#define VOTE_TIEMODE	0x100
+#define VOTE_SWITCHMODE	0x200
+#define VOTE_OVERTIME	0x400
+
+//distinct so a local and remote '1v1' config are distinguishable
+#define	VOTE_CONFIG		0x800
+#define	VOTE_WEBCONFIG	0x1000
+
+#define	VOTE_CHAT		0x2000
+
+#define	VOTE_RESTART	0x4000
+
+#define	VOTE_BUGS		0x8000
+
+#define VOTE_TDM_SPAWNMODE	0x10000
+#define VOTE_1V1_SPAWNMODE	0x20000
+
+#define VOTE_ABORT			0x40000

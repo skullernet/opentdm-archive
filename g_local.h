@@ -1117,6 +1117,7 @@ void CountPlayers (void);
 void UpdateTeamMenu (void);
 
 extern matchmode_t	tdm_match_status;
+extern qboolean		tdm_settings_not_default;
 extern pmenu_t joinmenu[];
 #define MENUSIZE_JOINMENU 18
 
@@ -1167,6 +1168,7 @@ struct teamplayer_s
 	unsigned	team_kills;
 	unsigned	suicides;
 	unsigned	deaths;
+	unsigned	telefrags;
 
 	//individual weapons
 	unsigned	shots_fired[TDMG_MAX];
@@ -1176,9 +1178,23 @@ struct teamplayer_s
 	unsigned	killweapons[TDMG_MAX];
 	unsigned	deathweapons[TDMG_MAX];
 
+	unsigned	quad_kills;
+	unsigned	quad_deaths;
+	unsigned	pent_kills;
+	unsigned	pent_deaths;
+
 	//total damage per weapon dealt/received
 	unsigned	damage_dealt[TDMG_MAX];
 	unsigned	damage_received[TDMG_MAX];
+
+	unsigned	quad_dealt;
+	unsigned	quad_recvd;
+	unsigned	pent_dealt;
+	unsigned	pent_recvd;
+
+	//count damage dealt/received on teammates
+	unsigned	team_dealt;
+	unsigned	team_recvd;
 
 	unsigned	items_collected[MAX_ITEMS];
 
@@ -1356,10 +1372,14 @@ typedef struct tdm_download_s
 
 typedef struct
 {
-	int		auto_record;
-	int		auto_screenshot;
-	char	teamskin[64];
-	char	enemyskin[64];
+	int			auto_record;
+	int			auto_screenshot;
+	char		teamskin[64];
+	char		enemyskin[64];
+
+	int			id_highlight;
+	int			id_x;
+	int			id_y;
 } playerconfig_t;
 
 extern matchmode_t	tdm_match_status;

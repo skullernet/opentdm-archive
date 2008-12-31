@@ -188,6 +188,14 @@ void TDM_Damage (edict_t *ent, edict_t *victim, edict_t *inflictor, int damage)
 	if (!ent->client->resp.teamplayerinfo)
 		TDM_Error ("TDM_Damage: Trying to track stats but no teamplayerinfo for attacker %s, victim %s", ent->client->pers.netname, victim->client->pers.netname);
 
+	//Shooting teammates is not accurate! just count team damage
+	if (ent->client->pers.team == victim->client->pers.team && ent != victim)
+	{
+		ent->client->resp.teamplayerinfo->team_dealt += damage;
+		victim->client->resp.teamplayerinfo->team_recvd += damage;
+		return;
+	}
+
 	victim->client->resp.teamplayerinfo->damage_received[weapon] += damage;
 	
 	//Hitting yourself doesn't count for dealt or accuracy!
@@ -196,9 +204,19 @@ void TDM_Damage (edict_t *ent, edict_t *victim, edict_t *inflictor, int damage)
 
 	ent->client->resp.teamplayerinfo->damage_dealt[weapon] += damage;
 
-	//Shooting teammates is not accurate!
-	if (ent->client->pers.team == victim->client->pers.team)
-		return;
+	//wision: count quad damage
+	if (ent->client->quad_framenum > level.framenum)
+	{
+		ent->client->resp.teamplayerinfo->quad_dealt += damage;
+		victim->client->resp.teamplayerinfo->quad_recvd += damage;
+	}
+
+	//wision: count pent damage
+	if (ent->client->invincible_framenum > level.framenum)
+	{
+		ent->client->resp.teamplayerinfo->pent_dealt += damage;
+		victim->client->resp.teamplayerinfo->pent_recvd += damage;
+	}
 
 	//Only count one hit, eg shotgun or rocket radius damage. apparently railgun should ignore this rule.
 	if (weapon_hit && weapon != TDMG_RAILGUN)
@@ -250,672 +268,20 @@ void TDM_Killed (edict_t *attacker, edict_t *victim, int mod)
 
 	attacker->client->resp.teamplayerinfo->killweapons[tdmg]++;
 	victim->client->resp.teamplayerinfo->deathweapons[tdmg]++;
-}
 
-/*
-==============
-TDM_BuildAccuracyString
-==============
-Builds accuracy string - hits / misses per weapon.
-*/
-char *TDM_BuildAccuracyString (edict_t *ent, teamplayer_t *info)
-{
-	static char stats[1400];
-	unsigned	i;
-	unsigned	total_shot, total_hit;
-	float		accuracy;
-	statsort_t	float_indexes[TDMG_MAX];
-
-	stats[0] = 0;
-
-	strcat (stats, TDM_SetColorText (va ("ACCURACY\n")));
-
-	//0 is invalid, 1 is world, not a weapon :)
-	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
+	//wision: count quad frags/deaths
+	if (attacker->client->quad_framenum > level.framenum)
 	{
-		if (!info->shots_fired[i])
-			accuracy = 0;
-		else
-			accuracy = ((float)info->shots_hit[i] / (float)info->shots_fired[i]) * 100;
-
-		float_indexes[i].percentage = accuracy;
-		float_indexes[i].index = i;
+		attacker->client->resp.teamplayerinfo->quad_kills++;
+		victim->client->resp.teamplayerinfo->quad_deaths++;
 	}
 
-	qsort (float_indexes + TDMG_BLASTER, TDMG_MAX - TDMG_BLASTER -1, sizeof(float_indexes[0]), TDM_PercentageSort);
-
-	total_shot = total_hit = 0;
-
-	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
+	//wision: count pent frags/deaths
+	if (attacker->client->invincible_framenum > level.framenum)
 	{
-		if (info->shots_fired[float_indexes[i].index])
-		{
-			strcat (stats, va ("%-16.16s:%4d / %-5d (%.0f%%)\n", GETITEM(tdmg_weapons[float_indexes[i].index])->pickup_name,
-				info->shots_hit[float_indexes[i].index], info->shots_fired[float_indexes[i].index], ceil (float_indexes[i].percentage)));
-
-			total_shot += info->shots_fired[float_indexes[i].index];
-			total_hit += info->shots_hit[float_indexes[i].index];
-		}
+		attacker->client->resp.teamplayerinfo->pent_kills++;
+		victim->client->resp.teamplayerinfo->pent_deaths++;
 	}
-
-	if (total_shot)
-		strcat (stats, va("Overall accuracy: %.1f%%\n", ((float)total_hit / (float)total_shot) * 100));
-	else
-		strcat (stats, "Overall accuracy: 0%\n");
-
-	return stats;
-}
-
-/*
-==============
-TDM_BuildTeamAccuracyString
-==============
-Builds team accuracy string - hits / misses per weapon.
-*/
-char *TDM_BuildTeamAccuracyString (edict_t *ent, matchinfo_t *info, unsigned team)
-{
-	static char stats[1400];
-	unsigned	i, j;
-	unsigned	team_shot[TDMG_MAX];
-	unsigned	team_hit[TDMG_MAX];
-	float		accuracy;
-	statsort_t	float_indexes[TDMG_MAX];
-	unsigned	total_shot, total_hit;
-
-	stats[0] = 0;
-	memset (team_shot, 0, sizeof(team_shot));
-	memset (team_hit, 0, sizeof(team_hit));
-
-	strcat (stats, TDM_SetColorText (va ("TEAM ACCURACY\n")));
-
-	for (j = 0; j < info->num_teamplayers; j++)
-	{
-		if (info->teamplayers[j].team == team)
-		{
-			for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
-			{
-				team_shot[i] += info->teamplayers[j].shots_fired[i];
-				team_hit[i] += info->teamplayers[j].shots_hit[i];
-			}
-		}
-	}
-
-	//0 is invalid, 1 is world, not a weapon :)
-	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
-	{
-		if (!team_shot[i])
-			accuracy = 0;
-		else
-			accuracy = ((float)team_hit[i] / (float)team_shot[i]) * 100;
-
-		float_indexes[i].percentage = accuracy;
-		float_indexes[i].index = i;
-	}
-
-	qsort (float_indexes + TDMG_BLASTER, TDMG_MAX - TDMG_BLASTER -1, sizeof(float_indexes[0]), TDM_PercentageSort);
-
-	total_shot = total_hit = 0;
-
-	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
-	{
-		int	index;
-
-		index = float_indexes[i].index;
-
-		if (team_shot[index])
-		{
-			strcat (stats, va ("%-16.16s:%4d / %-5d (%.0f%%)\n", GETITEM(tdmg_weapons[index])->pickup_name,
-				team_hit[index], team_shot[index], ceil (float_indexes[i].percentage)));
-
-			total_shot += team_shot[index];
-			total_hit += team_hit[index];
-		}
-	}
-
-	if (total_shot)
-		strcat (stats, va("Overall accuracy: %.1f%%\n", ((float)total_hit / (float)total_shot) * 100));
-	else
-		strcat (stats, "Overall accuracy: 0%\n");
-
-	return stats;
-}
-
-/*
-==============
-TDM_BuildDamageString
-==============
-Builds damage string - damage given/taken per weapon + total.
-*/
-char *TDM_BuildDamageString (edict_t *ent, teamplayer_t *info)
-{
-	static char stats[1400];
-	unsigned	i;
-	int			damage;
-	int			total_damage[2];
-	intsort_t	int_indexes[TDMG_MAX];
-
-	stats[0] = 0;
-
-	strcat (stats, TDM_SetColorText (va ("DAMAGE (dealt / received)\n")));
-
-	//0 is invalid, 1 is world, not a weapon :)
-	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
-	{
-		damage = info->damage_dealt[i];
-
-		int_indexes[i].amount = damage;
-		int_indexes[i].index = i;
-	}
-
-	total_damage[0] = total_damage[1] = 0;
-
-	qsort (int_indexes + TDMG_BLASTER, TDMG_MAX - TDMG_BLASTER - 1, sizeof(int_indexes[0]), TDM_DamageSort);
-
-	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
-	{
-		int	index = int_indexes[i].index;
-		if (info->damage_dealt[index] || info->damage_received[index])
-		{
-			total_damage[0] += info->damage_dealt[index];
-			total_damage[1] += info->damage_received[index];
-
-			strcat (stats, va ("%-16.16s:%5d / %-d\n", GETITEM(tdmg_weapons[index])->pickup_name,
-				info->damage_dealt[index], info->damage_received[index]));
-		}
-	}
-
-	strcat (stats, va ("%-16.16s:%5d / %-d\n", "Total Damage", total_damage[0], total_damage[1]));
-
-	return stats;
-}
-
-/*
-==============
-TDM_BuildTeamDamageString
-==============
-Builds team damage string - damage given/taken per weapon + total.
-*/
-char *TDM_BuildTeamDamageString (edict_t *ent, matchinfo_t *info, unsigned team)
-{
-	static char stats[1400];
-	unsigned	i, j;
-	int			total_damage[2];
-	intsort_t	int_indexes[TDMG_MAX];
-	unsigned	team_damage_dealt[TDMG_MAX];
-	unsigned	team_damage_taken[TDMG_MAX];
-
-	stats[0] = 0;
-
-	strcat (stats, TDM_SetColorText (va ("TEAM DAMAGE (dealt / received)\n")));
-
-	memset (team_damage_dealt, 0, sizeof(team_damage_dealt));
-	memset (team_damage_taken, 0, sizeof(team_damage_taken));
-
-	for (j = 0; j < info->num_teamplayers; j++)
-	{
-		if (info->teamplayers[j].team == team)
-		{
-			for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
-			{
-				team_damage_dealt[i] += info->teamplayers[j].damage_dealt[i];
-				team_damage_taken[i] += info->teamplayers[j].damage_received[i];
-			}
-		}
-	}
-
-	//0 is invalid, 1 is world, not a weapon :)
-	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
-	{
-		int_indexes[i].amount = team_damage_dealt[i];
-		int_indexes[i].index = i;
-	}
-
-	total_damage[0] = total_damage[1] = 0;
-
-	qsort (int_indexes + TDMG_BLASTER, TDMG_MAX - TDMG_BLASTER - 1, sizeof(int_indexes[0]), TDM_DamageSort);
-
-	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
-	{
-		int	index = int_indexes[i].index;
-		if (team_damage_dealt[index] || team_damage_taken[index])
-		{
-			total_damage[0] += team_damage_dealt[index];
-			total_damage[1] += team_damage_taken[index];
-
-			strcat (stats, va ("%-16.16s:%6d / %-d\n", GETITEM(tdmg_weapons[index])->pickup_name,
-				team_damage_dealt[index], team_damage_taken[index]));
-		}
-	}
-
-	strcat (stats, va ("%-16.16s:%6d / %-d\n", "Total Damage", total_damage[0], total_damage[1]));
-
-	return stats;
-}
-
-/*
-==============
-TDM_BuildItemsString
-==============
-Builds item string - grabbed / missed.
-*/
-char *TDM_BuildItemsString (edict_t *ent, teamplayer_t *info)
-{
-	static char stats[1400];
-	unsigned	i;
-	float		percent;
-	statsort_t	float_indexes[MAX_ITEMS];
-	qboolean	basic;
-
-	stats[0] = 0;
-	basic = (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD) && ent->client->pers.team;
-
-	if (basic)
-		strcat (stats, TDM_SetColorText (va ("ITEMS\n")));
-	else
-		strcat (stats, TDM_SetColorText (va ("ITEMS (grabbed / missed)\n")));
-
-	for (i = 1; i < game.num_items; i++)
-	{
-		if (!info->items_collected[i])
-			percent = 0;
-		else
-		{
-			//even guessing the percentage could give away too much 
-			if (basic)
-				percent = (float)info->items_collected[i];
-			else
-				percent = ((float)info->items_collected[i] / (float)info->matchinfo->item_spawn_count[i] * 100);
-		}
-
-		float_indexes[i].percentage = percent;
-		float_indexes[i].index = i;
-	}
-
-	qsort (float_indexes+1, game.num_items-1, sizeof(float_indexes[0]), TDM_PercentageSort);
-
-	for (i = 1; i < game.num_items; i++)
-	{
-		const gitem_t	*item;
-		int				index = float_indexes[i].index;
-
-		item = GETITEM (index);
-
-		if (info->items_collected[index] || info->matchinfo->item_spawn_count[index])
-		{
-			if (basic)
-			{
-				if (!info->items_collected[index])
-					continue;
-
-				//if player is requesting his own stats, don't show total spawned yet as it could
-				//possibly be used to determine things - eg when mega has respawned
-				strcat (stats, va ("%-16.16s:%3d\n", item->pickup_name, info->items_collected[index]));
-			}
-			else
-			{
-				strcat (stats, va ("%-16.16s:%3d / %-3d (%.f%%)\n", item->pickup_name,
-					info->items_collected[index], info->matchinfo->item_spawn_count[index] - info->items_collected[index], float_indexes[i].percentage));
-			}
-		}
-	}
-
-	return stats;
-}
-
-/*
-==============
-TDM_BuildTeamItemsString
-==============
-Builds item string for whole team.
-*/
-char *TDM_BuildTeamItemsString (edict_t *ent, matchinfo_t *info, unsigned team)
-{
-	static char stats[1400];
-	unsigned	i, j, team_collected[MAX_ITEMS];
-	float		percent;
-	statsort_t	float_indexes[MAX_ITEMS];
-	qboolean	basic;
-
-	stats[0] = 0;
-	basic = (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD) && ent->client->pers.team;
-
-	if (basic)
-		strcat (stats, TDM_SetColorText (va ("TEAM ITEMS\n")));
-	else
-		strcat (stats, TDM_SetColorText (va ("TEAM ITEMS (grabbed / missed)\n")));
-
-	memset (team_collected, 0, sizeof(team_collected));
-
-	for (j = 0; j < info->num_teamplayers; j++)
-	{
-		if (info->teamplayers[j].team == team)
-		{
-			for (i = 1; i < game.num_items; i++)
-			{
-				team_collected[i] += info->teamplayers[j].items_collected[i];
-			}
-		}
-	}
-
-	for (i = 1; i < game.num_items; i++)
-	{
-		if (!team_collected[i])
-			percent = 0;
-		else
-		{
-			//even guessing the percentage could give away too much 
-			if (basic)
-				percent = (float)team_collected[i];
-			else
-				percent = ((float)team_collected[i] / (float)info->item_spawn_count[i] * 100);
-		}
-
-		float_indexes[i].percentage = percent;
-		float_indexes[i].index = i;
-	}
-
-	qsort (float_indexes+1, game.num_items-1, sizeof(float_indexes[0]), TDM_PercentageSort);
-
-	for (i = 1; i < game.num_items; i++)
-	{
-		const gitem_t	*item;
-		int				index = float_indexes[i].index;
-
-		item = GETITEM (index);
-
-		if (team_collected[index] || info->item_spawn_count[index])
-		{
-			if (basic)
-			{
-				if (!team_collected[index])
-					continue;
-
-				//if player is requesting his own stats, don't show total spawned yet as it could
-				//possibly be used to determine things - eg when mega has respawned
-				strcat (stats, va ("%-16.16s:%3d\n", GETITEM(index)->pickup_name, team_collected[index]));
-			}
-			else
-			{
-				strcat (stats, va ("%-16.16s:%3d / %-3d (%.f%%)\n", GETITEM(index)->pickup_name,
-					team_collected[index], info->item_spawn_count[index] - team_collected[index], float_indexes[i].percentage));
-			}
-		}
-	}
-
-	return stats;
-}
-
-/*
-==============
-TDM_BuildWeaponsString
-==============
-Builds weapon stats string - kills given/taken per weapon + percent.
-*/
-char *TDM_BuildWeaponsString (edict_t *ent, teamplayer_t *info)
-{
-	static char stats[1400];
-	unsigned	i;
-	int			damage;
-	int			total_kills[2];
-	intsort_t	int_indexes[TDMG_MAX];
-
-	stats[0] = 0;
-
-	total_kills[0] = total_kills[1] = 0;
-
-	strcat (stats, TDM_SetColorText (va ("WEAPONS (kills / deaths)\n")));
-
-	//0 is invalid, 1 is world, not a weapon :)
-	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
-	{
-		damage = info->killweapons[i];
-
-		int_indexes[i].amount = damage;
-		int_indexes[i].index = i;
-
-		total_kills[0] += info->killweapons[i];
-		total_kills[1] += info->deathweapons[i];
-	}
-
-	qsort (int_indexes + TDMG_BLASTER, TDMG_MAX - TDMG_BLASTER - 1, sizeof(int_indexes[0]), TDM_DamageSort);
-
-	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
-	{
-		int	index = int_indexes[i].index;
-		if (info->killweapons[index] || info->deathweapons[index])
-		{
-			strcat (stats, va ("%-16.16s:%3d (%3.f%%) / %-2d (%.f%%)\n", GETITEM(tdmg_weapons[index])->pickup_name,
-				info->killweapons[index], ((float)info->killweapons[index] / (float)total_kills[0]) * 100.0f,
-				info->deathweapons[index], total_kills[1] ? ((float)info->deathweapons[index] / (float)total_kills[1]) * 100.0f : 0.0f));
-		}
-	}
-
-	return stats;
-}
-
-/*
-==============
-TDM_BuildTeamWeaponsString
-==============
-Builds team weapon stats string - kills given/taken per weapon + percent.
-*/
-char *TDM_BuildTeamWeaponsString (edict_t *ent, matchinfo_t *info, unsigned team)
-{
-	static char stats[1400];
-	unsigned	i, j;
-	int			total_kills[2];
-	intsort_t	int_indexes[TDMG_MAX];
-	unsigned	team_weapons_kills[TDMG_MAX];
-	unsigned	team_weapons_deaths[TDMG_MAX];
-
-	stats[0] = 0;
-
-	strcat (stats, TDM_SetColorText (va ("TEAM WEAPONS (kills / deaths)\n")));
-
-	memset (team_weapons_kills, 0, sizeof(team_weapons_kills));
-	memset (team_weapons_deaths, 0, sizeof(team_weapons_deaths));
-
-	total_kills[0] = total_kills[1] = 0;
-
-	for (j = 0; j < info->num_teamplayers; j++)
-	{
-		if (info->teamplayers[j].team == team)
-		{
-			for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
-			{
-				team_weapons_kills[i] += info->teamplayers[j].killweapons[i];
-				team_weapons_deaths[i] += info->teamplayers[j].deathweapons[i];
-			}
-		}
-	}
-
-	//0 is invalid, 1 is world, not a weapon :)
-	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
-	{
-		int_indexes[i].amount = team_weapons_kills[i];
-		int_indexes[i].index = i;
-
-		total_kills[0] += team_weapons_kills[i];
-		total_kills[1] += team_weapons_deaths[i];
-	}
-
-	qsort (int_indexes + TDMG_BLASTER, TDMG_MAX - TDMG_BLASTER - 1, sizeof(int_indexes[0]), TDM_DamageSort);
-
-	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
-	{
-		int	index = int_indexes[i].index;
-		if (team_weapons_kills[index] || team_weapons_deaths[index])
-		{
-			strcat (stats, va ("%-16.16s:%3d (%3.f%%) / %-2d (%.f%%)\n", GETITEM(tdmg_weapons[index])->pickup_name,
-				team_weapons_kills[index], ((float)team_weapons_kills[index] / (float)total_kills[0]) * 100.0f,
-				team_weapons_deaths[index], total_kills[1] ? ((float)team_weapons_deaths[index] / (float)total_kills[1]) * 100.0f : 0.0f));
-		}
-	}
-
-	return stats;
-}
-
-/*
-==============
-TDM_WriteStatsString
-==============
-Shows shitloads of useless information. Note it isn't hard to
-overflow the 1024 byte cprintf limit, which is why this is
-split into multiple cprints. On non-R1Q2 servers, this will
-probably cause overflows!
-*/
-void TDM_WriteStatsString (edict_t *ent, teamplayer_t *info)
-{
-	char		*extra;
-	static char	stats[1024];
-
-	stats[0] = 0;
-
-	//======= GENERAL ========
-	strcat (stats, TDM_SetColorText (va ("GENERAL\n")));
-	strcat (stats, va ("Kills    : %d\n", info->enemy_kills));
-	strcat (stats, va ("Deaths   : %d\n", info->deaths));
-	strcat (stats, va ("Suicides : %d\n", info->suicides));
-	strcat (stats, va ("Teamkills: %d\n", info->team_kills));
-
-	//======= DAMAGE ========
-	extra = TDM_BuildDamageString (ent, info);
-
-	//need to flush?
-	if (strlen(stats) + 1 + strlen(extra) >= sizeof(stats)-1)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
-		stats[0] = 0;
-	}
-
-	strcat (stats, "\n");
-	strcat (stats, extra);
-
-	//======= ITEMS ========
-	//no item stats in itdm
-	if (info->matchinfo->game_mode != GAMEMODE_ITDM)
-	{
-		extra = TDM_BuildItemsString (ent, info);
-
-		//need to flush?
-		if (strlen(stats) + 1 + strlen(extra) >= sizeof(stats)-1)
-		{
-			gi.cprintf (ent, PRINT_HIGH, "%s", stats);
-			stats[0] = 0;
-		}
-
-		strcat (stats, "\n");
-		strcat (stats, extra);
-	}
-
-	//======= ACCURACY ========
-	extra = TDM_BuildAccuracyString (ent, info);
-
-	//need to flush?
-	if (strlen(stats) + 1 + strlen(extra) >= sizeof(stats)-1)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
-		stats[0] = 0;
-	}
-
-	strcat (stats, "\n");
-	strcat (stats, extra);
-
-	if (strlen (stats) < 800)
-		strcat (stats, "\nThis is still a work in progress... if you have any interesting ideas for stats, post on www.opentdm.net!\n");
-
-	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
-}
-
-void TDM_WriteTeamStatsString (edict_t *ent, matchinfo_t *info, unsigned team)
-{
-	char		*extra;
-	static char	stats[1024];
-
-	stats[0] = 0;
-
-	//======= GENERAL ========
-	//FIXME
-	/*strcat (stats, TDM_SetColorText (va ("GENERAL\n")));
-	strcat (stats, va ("Kills    : %d\n", info->enemy_kills));
-	strcat (stats, va ("Deaths   : %d\n", info->deaths));
-	strcat (stats, va ("Suicides : %d\n", info->suicides));
-	strcat (stats, va ("Teamkills: %d\n", info->team_kills));*/
-
-	//======= DAMAGE ========
-	extra = TDM_BuildTeamDamageString (ent, info, team);
-
-	//need to flush?
-	if (strlen(stats) + 1 + strlen(extra) >= sizeof(stats)-1)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
-		stats[0] = 0;
-	}
-
-	strcat (stats, "\n");
-	strcat (stats, extra);
-
-	//======= ITEMS ========
-	//no item stats in itdm
-	if (info->game_mode != GAMEMODE_ITDM)
-	{
-		extra = TDM_BuildTeamItemsString (ent, info, team);
-
-		//need to flush?
-		if (strlen(stats) + 1 + strlen(extra) >= sizeof(stats)-1)
-		{
-			gi.cprintf (ent, PRINT_HIGH, "%s", stats);
-			stats[0] = 0;
-		}
-
-		strcat (stats, "\n");
-		strcat (stats, extra);
-	}
-
-	//======= ACCURACY ========
-	extra = TDM_BuildTeamAccuracyString (ent, info, team);
-
-	//need to flush?
-	if (strlen(stats) + 1 + strlen(extra) >= sizeof(stats)-1)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
-		stats[0] = 0;
-	}
-
-	strcat (stats, "\n");
-	strcat (stats, extra);
-
-	if (strlen (stats) < 800)
-		strcat (stats, "\nThis is still a work in progress... if you have any interesting ideas for stats, post on www.opentdm.net!\n");
-
-	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
-}
-
-/*
-==============
-TDM_RemoveStatsLink
-==============
-A player just disconnected, so remove the pointer to their edict
-from the stats info to avoid new clients taking the same ent and
-messing things up.
-*/
-void TDM_RemoveStatsLink (edict_t *ent)
-{
-	int		i;
-
-	if (current_matchinfo.teamplayers)
-		for (i = 0; i < current_matchinfo.num_teamplayers; i++)
-		{
-			if (current_matchinfo.teamplayers[i].client == ent)
-				current_matchinfo.teamplayers[i].client = NULL;
-		}
-
-	if (old_matchinfo.teamplayers)
-		for (i = 0; i < old_matchinfo.num_teamplayers; i++)
-		{
-			if (old_matchinfo.teamplayers[i].client == ent)
-				old_matchinfo.teamplayers[i].client = NULL;
-		}
 }
 
 /*
@@ -1175,314 +541,832 @@ qboolean TDM_StatCheatCheck (edict_t *ent, matchinfo_t *info, unsigned team)
 
 /*
 ==============
-TDM_Stats_f
+TDM_BuildWeaponsStatsString
 ==============
-Show shitloads of useless information.
+Builds weapons stats string.
 */
-void TDM_Stats_f (edict_t *ent, matchinfo_t *info)
+char *TDM_BuildWeaponsStatsString (edict_t *ent, matchinfo_t *m_info, teamplayer_t *p_info)
 {
-	teamplayer_t	*victim;
+	static char		stats[1400];
+	unsigned		i;
+	char			frags[6], deaths[6], dealt[6], recvd[6], missed[6], acc[6];
+	qboolean		basic;
+
+	stats[0] = 0;
+
+	basic = (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD) && ent->client->pers.team && (m_info == &current_matchinfo);
+
+	//wision: weapon stats
+	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
+	{
+		const gitem_t	*item;
+
+		//don't draw some stuff
+		if (!p_info->shots_fired[i] && !p_info->items_collected[tdmg_weapons[i]] && i > TDMG_BLASTER && !p_info->damage_received[i] &&
+				m_info->game_mode != GAMEMODE_ITDM && !p_info->items_collected[tdmg_weapons[i]])
+			continue;
+
+		item = GETITEM (tdmg_weapons[i]);
+
+		//don't print missed during the match
+		if (basic)
+			sprintf (missed, "   -");
+		else
+			sprintf (missed, "%4d", m_info->item_spawn_count[tdmg_weapons[i]] - p_info->items_collected[tdmg_weapons[i]]);
+
+		// display these stats only for weapons where player fired something
+		if (p_info->shots_fired[i])
+		{
+			sprintf (acc, "%3.0f%%", ceil (((float)p_info->shots_hit[i] / (float)p_info->shots_fired[i]) * 100));
+			sprintf (dealt, "%5d", p_info->damage_dealt[i]);
+			sprintf (frags, "%5d", p_info->killweapons[i]);
+		}
+		// else display '-' instead of 0%
+		else
+		{
+			sprintf (acc, "   -");
+			sprintf (dealt, "    -");
+			sprintf (frags, "    -");
+		}
+
+		// display these stats only for weapons where we got hurt
+		if (p_info->damage_received[i])
+		{
+			sprintf (recvd, "%5d", p_info->damage_received[i]);
+			sprintf (deaths, "%5d", p_info->deathweapons[i]);
+		}
+		else
+		{
+			sprintf (recvd, "    -");
+			sprintf (deaths, "    -");
+		}
+
+		strcat (stats, va ("%16.16s | %s %s  %s %s %s %4d %s\n",
+					item->pickup_name,
+					acc,
+					frags,
+					deaths,
+					dealt,
+					recvd,
+					p_info->items_collected[tdmg_weapons[i]],
+					missed
+					));
+	}
+
+	return stats;
+}
+
+/*
+==============
+TDM_BuildTeamWeaponsStatsString
+==============
+Builds team weapons stats string.
+*/
+char *TDM_BuildTeamWeaponsStatsString (edict_t *ent, matchinfo_t *m_info, unsigned team)
+{
+	static char		stats[1400];
+	unsigned		i, j;
+	int				frags_i, deaths_i, dealt_i, recvd_i, picked_i, total_hit_i, total_shots_i;
+	char			frags[6], deaths[6], dealt[6], recvd[6], missed[6], acc[6];
+	teamplayer_t	*p_info;
+	qboolean		basic;
+	qboolean		skip;
+
+	stats[0] = 0;
+
+	basic = (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD) && ent->client->pers.team && (m_info == &current_matchinfo);
+
+	//wision: weapon stats
+	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
+	{
+		const gitem_t	*item;
+
+		frags_i = deaths_i = dealt_i = recvd_i = picked_i = total_hit_i = total_shots_i = 0;
+		skip = true;
+
+		for (j = 0; j < m_info->num_teamplayers; j++)
+		{
+			p_info = &(m_info->teamplayers[j]);
+			if (p_info->team == team)
+			{
+				//don't draw some stuff
+				if (!p_info->shots_fired[i] && !p_info->items_collected[tdmg_weapons[i]] &&
+						i > TDMG_BLASTER && !p_info->damage_received[i] && m_info->game_mode != GAMEMODE_ITDM &&
+						!p_info->items_collected[tdmg_weapons[i]])
+					continue;
+
+				skip = false;
+
+				total_shots_i += p_info->shots_fired[i];
+				total_hit_i += p_info->shots_hit[i];
+				picked_i += p_info->items_collected[tdmg_weapons[i]];
+				frags_i += p_info->killweapons[i];
+				deaths_i += p_info->deathweapons[i];
+				dealt_i += p_info->damage_dealt[i];
+				recvd_i += p_info->damage_received[i];
+			}
+		}
+
+		// we don't need to draw this item
+		if (skip)
+			continue;
+
+		item = GETITEM (tdmg_weapons[i]);
+
+		//don't print missed during the match
+		if (basic)
+			sprintf (missed, "   -");
+		else
+			sprintf (missed, "%4d", m_info->item_spawn_count[tdmg_weapons[i]] - picked_i);
+
+		// display these stats only for weapons where player fired something
+		if (total_shots_i)
+		{
+			sprintf (acc, "%3.0f%%", ceil (((float)total_hit_i / (float)total_shots_i) * 100));
+			sprintf (dealt, "%5d", dealt_i);
+			sprintf (frags, "%5d", frags_i);
+		}
+		// else display '-' instead of 0%
+		else
+		{
+			sprintf (acc, "   -");
+			sprintf (dealt, "    -");
+			sprintf (frags, "    -");
+		}
+
+		// display these stats only for weapons where we got hurt
+		if (recvd_i)
+		{
+			sprintf (recvd, "%5d", recvd_i);
+			sprintf (deaths, "%5d", deaths_i);
+		}
+		else
+		{
+			sprintf (recvd, "    -");
+			sprintf (deaths, "    -");
+		}
+
+		strcat (stats, va ("%16.16s | %s %s  %s %s %s %4d %s\n",
+					item->pickup_name,
+					acc,
+					frags,
+					deaths,
+					dealt,
+					recvd,
+					picked_i,
+					missed
+					));
+	}
+
+	return stats;
+}
+
+/*
+==============
+TDM_BuildItemsStatsString
+==============
+Builds items stats string.
+*/
+char *TDM_BuildItemsStatsString (edict_t *ent, matchinfo_t *m_info, teamplayer_t *p_info)
+{
+	static char		stats[1400];
+	unsigned		i;
+	char			frags[6], deaths[6], dealt[6], recvd[6], missed[6];
+	qboolean		basic;
+
+	stats[0] = 0;
+
+	basic = (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD) && ent->client->pers.team && (m_info == &current_matchinfo);
+
+	//wision: items stats
+	for (i = 1; i < game.num_items; i++)
+	{
+		const gitem_t	*item;
+
+		//skip weapons
+		if ((i >= ITEM_WEAPON_BLASTER && i <= ITEM_AMMO_SLUGS) || !p_info->items_collected[i])
+			continue;
+
+		item = GETITEM (i);
+
+		// display damage / frags / deaths stats for quad
+		if (i == ITEM_ITEM_QUAD)
+		{
+			sprintf (dealt, "%5d", p_info->quad_dealt);
+			sprintf (recvd, "%5d", p_info->quad_recvd);
+			sprintf (frags, "%5d", p_info->quad_kills);
+			sprintf (deaths, "%5d", p_info->quad_deaths);
+		}
+		// or display damage / frags / deaths stats for invulnerability
+		else if (i == ITEM_ITEM_INVULNERABILITY)
+		{
+			sprintf (dealt, "%5d", p_info->pent_dealt);
+			sprintf (recvd, "%5d", p_info->pent_recvd);
+			sprintf (frags, "%5d", p_info->pent_kills);
+			sprintf (deaths, "%5d", p_info->pent_deaths);
+		}
+		// or don't display anything
+		else
+		{
+			sprintf (dealt, "    -");
+			sprintf (recvd, "    -");
+			sprintf (frags, "    -");
+			sprintf (deaths, "    -");
+		}
+
+		//don't print missed during the match
+		if (basic)
+			sprintf (missed, "   -");
+		else
+			sprintf (missed, "%4d", m_info->item_spawn_count[i] - p_info->items_collected[i]);
+
+		strcat (stats, va ("%16.16s |    - %s  %s %s %s %4d %s\n",
+					((i == ITEM_ITEM_HEALTH) ? va ("MegaHealth") : item->pickup_name),
+					frags,
+					deaths,
+					dealt,
+					recvd,
+					p_info->items_collected[i],
+					missed
+					));
+	}
+
+	return stats;
+}
+
+/*
+==============
+TDM_BuildTeamItemsStatsString
+==============
+Builds team items stats string.
+*/
+char *TDM_BuildTeamItemsStatsString (edict_t *ent, matchinfo_t *m_info, unsigned team)
+{
+	static char		stats[1400];
+	unsigned		i, j;
+	int				frags_i, deaths_i, dealt_i, recvd_i, picked_i;
+	char			frags[6], deaths[6], dealt[6], recvd[6], missed[6];
+	teamplayer_t	*p_info;
+	qboolean		skip;
+	qboolean		basic;
+
+	stats[0] = 0;
+
+	basic = (tdm_match_status >= MM_PLAYING && tdm_match_status != MM_SCOREBOARD) && ent->client->pers.team && (m_info == &current_matchinfo);
+
+	//wision: items stats
+	for (i = 1; i < game.num_items; i++)
+	{
+		const gitem_t	*item;
+
+		frags_i = deaths_i = dealt_i = recvd_i = picked_i = 0;
+		skip = true;
+
+		for (j = 0; j < m_info->num_teamplayers; j++)
+		{
+			p_info = &(m_info->teamplayers[j]);
+			if (p_info->team == team)
+			{
+				if ((i >= ITEM_WEAPON_BLASTER && i <= ITEM_AMMO_SLUGS) || !p_info->items_collected[i])
+					continue;
+
+				skip = false;
+
+				if (i == ITEM_ITEM_QUAD)
+				{
+					dealt_i += p_info->quad_dealt;
+					recvd_i += p_info->quad_recvd;
+					frags_i += p_info->quad_kills;
+					deaths_i += p_info->quad_deaths;
+				}
+				else if (i == ITEM_ITEM_INVULNERABILITY)
+				{
+					dealt_i += p_info->pent_dealt;
+					recvd_i += p_info->pent_recvd;
+					frags_i += p_info->pent_kills;
+					deaths_i += p_info->pent_deaths;
+				}
+
+				picked_i += p_info->items_collected[i];
+			}
+		}
+
+		if (skip)
+			continue;
+
+		item = GETITEM (i);
+
+		// display damage / frags / deaths stats for quad or invulnerability
+		if (i == ITEM_ITEM_QUAD || i == ITEM_ITEM_INVULNERABILITY)
+		{
+			sprintf (dealt, "%5d", dealt_i);
+			sprintf (recvd, "%5d", recvd_i);
+			sprintf (frags, "%5d", frags_i);
+			sprintf (deaths, "%5d", deaths_i);
+		}
+		// or don't display anything
+		else
+		{
+			sprintf (dealt, "    -");
+			sprintf (recvd, "    -");
+			sprintf (frags, "    -");
+			sprintf (deaths, "    -");
+		}
+
+		//don't print missed during the match
+		if (basic)
+			sprintf (missed, "   -");
+		else
+			sprintf (missed, "%4d", m_info->item_spawn_count[i] - picked_i);
+
+		strcat (stats, va ("%16.16s |    - %s  %s %s %s %4d %s\n",
+					((i == ITEM_ITEM_HEALTH) ? va ("MegaHealth") : item->pickup_name),
+					frags,
+					deaths,
+					dealt,
+					recvd,
+					picked_i,
+					missed
+					));
+	}
+
+	return stats;
+}
+
+/*
+==============
+TDM_WeaponsStats_f
+==============
+Show weapons stats.
+*/
+/*void TDM_WeaponsStats_f (edict_t *ent, matchinfo_t *m_info)
+{
+	char			*extra;
+	static char		stats[1024];
+	teamplayer_t	*p_info;
+
+	stats[0] = 0;
 
 	if (tdm_match_status == MM_WARMUP)
-		info = &old_matchinfo;
+		m_info = &old_matchinfo;
 
-	victim = TDM_GetInfoForPlayer (ent, info);
-	if (!victim)
+	p_info = TDM_GetInfoForPlayer (ent, m_info);
+
+	if (!p_info)
 		return;
 
-	if (TDM_StatCheatCheck (ent, info, victim->team))
+	if (TDM_StatCheatCheck (ent, m_info, p_info->team))
 		return;
 
-	if (ent != victim->client)
-		gi.cprintf (ent, PRINT_HIGH, "All statistics for %s\n", victim->name);
+	strcat (stats, va("Stats for %s:\n", p_info->name));
+	strcat (stats, va ("          %s | ", TDM_SetColorText (va ("Weapon"))));
+	strcat (stats, va ("%s\n", TDM_SetColorText (va ("Acc. Kills Deaths Dealt Recvd Pick Miss"))));
+	strcat (stats, va ("-----------------+----------------------------------------\n"));
 
-	TDM_WriteStatsString (ent, victim);
+	extra = TDM_BuildWeaponsStatsString (ent, m_info);
+
+	//need to flush?
+	if (strlen(stats) + 1 + strlen (extra) >= sizeof(stats)-1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+		stats[0] = 0;
+	}
+	
+	strcat (stats, extra);
+
+	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+}*/
+
+/*
+==============
+TDM_TeamWeaponsStats_f
+==============
+Show team weapons stats.
+*/
+/*void TDM_TeamWeaponsStats_f (edict_t *ent, matchinfo_t *m_info)
+{
+	int				team;
+	char			*extra;
+	static char		stats[1024];
+
+	stats[0] = 0;
+
+	if (tdm_match_status == MM_WARMUP)
+		m_info = &old_matchinfo;
+
+	team = TDM_GetTeamFromMatchInfo (ent, m_info);
+
+	if (team == -1)
+		return;
+
+	if (TDM_StatCheatCheck (ent, m_info, team))
+		return;
+
+	strcat (stats, va ("Team '%s':\n", m_info->teamnames[team]));
+	strcat (stats, va ("          %s | ", TDM_SetColorText (va ("Weapon"))));
+	strcat (stats, va ("%s\n", TDM_SetColorText (va ("Acc. Kills Deaths Dealt Recvd Pick Miss"))));
+	strcat (stats, va ("-----------------+----------------------------------------\n"));
+
+	extra = TDM_BuildTeamWeaponsStatsString (ent, m_info, team);
+
+	//need to flush?
+	if (strlen(stats) + 1 + strlen (extra) >= sizeof(stats)-1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+		stats[0] = 0;
+	}
+	
+	strcat (stats, extra);
+
+	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+}*/
+
+/*
+==============
+TDM_ItemsStats_f
+==============
+Show items stats.
+*/
+void TDM_ItemsStats_f (edict_t *ent, matchinfo_t *m_info, teamplayer_t *p_info)
+{
+	char			*extra;
+	static char		stats[1024];
+
+	stats[0] = 0;
+
+	strcat (stats, va("Stats for %s:\n\n", p_info->name));
+	strcat (stats, va ("            %s | ", TDM_SetColorText (va ("Item"))));
+	strcat (stats, va ("%s\n", TDM_SetColorText (va ("Acc. Kills Deaths Dealt Recvd Pick Miss"))));
+	strcat (stats, va ("-----------------+----------------------------------------\n"));
+
+	extra = TDM_BuildWeaponsStatsString (ent, m_info, p_info);
+
+	//need to flush?
+	if (strlen(stats) + 1 + strlen (extra) >= sizeof(stats)-1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+		stats[0] = 0;
+	}
+	
+	strcat (stats, extra);
+
+	extra = TDM_BuildItemsStatsString (ent, m_info, p_info);
+
+	//need to flush?
+	if (strlen(stats) + 1 + strlen (extra) >= sizeof(stats)-1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+		stats[0] = 0;
+	}
+	
+	strcat (stats, extra);
+
+	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+}
+
+/*
+==============
+TDM_TeamItemsStats_f
+==============
+Show items info.
+*/
+void TDM_TeamItemsStats_f (edict_t *ent, matchinfo_t *m_info, int team)
+{
+	char			*extra;
+	static char		stats[1024];
+
+	stats[0] = 0;
+
+	strcat (stats, va ("Team '%s':\n\n", m_info->teamnames[team]));
+	strcat (stats, va ("            %s | ", TDM_SetColorText (va ("Item"))));
+	strcat (stats, va ("%s\n", TDM_SetColorText (va ("Acc. Kills Deaths Dealt Recvd Pick Miss"))));
+	strcat (stats, va ("-----------------+----------------------------------------\n"));
+
+	extra = TDM_BuildTeamWeaponsStatsString (ent, m_info, team);
+
+	//need to flush?
+	if (strlen(stats) + 1 + strlen (extra) >= sizeof(stats)-1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+		stats[0] = 0;
+	}
+	
+	strcat (stats, extra);
+
+	extra = TDM_BuildTeamItemsStatsString (ent, m_info, team);
+
+	//need to flush?
+	if (strlen(stats) + 1 + strlen (extra) >= sizeof(stats)-1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+		stats[0] = 0;
+	}
+	
+	strcat (stats, extra);
+
+	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+}
+
+/*
+==============
+TDM_GeneralStats_f
+==============
+Display general stats for player.
+*/
+void TDM_GeneralStats_f (edict_t *ent, matchinfo_t *m_info, teamplayer_t *p_info, unsigned team)
+{
+	static char		stats[1024];
+	int				i, j, p_recvd, p_dealt;
+	int				team_kills, team_deaths, team_suicides, team_team_kills;
+	int				team_telefrags, team_dealt, team_recvd, team_t_dealt, team_t_recvd;
+
+	team_kills = team_deaths = team_suicides = team_team_kills = team_telefrags = 0;
+	team_dealt = team_recvd = team_t_dealt = team_t_recvd = p_recvd = p_dealt = 0;
+	stats[0] = 0;
+
+	strcat (stats, va ("\n"));
+	strcat (stats, TDM_SetColorText (va ("Total")));
+	strcat (stats, va ("  | %s\n", TDM_SetColorText (va ("Kills Dths Sui TKs Tele Dealt Recvd TDealt TRecvd"))));
+	strcat (stats, va ("-------+--------------------------------------------------\n"));
+
+	if (p_info)
+	{
+		for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
+		{
+			p_dealt += p_info->damage_dealt[i];
+			p_recvd += p_info->damage_received[i];
+		}
+
+		strcat (stats, va ("Player | %5d %4d %3d %3d %4d %5d %5d %6d %6d\n",
+					p_info->enemy_kills,
+					p_info->deaths,
+					p_info->suicides,
+					p_info->team_kills,
+					p_info->telefrags,
+					p_dealt,
+					p_recvd,
+					p_info->team_dealt,
+					p_info->team_recvd));
+	}
+
+	if (!m_info->is1v1)
+	{
+		for (j = 0; j < m_info->num_teamplayers; j++)
+		{
+			p_info = &(m_info->teamplayers[j]);
+
+			if (p_info->team != team)
+				continue;
+
+			team_kills += p_info->enemy_kills;
+			team_deaths += p_info->deaths;
+			team_suicides += p_info->suicides;
+			team_team_kills += p_info->team_kills;
+			team_telefrags += p_info->telefrags;
+			team_t_dealt += p_info->team_dealt;
+			team_t_recvd += p_info->team_recvd;
+
+			for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
+			{
+				team_dealt += p_info->damage_dealt[i];
+				team_recvd += p_info->damage_received[i];
+			}
+		}
+
+		strcat (stats, va ("Team   | %5d %4d %3d %3d %4d %5d %5d %6d %6d\n",
+					team_kills,
+					team_deaths,
+					team_suicides,
+					team_team_kills,
+					team_telefrags,
+					team_dealt,
+					team_recvd,
+					team_t_dealt,
+					team_t_recvd));
+	}
+	strcat (stats, va ("\n"));
+
+	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+}
+
+/*
+==============
+TDM_Stats_f
+==============
+Shows shitloads of useless information. Note it isn't hard to
+overflow the 1024 byte cprintf limit, which is why this is
+split into multiple cprints. On non-R1Q2 servers, this will
+probably cause overflows!
+*/
+void TDM_Stats_f (edict_t *ent, matchinfo_t *m_info)
+{
+	int				i;
+	teamplayer_t	*p_info = NULL;
+
+	// after match stats.. don't guess the player, just pick the ent
+	if (tdm_match_status == MM_SCOREBOARD)
+	{
+		for (i = 0; i < m_info->num_teamplayers; i++)
+			if (m_info->teamplayers[i].client == ent)
+				p_info = &(m_info->teamplayers[i]);
+
+	}
+	// find a player for stats
+	else
+	{
+		if (tdm_match_status == MM_WARMUP)
+			m_info = &old_matchinfo;
+
+		p_info = TDM_GetInfoForPlayer (ent, m_info);
+
+		if (!p_info)
+			return;
+	
+		if (TDM_StatCheatCheck (ent, m_info, p_info->team))
+			return;
+	}
+
+	TDM_ItemsStats_f (ent, m_info, p_info);
+	TDM_GeneralStats_f (ent, m_info, p_info, p_info->team);
 }
 
 /*
 ==============
 TDM_TeamStats_f
 ==============
-Show shitloads of useless information.
+Shows team statistics.
 */
-void TDM_TeamStats_f (edict_t *ent, matchinfo_t *info)
+void TDM_TeamStats_f (edict_t *ent, matchinfo_t *m_info)
 {
-	int				team;
-
-	if (tdm_match_status == MM_WARMUP)
-		info = &old_matchinfo;
-
-	team = TDM_GetTeamFromMatchInfo (ent, info);
-	if (team == -1)
-		return;
-
-	if (TDM_StatCheatCheck (ent, info, team))
-		return;
-
-	if (team != (int)ent->client->pers.team)
-		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
-
-	if (info->is1v1)
-		TDM_WriteStatsString (ent, info->captains[team]);
+	if (m_info->is1v1)
+		TDM_Stats_f (ent, m_info);
 	else
-		TDM_WriteTeamStatsString (ent, info, team);
-		
-}
-
-/*
-==============
-TDM_Accuracy_f
-==============
-Show accuracy info.
-*/
-void TDM_Accuracy_f (edict_t *ent, matchinfo_t *info)
-{
-	const char		*stats;
-	teamplayer_t	*victim;
-
-	if (tdm_match_status == MM_WARMUP)
-		info = &old_matchinfo;
-
-	victim = TDM_GetInfoForPlayer (ent, info);
-	if (!victim)
-		return;
-
-	if (TDM_StatCheatCheck (ent, info, victim->team))
-		return;
-
-	if (ent != victim->client)
-		gi.cprintf (ent, PRINT_HIGH, "Accuracy for %s\n", victim->name);
-
-	stats = TDM_BuildAccuracyString (ent, victim);
-
-	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
-}
-
-/*
-==============
-TDM_TeamAccuracy_f
-==============
-Show team accuracy info.
-*/
-void TDM_TeamAccuracy_f (edict_t *ent, matchinfo_t *info)
-{
-	const char		*stats;
-	int				team;
-
-	if (tdm_match_status == MM_WARMUP)
-		info = &old_matchinfo;
-
-	team = TDM_GetTeamFromMatchInfo (ent, info);
-	if (team == -1)
-		return;
-
-	if (TDM_StatCheatCheck (ent, info, team))
-		return;
-
-	if (team != (int)ent->client->pers.team)
-		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
-
-	if (info->is1v1)
-		stats = TDM_BuildAccuracyString (ent, info->captains[team]);
-	else
-		stats = TDM_BuildTeamAccuracyString (ent, info, team);
-
-	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
-}
-
-/*
-==============
-TDM_Damage_f
-==============
-Show damage info.
-*/
-void TDM_Damage_f (edict_t *ent, matchinfo_t *info)
-{
-	const char		*stats;
-	teamplayer_t	*victim;
-
-	if (tdm_match_status == MM_WARMUP)
-		info = &old_matchinfo;
-
-	victim = TDM_GetInfoForPlayer (ent, info);
-	if (!victim)
-		return;
-
-	if (TDM_StatCheatCheck (ent, info, victim->team))
-		return;
-
-	if (ent != victim->client)
-		gi.cprintf (ent, PRINT_HIGH, "Damage stats for %s\n", victim->name);
-
-	stats = TDM_BuildDamageString (ent, victim);
-
-	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
-}
-
-/*
-==============
-TDM_TeamDamage_f
-==============
-Show team damage info.
-*/
-void TDM_TeamDamage_f (edict_t *ent, matchinfo_t *info)
-{
-	const char		*stats;
-	int				team;
-
-	if (tdm_match_status == MM_WARMUP)
-		info = &old_matchinfo;
-
-	team = TDM_GetTeamFromMatchInfo (ent, info);
-	if (team == -1)
-		return;
-
-	if (TDM_StatCheatCheck (ent, info, team))
-		return;
-
-	if (team != (int)ent->client->pers.team)
-		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
-
-	if (info->is1v1)
-		stats = TDM_BuildDamageString (ent, info->captains[team]);
-	else
-		stats = TDM_BuildTeamDamageString (ent, info, team);
-
-	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
-}
-
-/*
-==============
-TDM_Items_f
-==============
-Show items info.
-*/
-void TDM_Items_f (edict_t *ent, matchinfo_t *info)
-{
-	const char		*stats;
-	teamplayer_t	*victim;
-
-	if (tdm_match_status == MM_WARMUP)
-		info = &old_matchinfo;
-
-	victim = TDM_GetInfoForPlayer (ent, info);
-	if (!victim)
-		return;
-
-	if (info->game_mode == GAMEMODE_ITDM)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Items stats are not available for matches played under ITDM rules.\n");
-		return;
+		int				team;
+
+		if (tdm_match_status == MM_WARMUP)
+			m_info = &old_matchinfo;
+
+		team = TDM_GetTeamFromMatchInfo (ent, m_info);
+
+		if (team == -1)
+			return;
+	
+		if (TDM_StatCheatCheck (ent, m_info, team))
+			return;
+
+		TDM_TeamItemsStats_f (ent, m_info, team);
+		TDM_GeneralStats_f (ent, m_info, NULL, team);
 	}
 
-	if (TDM_StatCheatCheck (ent, info, victim->team))
-		return;
-
-	if (ent != victim->client)
-		gi.cprintf (ent, PRINT_HIGH, "Item stats for %s\n", victim->name);
-
-	stats = TDM_BuildItemsString (ent, victim);
-
-	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
 }
 
 /*
 ==============
-TDM_TeamItems_f
+TDM_RemoveStatsLink
 ==============
-Show items info.
+A player just disconnected, so remove the pointer to their edict
+from the stats info to avoid new clients taking the same ent and
+messing things up.
 */
-void TDM_TeamItems_f (edict_t *ent, matchinfo_t *info)
+void TDM_RemoveStatsLink (edict_t *ent)
 {
-	const char		*stats;
-	int				team;
+	int		i;
 
-	if (tdm_match_status == MM_WARMUP)
-		info = &old_matchinfo;
+	if (current_matchinfo.teamplayers)
+		for (i = 0; i < current_matchinfo.num_teamplayers; i++)
+		{
+			if (current_matchinfo.teamplayers[i].client == ent)
+				current_matchinfo.teamplayers[i].client = NULL;
+		}
 
-	team = TDM_GetTeamFromMatchInfo (ent, info);
-	if (team == -1)
-		return;
+	if (old_matchinfo.teamplayers)
+		for (i = 0; i < old_matchinfo.num_teamplayers; i++)
+		{
+			if (old_matchinfo.teamplayers[i].client == ent)
+				old_matchinfo.teamplayers[i].client = NULL;
+		}
+}
 
-	if (info->game_mode == GAMEMODE_ITDM)
+/*
+==============
+TDM_BuildTopBottomShotsString
+==============
+Builds the string for top/bottom shots.
+*/
+char* TDM_BuildTopBottomShotsString (edict_t *ent, int team, qboolean top_shots)
+{
+	static char		stats[1400];
+	unsigned		i, j;
+	float			accuracy;
+	int				frags, deaths, hits, shots;
+	char			player[16];
+	matchinfo_t		*m_info;
+	teamplayer_t	*p_info;
+	qboolean		skip;
+
+	m_info = &old_matchinfo;
+	stats[0] = 0;
+
+	if (!m_info->teamplayers)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Items stats are not available for matches played under ITDM rules.\n");
-		return;
+		gi.cprintf (ent, PRINT_HIGH, "That information is not available yet.\n");
+		return stats;
 	}
 
-	if (TDM_StatCheatCheck (ent, info, team))
-		return;
-
-	if (team != (int)ent->client->pers.team)
-		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
-
-	if (info->is1v1)
-		stats = TDM_BuildItemsString (ent, info->captains[team]);
-	else
-		stats = TDM_BuildTeamItemsString (ent, info, team);
-
-	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
-}
-
-/*
-==============
-TDM_Weapons_f
-==============
-Show weapon info.
-*/
-void TDM_Weapons_f (edict_t *ent, matchinfo_t *info)
-{
-	const char		*stats;
-	teamplayer_t	*victim;
-
-	if (tdm_match_status == MM_WARMUP)
-		info = &old_matchinfo;
-
-	victim = TDM_GetInfoForPlayer (ent, info);
-	if (!victim)
-		return;
-
-	if (TDM_StatCheatCheck (ent, info, victim->team))
-		return;
-
-	if (ent != victim->client)
-		gi.cprintf (ent, PRINT_HIGH, "Weapon stats for %s\n", victim->name);
-
-	stats = TDM_BuildWeaponsString (ent, victim);
-
-	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
-}
-
-/*
-==============
-TDM_TeamWeapons_f
-==============
-Show team weapon info.
-*/
-void TDM_TeamWeapons_f (edict_t *ent, matchinfo_t *info)
-{
-	const char		*stats;
-	int				team;
-
-	if (tdm_match_status == MM_WARMUP)
-		info = &old_matchinfo;
-
-	team = TDM_GetTeamFromMatchInfo (ent, info);
 	if (team == -1)
-		return;
-
-	if (TDM_StatCheatCheck (ent, info, team))
-		return;
-
-	if (team != (int)ent->client->pers.team)
-		gi.cprintf (ent, PRINT_HIGH, "Team '%s':\n", info->teamnames[team]);
-
-	if (info->is1v1)
-		stats = TDM_BuildWeaponsString (ent, info->captains[team]);
+		strcat (stats, va ("Total %sshots:\n\n", ((top_shots) ? "top" : "bottom")));
 	else
-		stats = TDM_BuildTeamWeaponsString (ent, info, team);
+		strcat (stats, va ("Team '%s' %sshots:\n\n", old_matchinfo.teamnames[team], ((top_shots) ? "top" : "bottom")));
+	strcat (stats, va ("          %s | ", TDM_SetColorText (va ("Weapon"))));
+	strcat (stats, va ("  %s\n", TDM_SetColorText (va ("Acc. Hits Shots Kills Deaths Name"))));
+	strcat (stats, va ("-----------------+--------------------------------------\n"));
 
-	gi.cprintf (ent, PRINT_HIGH, "%s", stats);
+	for (i = TDMG_BLASTER; i < TDMG_MAX; i++)
+	{
+		const gitem_t	*item;
+
+		frags = deaths = hits = shots = 0;
+		skip = true;
+
+		if (top_shots)
+			accuracy = 0.0f;
+		else
+			accuracy = 100.0f;
+
+		for (j = 0; j < m_info->num_teamplayers; j++)
+		{
+			p_info = &(m_info->teamplayers[j]);
+
+			if ((int)p_info->team == team || team == -1)
+			{
+				//don't count where we didn't hit anything
+				if (!p_info->shots_hit[i])
+					continue;
+
+				//this player has lower/higher accuracy.. skip him
+				//check also for minimun shots fired which doesn't apply on bfg
+				if ((top_shots && accuracy > (float)p_info->shots_hit[i]/(float)p_info->shots_fired[i]) ||
+						(!top_shots && accuracy < (float)p_info->shots_hit[i]/(float)p_info->shots_fired[i]) ||
+						shots > 10 * p_info->shots_fired[i] ||
+						(p_info->shots_fired[i] < 10 && i != TDMG_BFG10K))
+					continue;
+
+				skip = false;
+
+				shots = p_info->shots_fired[i];
+				hits = p_info->shots_hit[i];
+				frags = p_info->killweapons[i];
+				deaths = p_info->deathweapons[i];
+
+				//already shouldn't be more than 15!
+				sprintf (player, p_info->name);
+				accuracy = (float)hits/(float)shots;
+			}
+		}
+
+		// we don't need to draw this weapon
+		if (skip)
+			continue;
+
+		item = GETITEM (tdmg_weapons[i]);
+
+		strcat (stats, va ("%16.16s | %5.1f%% %4d %5d %5d %6d %s\n",
+					item->pickup_name,
+					accuracy * 100,
+					hits,
+					shots,
+					frags,
+					deaths,
+					player
+					));
+	}
+
+	return stats;
+}
+
+/*
+==============
+TDM_TopBottomShots_f
+==============
+Show Top/Bottom Shots info. Only available after the match.
+*/
+void TDM_TopBottomShots_f (edict_t *ent, qboolean team_stats, qboolean top_shots)
+{
+	const char	*stats;
+	int			team = -1;
+
+	if (team_stats)
+	{
+		team = TDM_GetTeamFromMatchInfo (ent, &old_matchinfo);
+		if (team == -1)
+			return;
+	}
+
+	stats = TDM_BuildTopBottomShotsString (ent, team, top_shots);
+
+	if (!stats[0])
+		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
 }
 
 /*
@@ -1580,7 +1464,7 @@ void TDM_SetupMatchInfoAndTeamPlayers (void)
 		{
 			if (ent->client->pers.connected)
 			{
-				gi.dprintf ("TDM_SetupMatchInfoAndTeamPlayers: Unclean disconnect of client %d.\n", ent - g_edicts - 1);
+				gi.dprintf ("TDM_SetupMatchInfoAndTeamPlayers: Unclean disconnect of client %d.\n", (int)(ent - g_edicts - 1));
 				memset (&ent->client->pers, 0, sizeof(ent->client->pers));
 				ent->solid = SOLID_NOT;
 				ent->s.modelindex = ent->s.effects = ent->s.sound = 0;

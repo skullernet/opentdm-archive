@@ -23,35 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "g_local.h"
 #include "g_tdm.h"
-// wision: for config listing
-//#include <dirent.h>
-
-#define VOTE_TIMELIMIT	0x1
-#define VOTE_MAP		0x2
-#define	VOTE_KICK		0x4
-#define VOTE_WEAPONS	0x8
-#define VOTE_POWERUPS	0x10
-#define VOTE_GAMEMODE	0x20
-
-#define VOTE_TELEMODE	0x80
-#define VOTE_TIEMODE	0x100
-#define VOTE_SWITCHMODE	0x200
-#define VOTE_OVERTIME	0x400
-
-//distinct so a local and remote '1v1' config are distinguishable
-#define	VOTE_CONFIG		0x800
-#define	VOTE_WEBCONFIG	0x1000
-
-#define	VOTE_CHAT		0x2000
-
-#define	VOTE_RESTART	0x4000
-
-#define	VOTE_BUGS		0x8000
-
-#define VOTE_TDM_SPAWNMODE	0x10000
-#define VOTE_1V1_SPAWNMODE	0x20000
-
-#define VOTE_ABORT			0x40000
 
 //the ordering of weapons must match ITEM_ defines too!
 const weaponinfo_t	weaponvotes[WEAPON_MAX] = 
@@ -640,15 +611,9 @@ qboolean TDM_VoteMap (edict_t *ent)
 	if (!value[0])
 	{
 		if (tdm_maplist != NULL)
-		{
-			gi.cprintf (ent, PRINT_HIGH, "Allowed maplist:\n"
-					"----------------\n"
-					"%s\n"
-					"Usage: vote map <mapname>\n", tdm_maplist_string);
-		}
-		else
-			gi.cprintf (ent, PRINT_HIGH, "Usage: vote map <mapname>\n");
-
+			TDM_WriteMaplist (ent);
+			
+		gi.cprintf (ent, PRINT_HIGH, "Usage: vote map <mapname>\n");
 		return false;
 	}
 
@@ -2378,7 +2343,7 @@ void TDM_ConfigDownloaded (tdm_download_t *download, int code, byte *buff, int l
 
 		strcpy (t->name, tdm_vote_download.name);
 
-		if (!TDM_ProcessText (buff, len, TDM_ParseVoteConfigLine, t))
+		if (!TDM_ProcessText ((char *)buff, len, TDM_ParseVoteConfigLine, t))
 		{
 			gi.TagFree (t);
 			last->next = NULL;

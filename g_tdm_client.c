@@ -546,6 +546,172 @@ void TDM_Disconnected (edict_t *ent)
 	ent->client->ps.stats[STAT_FRAGS] = 0;
 }
 
+/*
+==============
+TDM_CreatePlayerDmStatusBar
+==============
+Create player's own customized dm_statusbar.
+*/
+char *TDM_CreatePlayerDmStatusBar (playerconfig_t *c)
+{
+	static char	*dm_statusbar;
+	int			id_x, id_y, id_highlight;
+
+	// opentdm default
+	id_highlight = 0;
+	id_x = -100;
+	id_y = -80;
+
+	id_x += c->id_x;
+	id_y += c->id_y;
+	id_highlight = c->id_highlight;
+
+	dm_statusbar = va (
+"yb	-24 "
+
+// health
+"xv	0 "
+"hnum "
+"xv	50 "
+"pic 0 "
+
+// ammo
+"if 2 "
+"	xv	100 "
+"	anum "
+"	xv	150 "
+"	pic 2 "
+"endif "
+
+// armor
+"if 4 "
+"	xv	200 "
+"	rnum "
+"	xv	250 "
+"	pic 4 "
+"endif "
+
+// selected item
+"if 6 "
+"	xv	296 "
+"	pic 6 "
+"endif "
+
+"yb	-50 "
+
+// picked up item
+"if 7 "
+"	xv	0 "
+"	pic 7 "
+"	xv	26 "
+"	yb	-42 "
+"	stat_string 8 "
+"	yb	-50 "
+"endif "
+
+// timer (quad, rebreather, envirosuit)
+"if 9 "
+"	xv	246 "
+"	num	2	10 "
+"	xv	296 "
+"	pic	9 "
+"endif "
+
+//  help / weapon icon 
+"if 11 "
+"	xv	148 "
+"	pic	11 "
+"endif "
+
+// timer (pent)
+"if 29 "
+"   yb  -80 "
+"	xv	246 "
+"	num	2	30 "
+"	xv	296 "
+"	pic	29 "
+"endif "
+
+// First team name
+"xr -250 "
+"yb -96 "
+"stat_string 18 "
+
+// First team score / status
+"xr -66 "
+"yb -120 "
+"num 4 23 "
+
+// Second team name
+"xr -250 "
+"yb -48 "
+"stat_string 19 "
+
+// Second team score / status
+"xr -66 "
+"yb -72 "
+"num 4 24 "
+
+// Time
+"xv 175 "
+"yb -48 "
+"stat_string 26 "
+
+// Time value
+"xv 175 "
+"yb -39 "
+"stat_string 22 "
+
+// Timeout message
+"if 25 "
+	"xr -58 "
+	"yt 50 "
+	"string \"Timeout\" "
+
+	// Timeout value
+	"xr -42 "
+	"yt 58 "
+	"stat_string 25 "
+"endif "
+
+//  frags
+"xr	-50 "
+"yt 2 "
+"num 3 31 "
+
+// spectator
+"if 17 "
+  "xv 0 "
+  "yb -58 "
+  "string2 \"SPECTATOR MODE\" "
+"endif "
+
+// chase camera
+"if 16 "
+  "xv 0 "
+  "yb -68 "
+  "string \"Chasing\" "
+  "xv 64 "
+  "stat_string 16 "
+"endif "
+
+// player id view
+"if 27 "
+  "xv %d "
+  "yb %d "
+  "stat_string 27 "
+"endif "
+
+// vote notice
+"if 28 "
+  "xl 10 "
+  "yb -180 "
+  "stat_string 28 "
+"endif ", id_x, id_y);
+
+	return dm_statusbar;
+}
+
 qboolean TDM_ParsePlayerConfigLine (char *line, int line_number, void *param)
 {
 	playerconfig_t	*c;
@@ -581,6 +747,12 @@ qboolean TDM_ParsePlayerConfigLine (char *line, int line_number, void *param)
 		c->auto_record = atoi (p);
 	else if (!strcmp (variable, "autoscreenshot"))
 		c->auto_screenshot = atoi (p);
+	else if (!strcmp (variable, "id_highlight"))
+		c->id_highlight = atoi (p);
+	else if (!strcmp (variable, "id_x"))
+		c->id_x = atoi (p);
+	else if (!strcmp (variable, "id_y"))
+		c->id_y = atoi (p);
 	else
 		gi.dprintf ("Unknown player config variable '%s'. Check you are using the latest version of OpenTDM.\n", variable);
 
@@ -594,7 +766,7 @@ void TDM_PlayerConfigDownloaded (tdm_download_t *download, int code, byte *buff,
 	if (!download->initiator || !buff)
 		return;
 
-	if (!TDM_ProcessText (buff, len, TDM_ParsePlayerConfigLine, &config))
+	if (!TDM_ProcessText ((char *)buff, len, TDM_ParsePlayerConfigLine, &config))
 	{
 		gi.dprintf ("TDM_PlayerConfigDownloaded: Parse failed.\n");
 	}
@@ -655,6 +827,12 @@ qboolean TDM_SetupClient (edict_t *ent)
 	TDM_TeamsChanged ();
 
 	TDM_DownloadPlayerConfig (ent);
+
+	//wision: set up the dm_statusbar according the config and send it to the client
+	gi.WriteByte (svc_configstring);
+	gi.WriteShort (CS_STATUSBAR);
+	gi.WriteString (TDM_CreatePlayerDmStatusBar (&(ent->client->pers.config)));
+	gi.unicast (ent, false);
 
 	if (!TDM_ProcessJoinCode (ent, 0))
 	{
@@ -1006,10 +1184,26 @@ int TDM_GetPlayerIdView (edict_t *ent)
 			else
 				buff[0] = '\0';
 
-			string = va ("%16s H:%d A:%d%s", target->client->pers.netname, target->health, TDM_GetArmorValue (target), buff);
+			if (ent->client->pers.config.id_highlight)
+				string = TDM_SetColorText (va ("%16s H:%d A:%d%s",
+						target->client->pers.netname,
+						target->health,
+						TDM_GetArmorValue (target),
+						buff));
+			else
+				string = va ("%16s H:%d A:%d%s",
+						target->client->pers.netname,
+						target->health,
+						TDM_GetArmorValue (target),
+						buff);
 		}
 		else
-			string = va ("%16s", target->client->pers.netname);
+		{
+			if (ent->client->pers.config.id_highlight)
+				string = TDM_SetColorText (va ("%16s", target->client->pers.netname));
+			else
+				string = va ("%16s", target->client->pers.netname);
+		}
 
 		gi.WriteByte (svc_configstring);
 		gi.WriteShort (CS_TDM_ID_VIEW);
