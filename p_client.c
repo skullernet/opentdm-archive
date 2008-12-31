@@ -806,12 +806,6 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTwoClosest (void)
 		}
 	}
 
-	if (!level.numspawns)
-		return NULL;
-
-	if (level.numspawns <= 2)
-		spot1 = spot2 = NULL;
-
 	do
 	{
 		selection = genrand_int32() % level.numspawns;
@@ -885,12 +879,6 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTwoClosestBugged (void)
 		}
 	}
 
-	if (!level.numspawns)
-		return NULL;
-
-	if (level.numspawns <= 2)
-		spot1 = spot2 = NULL;
-
 	do
 	{
 		selection = genrand_int32() % level.numspawns;
@@ -953,7 +941,7 @@ edict_t *SelectDeathmatchSpawnPoint (edict_t *player)
 	{
 		return SelectFarthestDeathmatchSpawnPoint ();
 	}
-	else
+	else if (level.numspawns > 2)
 	{
 		if (TDM_Is1V1())
 		{
@@ -990,7 +978,7 @@ void	SelectSpawnPoint (edict_t *ent, vec3_t origin, vec3_t angles)
 {
 	edict_t	*spot = NULL;
 
-	if (ent->client->pers.team)
+	if (level.numspawns && ent->client->pers.team)
 		spot = SelectDeathmatchSpawnPoint (ent);
 
 	// find a single player start spot
