@@ -832,7 +832,7 @@ qboolean TDM_SetupClient (edict_t *ent)
 	gi.WriteByte (svc_configstring);
 	gi.WriteShort (CS_STATUSBAR);
 	gi.WriteString (TDM_CreatePlayerDmStatusBar (&(ent->client->pers.config)));
-	gi.unicast (ent, false);
+	gi.unicast (ent, true);
 
 	if (!TDM_ProcessJoinCode (ent, 0))
 	{
