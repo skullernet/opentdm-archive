@@ -980,7 +980,7 @@ const char *TDM_MakeDemoName (edict_t *ent)
 	ts = localtime (&t);
 
 	// current format: playername-team_a-team_b-servername-map-year-mon-day-hour-min-sec
-	sprintf (string, "%s-%s-%s-%s-%s_%d-%02d-%02d_%02d-%02d-%02d",
+	Com_sprintf (string, sizeof(string), "%s-%s-%s-%s-%s_%d-%02d-%02d_%02d-%02d-%02d",
 			ent->client->pers.netname,
 			teaminfo[ent->client->pers.team].name,
 			teaminfo[(ent->client->pers.team%2)+1].name,

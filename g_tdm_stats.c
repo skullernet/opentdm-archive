@@ -1320,7 +1320,7 @@ char* TDM_BuildTopBottomShotsString (edict_t *ent, int team, qboolean top_shots)
 				deaths = p_info->deathweapons[i];
 
 				//already shouldn't be more than 15!
-				sprintf (player, p_info->name);
+				strcpy (player, p_info->name);
 				accuracy = (float)hits/(float)shots;
 			}
 		}
@@ -1365,7 +1365,7 @@ void TDM_TopBottomShots_f (edict_t *ent, qboolean team_stats, qboolean top_shots
 
 	stats = TDM_BuildTopBottomShotsString (ent, team, top_shots);
 
-	if (!stats[0])
+	if (stats[0])
 		gi.cprintf (ent, PRINT_HIGH, "%s", stats);
 }
 

@@ -227,6 +227,13 @@ void SV_CalcViewOffset (edict_t *ent)
 	float		delta;
 	vec3_t		v;
 
+	if (ent->movetype == MOVETYPE_NOCLIP)
+	{
+		// don't add any kicks/bobs for spectators
+		VectorClear (ent->client->ps.kick_angles);
+		VectorSet (ent->client->ps.viewoffset, 0, 0, ent->viewheight);
+		return;
+	}
 
 //===================================
 

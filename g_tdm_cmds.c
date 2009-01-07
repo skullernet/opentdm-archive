@@ -1360,8 +1360,10 @@ Talk to a player.
 void TDM_Talk_f (edict_t *ent)
 {
 	char	*p;
-	char	text[2048] = { 0 };
+	char	text[256];
 	edict_t	*victim;
+	int		i;
+	size_t	len, total;
 
 	if (gi.argc() < 3)
 	{
@@ -1393,29 +1395,25 @@ void TDM_Talk_f (edict_t *ent)
 			return;
 		}
 
-		p = gi.args();
-
 		// skip first argument (victims name/id)
-		while (*p != ' ')
-			p++;
-
-		// skip the spaces after the name/id
-		while (*p == ' ')
-			p++;
-
-		if (*p == '"')
+		total = 0;
+		for (i = 2; i < gi.argc(); i++)
 		{
-			p++;
-			p[strlen(p)-1] = '\0';
+			p = gi.argv (i);
+			len = strlen (p);
+			if (!len)
+				continue;
+			if (total + len + 1 >= sizeof (text))
+				break;
+			memcpy (text + total, p, len);
+			text[total + len] = ' ';
+			total += len + 1;
 		}
+		text[total] = 0;
 
-		strcpy (text, p);
-
-		if (!text[0])
+		if (!total)
 			return;
-		
-		text[256] = '\0';
-		
+
 		gi.cprintf (ent, PRINT_CHAT, "{%s}: %s\n", ent->client->pers.netname, text);
 		gi.cprintf (victim, PRINT_CHAT, "{%s}: %s\n", ent->client->pers.netname, text);
 	}
@@ -1937,27 +1935,30 @@ void TDM_Motd_f (edict_t *ent)
 
 	*string = 0;
 
-	strncpy (message, g_motd_message->string, sizeof(message)-1);
-	message[sizeof(message)-1] = '\0';
+	Q_strncpy (message, g_motd_message->string, sizeof(message)-1);
 
 	len = strlen(message);
 
 	for (i = 0; i <= len; i++)
 	{
-		if (i == len || (message[i] == 'n' && message[i-1] == '\\'))
+		if (i == len || (message[i] == '\\' && message[i+1] == 'n'))
 		{
 			// don't cut last letter if it's last line
 			if (i != len)
-				message[i-1] = '\0';
+				message[i] = '\0';
 
 			current_length = strlen(string);
 
-			if (current_length + strlen(message + msg_offset) > sizeof(string)-1)
+			if (current_length + strlen(message + msg_offset) + 23 > sizeof(string)-1)
 				break;
 
 			sprintf (string + current_length, "xl 8 yb %d string \"%s\" ", offset - 160, message + msg_offset);
 			offset += 8;
-			msg_offset = i + 1;
+			msg_offset = i + 2;
+
+			// don't allow text to go off screen
+			if (offset > 160)
+				break;
 		}
 	}
 
