@@ -552,7 +552,7 @@ TDM_CreatePlayerDmStatusBar
 ==============
 Create player's own customized dm_statusbar.
 */
-char *TDM_CreatePlayerDmStatusBar (playerconfig_t *c)
+const char *TDM_CreatePlayerDmStatusBar (playerconfig_t *c)
 {
 	static char	*dm_statusbar;
 	int			id_x, id_y, id_highlight;
@@ -776,6 +776,12 @@ void TDM_PlayerConfigDownloaded (tdm_download_t *download, int code, byte *buff,
 		gi.cprintf (download->initiator, PRINT_HIGH, "Your opentdm.net player config was loaded successfully.\n");
 		TDM_SetTeamSkins (download->initiator, NULL);
 	}
+
+	//wision: set up the dm_statusbar according the config and send it to the client
+	gi.WriteByte (svc_configstring);
+	gi.WriteShort (CS_STATUSBAR);
+	gi.WriteString (TDM_CreatePlayerDmStatusBar (&download->initiator->client->pers.config));
+	gi.unicast (download->initiator, true);
 }
 
 /*
@@ -815,11 +821,8 @@ void TDM_DownloadPlayerConfig (edict_t *ent)
 TDM_SetupClient
 ==============
 Setup the client after an initial connection. Called on first spawn
-on every map load. Returns true if a join code was used to respawn
+only, not every map. Returns true if a join code was used to respawn
 a full player, so that PutClientInServer knows about it.
-
-FIXME: Is this only called once? I don't think its called every map
-load any more.
 */
 qboolean TDM_SetupClient (edict_t *ent)
 {
@@ -827,12 +830,6 @@ qboolean TDM_SetupClient (edict_t *ent)
 	TDM_TeamsChanged ();
 
 	TDM_DownloadPlayerConfig (ent);
-
-	//wision: set up the dm_statusbar according the config and send it to the client
-	gi.WriteByte (svc_configstring);
-	gi.WriteShort (CS_STATUSBAR);
-	gi.WriteString (TDM_CreatePlayerDmStatusBar (&(ent->client->pers.config)));
-	gi.unicast (ent, true);
 
 	if (!TDM_ProcessJoinCode (ent, 0))
 	{

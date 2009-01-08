@@ -1366,6 +1366,14 @@ void ClientBeginDeathmatch (edict_t *ent)
 		if (!ent->client->pers.mvdclient)
 			gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
 	}
+	else
+	{
+		//wision: set up the dm_statusbar according the config and send it to the client
+		gi.WriteByte (svc_configstring);
+		gi.WriteShort (CS_STATUSBAR);
+		gi.WriteString (TDM_CreatePlayerDmStatusBar (&ent->client->pers.config));
+		gi.unicast (ent, true);
+	}
 
 	//no cross-level menus!
 	PMenu_Close (ent);
