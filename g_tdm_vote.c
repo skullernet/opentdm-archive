@@ -1595,7 +1595,7 @@ void TDM_VoteWebConfigResult (edict_t *ent, int code, tdm_config_t *config)
 		return;
 	}
 
-	if (!ent->client->pers.team)
+	if (!ent->client->pers.team && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Web config '%s' was found, but you are no longer on a team!\n", tdm_vote_download.name);
 		return;

@@ -731,12 +731,6 @@ qboolean TDM_ParsePlayerConfigLine (char *line, int line_number, void *param)
 
 	variable = line;
 
-	if (!p[0])
-	{
-		gi.dprintf ("WARNING: Malformed line %d '%s'\n", line_number, line);
-		return false;
-	}
-
 	//no validation is done here to keep things small - these should be validated serverside
 	//already. yes, we're trusting the server not to lie to us :).
 	if (!strcmp (variable, "teamskin"))
@@ -900,6 +894,7 @@ void TDM_PlayerNameChanged (edict_t *ent)
 		else
 			gi.configstring (CS_TDM_SPECTATOR_STRINGS + (ent - g_edicts) - 1, va("%s (%s)", ent->client->pers.netname, teaminfo[ent->client->pers.team].name));
 
+		TDM_SetAllTeamSkins (ent);
 		TDM_UpdateTeamNames ();
 	}
 }

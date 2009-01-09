@@ -755,10 +755,8 @@ void Cmd_Kill_f (edict_t *ent)
 	if (!ent->client->pers.team)
 		return;
 
-#ifndef _DEBUG
-	if((level.framenum - ent->client->respawn_framenum) < 5 * (1 * SERVER_FPS))
+	if ((level.framenum - ent->client->respawn_framenum) < SECS_TO_FRAMES (5))
 		return;
-#endif
 
 	if (tdm_match_status == MM_COUNTDOWN || tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
 		return;
@@ -1131,10 +1129,10 @@ void Cmd_PlayerList_f (edict_t *ent)
 	strcat (text, va ("\nServer status: "));
 	if (sv_reserved_slots)
 	{
-		if (players >= game.maxclients - sv_reserved_slots->intvalue)
-			strcat (text, TDM_SetColorText (va ("%d/%d\n", players, game.maxclients - sv_reserved_slots->intvalue)));
+		if (players >= game.maxclients - (int)sv_reserved_slots->value)
+			strcat (text, TDM_SetColorText (va ("%d/%d\n", players, game.maxclients - (int)sv_reserved_slots->value)));
 		else
-			strcat (text, va("%d/%d\n", players, game.maxclients - sv_reserved_slots->intvalue));
+			strcat (text, va("%d/%d\n", players, game.maxclients - (int)sv_reserved_slots->value));
 	}
 	else
 	{
