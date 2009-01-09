@@ -757,8 +757,18 @@ void TDM_PlayerConfigDownloaded (tdm_download_t *download, int code, byte *buff,
 {
 	playerconfig_t	config;
 
-	if (!download->initiator || !buff)
+	if (!download->initiator)
 		return;
+
+	//no data, setup default status bar
+	if (!buff)
+	{
+		gi.WriteByte (svc_configstring);
+		gi.WriteShort (CS_STATUSBAR);
+		gi.WriteString (TDM_CreatePlayerDmStatusBar (&download->initiator->client->pers.config));
+		gi.unicast (download->initiator, true);
+		return;
+	}
 
 	if (!TDM_ProcessText ((char *)buff, len, TDM_ParsePlayerConfigLine, &config))
 	{
