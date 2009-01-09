@@ -546,6 +546,7 @@ void TDM_Disconnected (edict_t *ent)
 	ent->client->ps.stats[STAT_FRAGS] = 0;
 }
 
+
 /*
 ==============
 TDM_CreatePlayerDmStatusBar
@@ -712,6 +713,20 @@ const char *TDM_CreatePlayerDmStatusBar (playerconfig_t *c)
 	return dm_statusbar;
 }
 
+/*
+==============
+TDM_SendStatusBarCS
+==============
+Send status bar config string.
+*/
+void TDM_SendStatusBarCS (edict_t *ent)
+{
+	gi.WriteByte (svc_configstring);
+	gi.WriteShort (CS_STATUSBAR);
+	gi.WriteString (TDM_CreatePlayerDmStatusBar (&ent->client->pers.config));
+	gi.unicast (ent, true);
+}
+
 qboolean TDM_ParsePlayerConfigLine (char *line, int line_number, void *param)
 {
 	playerconfig_t	*c;
@@ -760,32 +775,22 @@ void TDM_PlayerConfigDownloaded (tdm_download_t *download, int code, byte *buff,
 	if (!download->initiator)
 		return;
 
-	//no data, setup default status bar
-	if (!buff)
+	if (buff)
 	{
-		gi.WriteByte (svc_configstring);
-		gi.WriteShort (CS_STATUSBAR);
-		gi.WriteString (TDM_CreatePlayerDmStatusBar (&download->initiator->client->pers.config));
-		gi.unicast (download->initiator, true);
-		return;
-	}
-
-	if (!TDM_ProcessText ((char *)buff, len, TDM_ParsePlayerConfigLine, &config))
-	{
-		gi.dprintf ("TDM_PlayerConfigDownloaded: Parse failed.\n");
-	}
-	else
-	{
-		download->initiator->client->pers.config = config;
-		gi.cprintf (download->initiator, PRINT_HIGH, "Your opentdm.net player config was loaded successfully.\n");
-		TDM_SetTeamSkins (download->initiator, NULL);
+		if (!TDM_ProcessText ((char *)buff, len, TDM_ParsePlayerConfigLine, &config))
+		{
+			gi.dprintf ("TDM_PlayerConfigDownloaded: Parse failed.\n");
+		}
+		else
+		{
+			download->initiator->client->pers.config = config;
+			gi.cprintf (download->initiator, PRINT_HIGH, "Your opentdm.net player config was loaded successfully.\n");
+			TDM_SetTeamSkins (download->initiator, NULL);
+		}
 	}
 
 	//wision: set up the dm_statusbar according the config and send it to the client
-	gi.WriteByte (svc_configstring);
-	gi.WriteShort (CS_STATUSBAR);
-	gi.WriteString (TDM_CreatePlayerDmStatusBar (&download->initiator->client->pers.config));
-	gi.unicast (download->initiator, true);
+	TDM_SendStatusBarCS (download->initiator);
 }
 
 /*
@@ -800,7 +805,10 @@ void TDM_DownloadPlayerConfig (edict_t *ent)
 
 	stats_id = Info_ValueForKey (ent->client->pers.userinfo, "stats_id");
 	if (!stats_id[0])
+	{
+		TDM_SendStatusBarCS (ent);
 		return;
+	}
 
 	//prevent new player from overwriting old request
 	if (ent->client->pers.download.inuse)
