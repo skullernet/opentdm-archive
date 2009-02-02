@@ -114,11 +114,13 @@ void ChangeWeapon (edict_t *ent)
 	{
 		//but it blew up in their hand or they threw it, allow bug to double explode
 		if ((ent->client->grenade_state == GRENADE_BLEW_UP && g_bugs->value >= 2) ||
-			(ent->client->grenade_state == GRENADE_THROWN && g_bugs->value >= 1))
+			(ent->client->grenade_state == GRENADE_THROWN && g_bugs->value >= 1) ||
+			ent->client->grenade_state == GRENADE_NONE)
 		{
 			ent->client->grenade_time = level.time;
 			weapon_grenade_fire (ent, false);
 			ent->client->grenade_time = 0;
+			ent->client->grenade_state = GRENADE_NONE;
 		}
 	}
 
@@ -682,6 +684,7 @@ void Weapon_Grenade (edict_t *ent)
 		if (ent->client->ps.gunframe == 16)
 		{
 			ent->client->grenade_time = 0;
+			ent->client->grenade_state = GRENADE_NONE;
 			ent->client->weaponstate = WEAPON_READY;
 		}
 	}

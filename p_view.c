@@ -1009,8 +1009,10 @@ void ClientEndServerFrame (edict_t *ent)
 
 	AngleVectors (ent->client->v_angle, forward, right, up);
 
-	// burn from lava, etc
-	P_WorldEffects ();
+	//no world effects during timeout
+	if (tdm_match_status != MM_TIMEOUT)
+		// burn from lava, etc
+		P_WorldEffects ();
 
 	//
 	// set model angles from view angles so other things in
@@ -1046,8 +1048,12 @@ void ClientEndServerFrame (edict_t *ent)
 	}
 
 	bobmove *= (10.0f / (1 * SERVER_FPS));
+
+	//no bobtime advancement during timeout
+	if (tdm_match_status != MM_TIMEOUT)
+		current_client->bobtime += bobmove;
 	
-	bobtime = (current_client->bobtime += bobmove);
+	bobtime = current_client->bobtime;
 
 	if (current_client->ps.pmove.pm_flags & PMF_DUCKED)
 		bobtime *= 4;
@@ -1126,7 +1132,7 @@ void ClientEndServerFrame (edict_t *ent)
 	VectorClear (ent->client->kick_origin);
 
 	// if the scoreboard is up, update it
-	if (ent->client->showscores && !(level.framenum & 31) )
+	if (ent->client->showscores && !(level.realframenum & 31) )
 	{
 		//DeathmatchScoreboardMessage (ent, ent->enemy);
 		gi.WriteByte (svc_layout);

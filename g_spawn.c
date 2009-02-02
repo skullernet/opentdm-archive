@@ -627,7 +627,8 @@ void SpawnEntities (const char *mapname, const char *entities, const char *spawn
 #endif
 
 // wision: we create per-player dm_statusbar in TDM_CreatePlayerDmStatusBar ();
-/*const char *dm_statusbar =
+// this is just the default.
+static const char *dm_statusbar =
 "yb	-24 "
 
 // health
@@ -769,7 +770,7 @@ void SpawnEntities (const char *mapname, const char *entities, const char *spawn
   "yb -180 "
   "stat_string 28 "
 "endif "
-;*/
+;
 
 /*QUAKED worldspawn (0 0 0) ?
 
@@ -825,7 +826,8 @@ void SP_worldspawn (edict_t *ent)
 
 	// status bar program
 	// wision: we send this as unicast on every player's connect
-	//gi.configstring (CS_STATUSBAR, dm_statusbar);
+	// r1: but we send it globally too to avoid bugging out gtv/etc
+	gi.configstring (CS_STATUSBAR, dm_statusbar);
 
 	//---------------
 

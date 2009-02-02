@@ -313,13 +313,13 @@ void TDM_ShowTeamMenu (edict_t *ent)
 		if (ent->client->pers.votemenu_values.show)
 		{
 			PMenu_Close (ent);
-			PMenu_Open (ent, joinmenu, teamJoinEntries[ent->client->pers.team], MENUSIZE_JOINMENU, false);
+			PMenu_Open (ent, ent->client->pers.joinmenu, teamJoinEntries[ent->client->pers.team], MENUSIZE_JOINMENU, false);
 		}
 		else
 			PMenu_Close (ent);
 	}
 	else
-		PMenu_Open (ent, joinmenu, teamJoinEntries[ent->client->pers.team], MENUSIZE_JOINMENU, false);
+		PMenu_Open (ent, ent->client->pers.joinmenu, teamJoinEntries[ent->client->pers.team], MENUSIZE_JOINMENU, false);
 }
 
 /*

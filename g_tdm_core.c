@@ -104,22 +104,23 @@ matchinfo_t	current_matchinfo;
 matchinfo_t	old_matchinfo;
 
 static char teamStatus[MAX_TEAMS][MAX_TEAMNAME_LENGTH];
-static char teamJoinText[MAX_TEAMS][32];
+
+//static char teamJoinText[MAX_TEAMS][32];
 
 //copy of last game scoreboard for oldscores command
 char		old_scoreboard_string[1400];
 
 //static char	last_player_model[MAX_TEAMS][32];
 
-pmenu_t joinmenu[] =
+static const pmenu_t joinmenu[] =
 {
 	{ NULL,					PMENU_ALIGN_CENTER, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, JoinTeam1 },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,					PMENU_ALIGN_LEFT, NULL, JoinTeam2 },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
+	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
 	{ NULL,					PMENU_ALIGN_LEFT, NULL, NULL },
 	{ "*Spectate",			PMENU_ALIGN_LEFT, NULL, ToggleChaseCam },
@@ -2061,48 +2062,81 @@ void UpdateMatchStatus (void)
 
 /*
 ==============
-UpdateTeamMenu
+UpdatePlayerTeamMenu
 ==============
 Update the join menu to reflect team names / player counts
 */
+static char	openTDMBanner[32];
+
+void UpdatePlayerTeamMenu (edict_t *ent)
+{
+	void		*teamJoinLeaveFunc[MAX_TEAMS];
+	unsigned	i;
+
+	memcpy (ent->client->pers.joinmenu, joinmenu, sizeof(joinmenu));
+
+	for (i = 0; i < MAX_TEAMS; i++)
+	{
+		if (ent->client->pers.team == i)
+		{
+			sprintf (ent->client->pers.joinmenu_values.string_teamJoinText[i], "*Leave %.20s", teaminfo[i].name);
+			teamJoinLeaveFunc[i] = ToggleChaseCam;
+		}
+		else
+		{
+			sprintf (ent->client->pers.joinmenu_values.string_teamJoinText[i], "*Join %.20s", teaminfo[i].name);
+
+			if (i == 1)
+				teamJoinLeaveFunc[i] = JoinTeam1;
+			else if (i == 2)
+				teamJoinLeaveFunc[i] = JoinTeam2;
+		}
+	}
+
+	ent->client->pers.joinmenu[0].text = openTDMBanner;
+
+	ent->client->pers.joinmenu[3].text = ent->client->pers.joinmenu_values.string_teamJoinText[1];
+	ent->client->pers.joinmenu[3].SelectFunc = teamJoinLeaveFunc[1];
+	ent->client->pers.joinmenu[4].text = teamStatus[1];
+
+	ent->client->pers.joinmenu[6].text = ent->client->pers.joinmenu_values.string_teamJoinText[2];
+	ent->client->pers.joinmenu[6].SelectFunc = teamJoinLeaveFunc[2];
+	ent->client->pers.joinmenu[7].text = teamStatus[2];
+
+	ent->client->pers.joinmenu[10].text = teamStatus[0];
+
+	/* we might just update the join/leave message.. no need to update it for the client */
+	if (ent->client->pers.menu.active && ent->client->pers.menu.entries == ent->client->pers.joinmenu)
+	{
+		PMenu_Update (ent);
+		gi.unicast (ent, true);
+	}
+}
+
+/*
+==============
+UpdateTeamMenu
+==============
+Update the join menu for all players
+*/
 void UpdateTeamMenu (void)
 {
-	edict_t		*ent;
-	int			i;
-	static char	openTDMBanner[32];
-	static char *gameString[] = {
+	unsigned			i;
+	edict_t				*ent;
+	static const char	*gameString[] = {
 		"TDM",
 		"ITDM",
 		"1v1"
 	};
 
 	for (i = 0; i < MAX_TEAMS; i++)
-	{
 		sprintf (teamStatus[i], "  (%d player%s)", teaminfo[i].players, teaminfo[i].players == 1 ? "" : "s");
-		sprintf (teamJoinText[i], "*Join %.20s", teaminfo[i].name);
-	}
 
 	sprintf (openTDMBanner, "*Quake II - OpenTDM (%s)", gameString[(int)g_gamemode->value]);
 
-	joinmenu[0].text = openTDMBanner;
-
-	joinmenu[3].text = teamJoinText[1];
-	joinmenu[4].text = teamStatus[1];
-
-	joinmenu[6].text = teamJoinText[2];
-	joinmenu[7].text = teamStatus[2];
-
-	//joinmenu[7].text = teamJoinText[0];
-	joinmenu[10].text = teamStatus[0];
-
 	for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
-	{
-		if (ent->inuse && ent->client->pers.menu.active && ent->client->pers.menu.entries == joinmenu)
-		{
-			PMenu_Update (ent);
-			gi.unicast (ent, true);
-		}
-	}
+		if (ent->inuse)
+			UpdatePlayerTeamMenu (ent);
 }
 
 /*
@@ -2607,6 +2641,8 @@ void TDM_SetTeamSkins (edict_t *cl, edict_t *target_to_set_skins_for)
 				gi.WriteString (va ("%s\\%s", ent->client->pers.netname, enemyskin));
 
 			gi.unicast (cl, true);
+
+			//gi.dprintf ("TS DEBUG: Setting skin of %s for %s.\n", ent->client->pers.netname, cl->client->pers.netname);
 		}	
 	}
 }

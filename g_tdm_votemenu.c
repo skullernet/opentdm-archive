@@ -61,21 +61,29 @@ void VoteMenuUpdate (edict_t *ent, unsigned flags)
 			"1v1"
 		};
 
-		sprintf (ent->client->pers.votemenu_values.string_gamemode, "Gamemode: %s", gameString[ent->client->pers.votemenu_values.gamemode]);
-		ent->client->pers.votemenu[2].text = ent->client->pers.votemenu_values.string_gamemode;
-		ent->client->pers.votemenu[2].SelectFunc = VoteMenuGameMode;
+		if (!((int)g_vote_mask->value & VOTE_GAMEMODE))
+		{
+			ent->client->pers.votemenu[2].text = "Gamemode: disabled";
+			ent->client->pers.votemenu[2].SelectFunc = NULL;
+		}
+		else
+		{
+			sprintf (ent->client->pers.votemenu_values.string_gamemode, "Gamemode: %s", gameString[ent->client->pers.votemenu_values.gamemode]);
+			ent->client->pers.votemenu[2].text = ent->client->pers.votemenu_values.string_gamemode;
+			ent->client->pers.votemenu[2].SelectFunc = VoteMenuGameMode;
+		}
 	}
 
 	if (flags & VOTE_MENU_MAP)
 	{
-		if (!ent->client->pers.votemenu_values.map[0])
+		if (!ent->client->pers.votemenu_values.map[0] || !((int)g_vote_mask->value & VOTE_MAP))
 		{
-			strcpy (ent->client->pers.votemenu_values.string_map, "Map: maplist is disabled");
+			strcpy (ent->client->pers.votemenu_values.string_map, "Map:      disabled");
 			ent->client->pers.votemenu[3].SelectFunc = NULL;
 		}
 		else
 		{
-			sprintf (ent->client->pers.votemenu_values.string_map, "Map:      %16s", ent->client->pers.votemenu_values.map);
+			sprintf (ent->client->pers.votemenu_values.string_map, "Map:      %-16.16s", ent->client->pers.votemenu_values.map);
 			ent->client->pers.votemenu[3].SelectFunc = VoteMenuMap;
 		}
 
@@ -84,14 +92,14 @@ void VoteMenuUpdate (edict_t *ent, unsigned flags)
 
 	if (flags & VOTE_MENU_CONFIG)
 	{
-		if (!ent->client->pers.votemenu_values.config[0] || !g_allow_vote_config->value)
+		if (!ent->client->pers.votemenu_values.config[0] || !g_allow_vote_config->value || !((int)g_vote_mask->value & VOTE_CONFIG))
 		{
 			strcpy (ent->client->pers.votemenu_values.string_config, "Config:   disabled");
 			ent->client->pers.votemenu[4].SelectFunc = NULL;
 		}
 		else
 		{
-			sprintf (ent->client->pers.votemenu_values.string_config, "Config:   %16s", ent->client->pers.votemenu_values.config);
+			sprintf (ent->client->pers.votemenu_values.string_config, "Config:   %-16.16s", ent->client->pers.votemenu_values.config);
 			ent->client->pers.votemenu[4].SelectFunc = VoteMenuConfig;
 		}
 
@@ -100,50 +108,92 @@ void VoteMenuUpdate (edict_t *ent, unsigned flags)
 
 	if (flags & VOTE_MENU_TIMELIMIT)
 	{
-		sprintf (ent->client->pers.votemenu_values.string_timelimit, "Timelimit: %d", ent->client->pers.votemenu_values.timelimit);
-		ent->client->pers.votemenu[6].text = ent->client->pers.votemenu_values.string_timelimit;
-		ent->client->pers.votemenu[6].SelectFunc = VoteMenuTimelimit;
+		if (!((int)g_vote_mask->value & VOTE_TIMELIMIT))
+		{
+			ent->client->pers.votemenu[6].text = "Timelimit: disabled";
+			ent->client->pers.votemenu[6].SelectFunc = NULL;
+		}
+		else
+		{
+			sprintf (ent->client->pers.votemenu_values.string_timelimit, "Timelimit: %d minutes", ent->client->pers.votemenu_values.timelimit);
+			ent->client->pers.votemenu[6].text = ent->client->pers.votemenu_values.string_timelimit;
+			ent->client->pers.votemenu[6].SelectFunc = VoteMenuTimelimit;
+		}
 	}
 
 	if (flags & VOTE_MENU_OVERTIME)
 	{
-		if (ent->client->pers.votemenu_values.overtime == -1)
-			strcpy (ent->client->pers.votemenu_values.string_overtime, "Overtime:  Sudden Death");
-		else if (ent->client->pers.votemenu_values.overtime == 0)
-			strcpy (ent->client->pers.votemenu_values.string_overtime, "Overtime:  Tie Mode");
+		if (!((int)g_vote_mask->value & VOTE_OVERTIME))
+		{
+			ent->client->pers.votemenu[7].text = "Overtime:  disabled";
+			ent->client->pers.votemenu[7].SelectFunc = NULL;
+		}
 		else
-			sprintf (ent->client->pers.votemenu_values.string_overtime, "Overtime:  %d", ent->client->pers.votemenu_values.overtime);
+		{
+			if (ent->client->pers.votemenu_values.overtime == -1)
+				strcpy (ent->client->pers.votemenu_values.string_overtime, "Overtime:  Sudden Death");
+			else if (ent->client->pers.votemenu_values.overtime == 0)
+				strcpy (ent->client->pers.votemenu_values.string_overtime, "Overtime:  Tie Mode");
+			else if (ent->client->pers.votemenu_values.overtime == 1)
+				sprintf (ent->client->pers.votemenu_values.string_overtime, "Overtime:  1 minute");
+			else
+				sprintf (ent->client->pers.votemenu_values.string_overtime, "Overtime:  %d minutes", ent->client->pers.votemenu_values.overtime);
 
-		ent->client->pers.votemenu[7].text = ent->client->pers.votemenu_values.string_overtime;
-		ent->client->pers.votemenu[7].SelectFunc = VoteMenuOvertime;
+			ent->client->pers.votemenu[7].text = ent->client->pers.votemenu_values.string_overtime;
+			ent->client->pers.votemenu[7].SelectFunc = VoteMenuOvertime;
+		}
 	}
 
 	if (flags & VOTE_MENU_POWERUPS)
 	{
-		sprintf (ent->client->pers.votemenu_values.string_powerups, "Powerups:  %d", ent->client->pers.votemenu_values.powerups);
-		ent->client->pers.votemenu[8].text = ent->client->pers.votemenu_values.string_powerups;
-		ent->client->pers.votemenu[8].SelectFunc = VoteMenuPowerups;
+		if (!((int)g_vote_mask->value & VOTE_POWERUPS))
+		{
+			ent->client->pers.votemenu[8].text = "Powerups:  disabled";
+			ent->client->pers.votemenu[8].SelectFunc = NULL;
+		}
+		else
+		{
+			sprintf (ent->client->pers.votemenu_values.string_powerups, "Powerups:  %d", ent->client->pers.votemenu_values.powerups);
+			ent->client->pers.votemenu[8].text = ent->client->pers.votemenu_values.string_powerups;
+			ent->client->pers.votemenu[8].SelectFunc = VoteMenuPowerups;
+		}
 	}
 
 	if (flags & VOTE_MENU_BFG)
 	{
-		sprintf (ent->client->pers.votemenu_values.string_bfg, "BFG:  %d", ent->client->pers.votemenu_values.bfg);
-		ent->client->pers.votemenu[9].text = ent->client->pers.votemenu_values.string_bfg;
-		ent->client->pers.votemenu[9].SelectFunc = VoteMenuBFG;
+		if (!((int)g_vote_mask->value & VOTE_WEAPONS))
+		{
+			ent->client->pers.votemenu[9].text = "BFG:       disabled";
+			ent->client->pers.votemenu[9].SelectFunc = NULL;
+		}
+		else
+		{
+			sprintf (ent->client->pers.votemenu_values.string_bfg, "BFG:       %d", ent->client->pers.votemenu_values.bfg);
+			ent->client->pers.votemenu[9].text = ent->client->pers.votemenu_values.string_bfg;
+			ent->client->pers.votemenu[9].SelectFunc = VoteMenuBFG;
+		}
 	}
 
 	if (flags & VOTE_MENU_KICK)
 	{
-		edict_t	*victim;
-		victim = ent->client->pers.votemenu_values.kick;
-
-		if (victim == NULL)
-			strcpy (ent->client->pers.votemenu_values.string_kick, "Kick: ---");
+		if (!((int)g_vote_mask->value & VOTE_KICK))
+		{
+			ent->client->pers.votemenu[11].text = "Kick: disabled";
+			ent->client->pers.votemenu[11].SelectFunc = NULL;
+		}
 		else
-			sprintf (ent->client->pers.votemenu_values.string_kick, "Kick: %s", victim->client->pers.netname);
+		{
+			edict_t	*victim;
+			victim = ent->client->pers.votemenu_values.kick;
 
-		ent->client->pers.votemenu[11].text = ent->client->pers.votemenu_values.string_kick;
-		ent->client->pers.votemenu[11].SelectFunc = VoteMenuKick;
+			if (victim == NULL)
+				strcpy (ent->client->pers.votemenu_values.string_kick, "Kick: ---");
+			else
+				sprintf (ent->client->pers.votemenu_values.string_kick, "Kick: %s", victim->client->pers.netname);
+
+			ent->client->pers.votemenu[11].text = ent->client->pers.votemenu_values.string_kick;
+			ent->client->pers.votemenu[11].SelectFunc = VoteMenuKick;
+		}
 	}
 
 	if (flags & VOTE_MENU_CHAT)
@@ -153,9 +203,17 @@ void VoteMenuUpdate (edict_t *ent, unsigned flags)
 			"whisper"
 		};
 
-		sprintf (ent->client->pers.votemenu_values.string_chat, "Chat: %s", chatString[ent->client->pers.votemenu_values.chat]);
-		ent->client->pers.votemenu[12].text = ent->client->pers.votemenu_values.string_chat;
-		ent->client->pers.votemenu[12].SelectFunc = VoteMenuChat;
+		if (!((int)g_vote_mask->value & VOTE_CHAT))
+		{
+			ent->client->pers.votemenu[12].text = "Chat: disabled";
+			ent->client->pers.votemenu[12].SelectFunc = NULL;
+		}
+		else
+		{
+			sprintf (ent->client->pers.votemenu_values.string_chat, "Chat: %s", chatString[ent->client->pers.votemenu_values.chat]);
+			ent->client->pers.votemenu[12].text = ent->client->pers.votemenu_values.string_chat;
+			ent->client->pers.votemenu[12].SelectFunc = VoteMenuChat;
+		}
 	}
 
 	if (flags & VOTE_MENU_BUGS)
@@ -166,9 +224,17 @@ void VoteMenuUpdate (edict_t *ent, unsigned flags)
 			"default q2 behavior"
 		};
 
-		sprintf (ent->client->pers.votemenu_values.string_bugs, "Bugs: %s", bugsString[ent->client->pers.votemenu_values.bugs]);
-		ent->client->pers.votemenu[13].text = ent->client->pers.votemenu_values.string_bugs;
-		ent->client->pers.votemenu[13].SelectFunc = VoteMenuBugs;
+		if (!((int)g_vote_mask->value & VOTE_BUGS))
+		{
+			ent->client->pers.votemenu[13].text = "Bugs: disabled";
+			ent->client->pers.votemenu[13].SelectFunc = NULL;
+		}
+		else
+		{
+			sprintf (ent->client->pers.votemenu_values.string_bugs, "Bugs: %s", bugsString[ent->client->pers.votemenu_values.bugs]);
+			ent->client->pers.votemenu[13].text = ent->client->pers.votemenu_values.string_bugs;
+			ent->client->pers.votemenu[13].SelectFunc = VoteMenuBugs;
+		}
 	}
 }
 
@@ -457,6 +523,13 @@ Update vote menu with current settings and open it.
 */
 void OpenVoteMenu (edict_t *ent)
 {
+	//global 'disallow voting' check
+	if (!(int)g_vote_mask->value)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Proposing new settings is not allowed on this server.\n");
+		return;
+	}
+
 	if (!ent->client->pers.team && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Spectators cannot vote.\n");
@@ -464,7 +537,7 @@ void OpenVoteMenu (edict_t *ent)
 	}
 
 	// allow timelimit vote during the match
-	if (tdm_match_status == MM_PLAYING)
+	if (tdm_match_status == MM_PLAYING && ((int)g_vote_mask->value & VOTE_TIMELIMIT))
 	{
 		ent->client->pers.votemenu_values.timelimit = ((int)g_match_time->value / 60);
 		memcpy (ent->client->pers.votemenu, votemenu, sizeof(votemenu));

@@ -778,6 +778,7 @@ extern	cvar_t	*g_admin_vote_decide;
 extern	cvar_t	*g_match_time;
 extern	cvar_t	*g_match_countdown;
 extern	cvar_t	*g_vote_time;
+extern	cvar_t	*g_vote_mask;
 extern	cvar_t	*g_intermission_time;
 extern	cvar_t	*g_force_screenshot;
 extern	cvar_t	*g_force_record;
@@ -1114,11 +1115,12 @@ void ToggleChaseCam (edict_t *ent);
 void TDM_UpdateSpectatorsOnEvent (int spec_mode, edict_t *target, edict_t *killer);
 
 void CountPlayers (void);
+void UpdatePlayerTeamMenu (edict_t *ent);
 void UpdateTeamMenu (void);
 
 extern matchmode_t	tdm_match_status;
 extern qboolean		tdm_settings_not_default;
-extern pmenu_t joinmenu[];
+//extern pmenu_t joinmenu[];
 #define MENUSIZE_JOINMENU 18
 
 void HTTP_RunDownloads (void);
@@ -1300,6 +1302,11 @@ typedef struct vote_menu_s
 	qboolean		show;
 } vote_menu_t;
 
+typedef struct join_menu_s
+{
+	char			string_teamJoinText[MAX_TEAMS][32];
+} join_menu_t;
+
 enum
 {
 	SND_DEATH1,
@@ -1444,11 +1451,13 @@ typedef struct
 	// persist menu across death
 	pmenuhnd_t		menu;
 
-	// stored info about values changed in vote menu
+	// stored values displayed in the menu
 	vote_menu_t		votemenu_values;
+	join_menu_t		joinmenu_values;
 
-	// we need separate vote menu for all players
+	// we need separate menus for all players
 	pmenu_t			votemenu[19];
+	pmenu_t			joinmenu[19];
 
 	// per-client download handle (configs)
 	tdm_download_t	download;

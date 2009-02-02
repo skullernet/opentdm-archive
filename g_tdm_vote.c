@@ -76,7 +76,14 @@ static void TDM_ApplyVote (void)
 {
 	char value[16];
 
-	tdm_settings_not_default = true;
+	//only some flags cause settings change, restart, kick, abort, etc don't.
+	if (vote.flags &
+		(
+		VOTE_TIMELIMIT | VOTE_WEAPONS |VOTE_POWERUPS | VOTE_GAMEMODE | VOTE_TELEMODE | VOTE_TIEMODE |
+		VOTE_SWITCHMODE | VOTE_OVERTIME | VOTE_CONFIG	| VOTE_WEBCONFIG | VOTE_CHAT | VOTE_BUGS |
+		VOTE_TDM_SPAWNMODE | VOTE_1V1_SPAWNMODE)
+		)
+		tdm_settings_not_default = true;
 
 	if (vote.flags & VOTE_CONFIG)
 	{
@@ -552,6 +559,12 @@ qboolean TDM_VoteTimeLimit (edict_t *ent)
 	const char		*value;
 	unsigned		limit;
 
+	if (!((int)g_vote_mask->value & VOTE_TIMELIMIT) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for timelimit is not allowed on this server.\n");
+		return false;
+	}
+
 	value = gi.argv(2);
 	if (!value[0])
 	{
@@ -605,6 +618,12 @@ Vote to change the map. Causes an intermission for reasons unknown :).
 qboolean TDM_VoteMap (edict_t *ent)
 {
 	const char	*value;
+
+	if (!((int)g_vote_mask->value & VOTE_MAP) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for map is not allowed on this server.\n");
+		return false;
+	}
 
 	value = gi.argv(2);
 
@@ -660,6 +679,12 @@ qboolean TDM_VoteWeapons (edict_t *ent)
 	int			i, j;
 	qboolean	found;
 	const char	*value;
+
+	if (!((int)g_vote_mask->value & VOTE_WEAPONS) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for weapons is not allowed on this server.\n");
+		return false;
+	}
 
 	value = gi.argv(2);
 
@@ -789,6 +814,12 @@ qboolean TDM_VoteKick (edict_t *ent)
 	edict_t		*victim;
 	const char	*value;
 
+	if (!((int)g_vote_mask->value & VOTE_KICK) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for player kick is not allowed on this server.\n");
+		return false;
+	}
+
 	value = gi.argv(2);
 
 	if (!value[0])
@@ -849,6 +880,12 @@ qboolean TDM_VotePowerups (edict_t *ent)
 	int			i, j;
 	qboolean	found;
 	const char	*value;
+
+	if (!((int)g_vote_mask->value & VOTE_POWERUPS) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for powerups is not allowed on this server.\n");
+		return false;
+	}
 
 	value = gi.argv(2);
 
@@ -958,6 +995,12 @@ qboolean TDM_VoteGameMode (edict_t *ent)
 	int			gamemode;
 	const char	*value;
 
+	if (!((int)g_vote_mask->value & VOTE_GAMEMODE) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for game mode is not allowed on this server.\n");
+		return false;
+	}
+
 	value = gi.argv(2);
 
 	if (!value[0])
@@ -1015,6 +1058,12 @@ qboolean TDM_VoteTieMode (edict_t *ent)
 {
 	int			tiemode;
 	const char	*value;
+
+	if (!((int)g_vote_mask->value & VOTE_TIEMODE) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for tie mode is not allowed on this server.\n");
+		return false;
+	}
 
 	value = gi.argv(2);
 
@@ -1074,6 +1123,12 @@ qboolean TDM_VoteTeleMode (edict_t *ent)
 	int			telemode;
 	const char	*value;
 
+	if (!((int)g_vote_mask->value & VOTE_TELEMODE) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for teleporter mode is not allowed on this server.\n");
+		return false;
+	}
+
 	value = gi.argv(2);
 
 	if (!value[0])
@@ -1129,6 +1184,12 @@ qboolean TDM_VoteSwitchMode (edict_t *ent)
 {
 	int			switchmode;
 	const char	*value;
+
+	if (!((int)g_vote_mask->value & VOTE_SWITCHMODE) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for weapon switch mode is not allowed on this server.\n");
+		return false;
+	}
 
 	value = gi.argv(2);
 
@@ -1191,6 +1252,12 @@ qboolean TDM_VoteOverTimeLimit (edict_t *ent)
 {
 	unsigned	limit;
 	const char	*value;
+
+	if (!((int)g_vote_mask->value & VOTE_OVERTIME) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for overtime is not allowed on this server.\n");
+		return false;
+	}
 
 	value = gi.argv(2);
 	if (!value[0])
@@ -1358,9 +1425,16 @@ qboolean TDM_VoteConfig (edict_t *ent)
 	size_t			i;
 	FILE			*confFile;
 
+	// FIXME: remove this?
 	if (!g_allow_vote_config->value)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Voting config is disabled.\n");
+		return false;
+	}
+
+	if (!((int)g_vote_mask->value & VOTE_CONFIG) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for config is not allowed on this server.\n");
 		return false;
 	}
 
@@ -1475,6 +1549,12 @@ qboolean TDM_VoteWebConfig (edict_t *ent)
 	size_t			i;
 	tdm_config_t	*t, *last;
 	unsigned		current_time;
+
+	if (!((int)g_vote_mask->value & VOTE_WEBCONFIG) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for web config is not allowed on this server.\n");
+		return false;
+	}
 
 	value = gi.argv(2);
 
@@ -1628,6 +1708,12 @@ qboolean TDM_VoteChat (edict_t *ent)
 	int			chatmode;
 	const char	*value;
 
+	if (!((int)g_vote_mask->value & VOTE_CHAT) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for chat mode is not allowed on this server.\n");
+		return false;
+	}
+
 	value = gi.argv(2);
 
 	if (!value[0])
@@ -1681,6 +1767,11 @@ Vote to restart the match.
 */
 qboolean TDM_VoteRestart (edict_t *ent)
 {
+	if (!((int)g_vote_mask->value & VOTE_RESTART) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for match restart is not allowed on this server.\n");
+		return false;
+	}
 	if (tdm_match_status < MM_PLAYING || tdm_match_status >= MM_SCOREBOARD)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "No match to restart!\n");
@@ -1706,6 +1797,11 @@ Vote to abort the match.
 */
 qboolean TDM_VoteAbort (edict_t *ent)
 {
+	if (!((int)g_vote_mask->value & VOTE_ABORT) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for match abort is not allowed on this server.\n");
+		return false;
+	}
 	if (tdm_match_status < MM_PLAYING || tdm_match_status >= MM_SCOREBOARD)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "No match to abort!\n");
@@ -1733,6 +1829,12 @@ qboolean TDM_VoteBugs (edict_t *ent)
 {
 	int			bugs;
 	const char	*value;
+
+	if (!((int)g_vote_mask->value & VOTE_BUGS) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Voting for gameplay bugs is not allowed on this server.\n");
+		return false;
+	}
 
 	value = gi.argv(2);
 	if (!value[0])
@@ -1883,6 +1985,13 @@ void TDM_Vote_f (edict_t *ent)
 		}
 
 		cmd = gi.argv(1);
+	}
+
+	//global 'disallow voting' check
+	if (!(int)g_vote_mask->value && !ent->client->pers.admin && Q_stricmp (cmd, "yes") && Q_stricmp (cmd, "no"))
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Proposing new settings is not allowed on this server.\n");
+		return;
 	}
 
 	//allow some commands mid-game
@@ -2104,7 +2213,7 @@ void TDM_VoteMenuApply (edict_t *ent)
 	}
 
 	if ((ent->client->pers.votemenu_values.powerups && (int)g_powerupflags->value != 0) ||
-			(!ent->client->pers.votemenu_values.powerups && (int)g_powerupflags->value != 0xFFFFFFFFU))
+			(!ent->client->pers.votemenu_values.powerups && !(int)g_powerupflags->value))
 	{
 		if (ent->client->pers.votemenu_values.powerups)
 			vote.newpowerupflags = 0;

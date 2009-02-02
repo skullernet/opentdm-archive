@@ -1051,9 +1051,13 @@ void TDM_Teamname_f (edict_t *ent)
 		g_team_b_name->modified = true;
 	}
 
+	tdm_settings_not_default = true;
+
 	gi.bprintf (PRINT_HIGH, "Team '%s' renamed to '%s'.\n", teaminfo[team].name, value);
 
 	TDM_UpdateTeamNames ();
+	
+	UpdateTeamMenu ();
 
 	TDM_UpdateConfigStrings(false);
 }
@@ -1840,6 +1844,8 @@ void TDM_Teamskin_f (edict_t *ent)
 		g_team_b_skin->modified = true;
 	}
 
+	tdm_settings_not_default = true;
+
 	TDM_UpdateConfigStrings (false);
 }
 
@@ -2600,9 +2606,9 @@ qboolean TDM_Command (const char *cmd, edict_t *ent)
 			TDM_Timelimit_f (ent);
 		else if (!Q_stricmp (cmd, "bfg"))
 			TDM_Bfg_f (ent);
-		else if (!Q_stricmp (cmd, "overtime") || !Q_stricmp (cmd, "ot"))
+		else if (!Q_stricmp (cmd, "overtime") || !Q_stricmp (cmd, "ot") || !Q_stricmp (cmd, "tiemode"))
 			TDM_Overtime_f (ent);
-		else if (!Q_stricmp (cmd, "obsmode"))
+		else if (!Q_stricmp (cmd, "obsmode") || !Q_stricmp (cmd, "chat"))
 			TDM_Obsmode_f (ent);
 		else if (!Q_stricmp (cmd, "motd"))
 			TDM_Motd_f (ent);
