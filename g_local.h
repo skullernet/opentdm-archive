@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	OPENTDM_VERSION	"1.0"
 #else
 #define	OPENTDM_VERSION "$Revision$"
-//dummy string to force g_local.h commit: as
+//dummy string to force g_local.h commit: asd
 #endif
 
 // protocol bytes that can be directly added to messages

@@ -1383,6 +1383,8 @@ void ClientBeginDeathmatch (edict_t *ent)
 	}
 	else
 	{
+		ent->client->pers.team = TEAM_SPEC;
+
 		//spawn a spectator
 		PutClientInServer (ent);
 

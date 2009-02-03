@@ -1939,7 +1939,7 @@ void TDM_ResetVotableVariables (void)
 void TDM_ResumeGame (void)
 {
 	if (tdm_match_status != MM_TIMEOUT)
-		TDM_Error ("TDM_ResumeGame caled with match state %d", tdm_match_status);
+		TDM_Error ("TDM_ResumeGame called with match state %d", tdm_match_status);
 
 	if (teaminfo[TEAM_A].players == 0 && teaminfo[TEAM_B].players == 0)
 	{
@@ -3078,8 +3078,9 @@ A download we requested for something has finished. Do stuff.
 */
 void TDM_HandleDownload (tdm_download_t *download, char *buff, int len, int code)
 {
-	if (!download->initiator)
-		TDM_Error ("TDM_HandleDownload: NULL initiator. Path %s, type %d", download->path, download->type);
+	//handle went invalid (client->pers->download = zeroed), just ignore this download completely.
+	if (!download->inuse)
+		return;
 
 	//player left before download finished, lame!
 	//note on an extremely poor connection it's possible another player since occupied their slot, but

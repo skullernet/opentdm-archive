@@ -1772,6 +1772,7 @@ qboolean TDM_VoteRestart (edict_t *ent)
 		gi.cprintf (ent, PRINT_HIGH, "Voting for match restart is not allowed on this server.\n");
 		return false;
 	}
+
 	if (tdm_match_status < MM_PLAYING || tdm_match_status >= MM_SCOREBOARD)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "No match to restart!\n");
@@ -1781,6 +1782,12 @@ qboolean TDM_VoteRestart (edict_t *ent)
 	if (!ent->client->pers.team && !ent->client->pers.admin)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Only players in the match can vote for a restart.\n");
+		return false;
+	}
+
+	if (tdm_match_status == MM_TIMEOUT && TDM_Is1V1())
+	{
+		gi.cprintf (ent, PRINT_HIGH, "You can't restart a 1v1 match without your opponent present. If you don't wish to wait, type \"win\" in the console to force the match to end.\n");
 		return false;
 	}
 
@@ -1802,6 +1809,7 @@ qboolean TDM_VoteAbort (edict_t *ent)
 		gi.cprintf (ent, PRINT_HIGH, "Voting for match abort is not allowed on this server.\n");
 		return false;
 	}
+
 	if (tdm_match_status < MM_PLAYING || tdm_match_status >= MM_SCOREBOARD)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "No match to abort!\n");
