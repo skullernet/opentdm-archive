@@ -223,6 +223,10 @@ static void TDM_ApplyVote (void)
 
 	if (vote.flags & VOTE_RESTART)
 	{
+		//abort the match instead of restarting if either team has no players
+		if (!teaminfo[TEAM_A].players || !teaminfo[TEAM_B].players)
+			goto abort;
+
 		gi.bprintf (PRINT_CHAT, "Restarting the match...\n");
 		
 		//ugly, but we need to free dynamic memory since the match start allocs a new array
@@ -234,6 +238,7 @@ static void TDM_ApplyVote (void)
 
 	if (vote.flags & VOTE_ABORT)
 	{
+abort:
 		gi.bprintf (PRINT_CHAT, "Match aborted.\n");
 		TDM_EndMatch ();
 	}
@@ -1785,7 +1790,7 @@ qboolean TDM_VoteRestart (edict_t *ent)
 		return false;
 	}
 
-	if (tdm_match_status == MM_TIMEOUT && TDM_Is1V1())
+	if (tdm_match_status == MM_TIMEOUT && TDM_Is1V1() && level.tdm_timeout_caller && !level.tdm_timeout_caller->client)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "You can't restart a 1v1 match without your opponent present. If you don't wish to wait, type \"win\" in the console to force the match to end.\n");
 		return false;

@@ -1132,7 +1132,11 @@ void ClientEndServerFrame (edict_t *ent)
 	VectorClear (ent->client->kick_origin);
 
 	// if the scoreboard is up, update it
-	if (ent->client->showscores && !(level.realframenum & 31) )
+	// wision: update every 15 frames during timeout/warmup
+	// FIXME: maybe use SECS_TO_FRAMES because of sv_fps?
+	if (ent->client->showscores &&
+			((!(level.realframenum & 31) && tdm_match_status != MM_WARMUP && tdm_match_status != MM_TIMEOUT) || 
+			(!(level.realframenum & 15) && (tdm_match_status == MM_WARMUP || tdm_match_status == MM_TIMEOUT))))
 	{
 		//DeathmatchScoreboardMessage (ent, ent->enemy);
 		gi.WriteByte (svc_layout);

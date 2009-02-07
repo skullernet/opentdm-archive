@@ -541,6 +541,8 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	// wision: match scoreboard
 	if (current_matchinfo.teamplayers)
 	{
+		int		ping;
+
 		for (i = 0; i < current_matchinfo.num_teamplayers; i++)
 		{
 			// skip players which are not supposed to be drawn during the match (disconnected, moved to observer)
@@ -573,17 +575,24 @@ char *TDM_ScoreBoardString (edict_t *ent)
 
 			sorted[team][j] = i;
 			sortedscores[team][j] = score;
+
 			totalscore[team] += score;
 			total[team]++;
 
-			if (current_matchinfo.teamplayers[i].ping > 999)
+			if (current_matchinfo.teamplayers[i].client)
+				ping = current_matchinfo.teamplayers[i].client->client->ping;
+			else
+				ping = current_matchinfo.teamplayers[i].ping;
+
+			if (ping > 999)
 				averageping[team] += 999;
 			else
-				averageping[team] += (float)current_matchinfo.teamplayers[i].ping;
+				averageping[team] += (float)ping;
 		}
 
 		if (total[0] > 0)
 			averageping[0] = averageping[0] / (float)total[0];
+
 		if (total[1] > 0)
 			averageping[1] = averageping[1] / (float)total[1];
 
@@ -670,6 +679,12 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			if (i < total[firstteam-1])
 			{
 				tmpl = &current_matchinfo.teamplayers[sorted[firstteam-1][i]];
+				cl_ent = tmpl->client;
+
+				if (!cl_ent)
+					ping = tmpl->ping;
+				else
+					ping = cl_ent->client->ping;
 
 				// calculate player's score
 				j = tmpl->enemy_kills - tmpl->team_kills - tmpl->suicides;
@@ -680,7 +695,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 					j, 
 					tmpl->deaths,
 					tmpl->enemy_kills - tmpl->team_kills - tmpl->deaths,
-					(tmpl->ping > 999) ? 999 : tmpl->ping);
+					(ping > 999) ? 999 : ping);
 
 				if (maxsize - len > strlen(entry))
 				{
@@ -695,6 +710,13 @@ char *TDM_ScoreBoardString (edict_t *ent)
 			{
 				tmpl = &current_matchinfo.teamplayers[sorted[secondteam-1][i]];
 
+				cl_ent = tmpl->client;
+
+				if (!cl_ent)
+					ping = tmpl->ping;
+				else
+					ping = cl_ent->client->ping;
+
 				// calculate player's score
 				j = tmpl->enemy_kills - tmpl->team_kills - tmpl->suicides;
 				sprintf (entry,
@@ -704,7 +726,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 					j, 
 					tmpl->deaths,
 					tmpl->enemy_kills - tmpl->team_kills - tmpl->deaths,
-					(tmpl->ping > 999) ? 999 : tmpl->ping);
+					(ping > 999) ? 999 : ping);
 
 				if (maxsize - len > strlen(entry))
 				{
@@ -1034,6 +1056,12 @@ void TDM_BeginCountdown (void)
 		TDM_RemoveVote ();
 
 	tdm_match_status = MM_COUNTDOWN;
+
+	//reset these, in case voting code called us from random match state
+	level.tdm_timeout_caller = NULL;
+	level.timeout_end_framenum = 0;
+	level.match_resume_framenum = 0;
+	level.match_end_framenum = 0;
 
 	//called to apply a temporary hack for people who do 1v1 on tdm mode
 	TDM_UpdateTeamNames ();
@@ -1675,6 +1703,9 @@ void TDM_CheckMatchStart (void)
 			level.match_start_framenum = 0;
 			level.tdm_pseudo_1v1mode = false;
 			tdm_match_status = MM_WARMUP;
+
+			//reset teamnames if we entered pseudo-1v1 mode
+			TDM_UpdateTeamNames ();
 		}
 	}
 }
@@ -2495,7 +2526,10 @@ void TDM_ResetGameState (void)
 				JoinedTeam (ent, false, false);
 			}
 			else
+			{
 				ent->client->pers.team = TEAM_SPEC;
+				respawn(ent);
+			}
 		}
 	}
 
