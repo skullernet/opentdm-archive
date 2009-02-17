@@ -132,6 +132,8 @@ cvar_t	*g_allow_name_change_during_match;
 
 cvar_t	*g_allow_vote_config;
 
+cvar_t	*g_command_mask;
+
 cvar_t	*g_auto_rejoin_match;
 cvar_t	*g_auto_rejoin_map;
 

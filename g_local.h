@@ -822,6 +822,8 @@ extern	cvar_t	*g_allow_name_change_during_match;
 
 extern	cvar_t	*g_allow_vote_config;
 
+extern	cvar_t	*g_command_mask;
+
 extern	cvar_t	*g_auto_rejoin_match;
 extern	cvar_t	*g_auto_rejoin_map;
 

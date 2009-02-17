@@ -2204,6 +2204,12 @@ void TDM_Speclock_f (edict_t *ent)
 {
 	int		team;
 
+	if (!((int)g_command_mask->value & COMMAND_SPECLOCK) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Command '%s' is not allowed on this server.\n", gi.argv(0));
+		return;
+	}
+
 	if (gi.argc() < 2 && ent->client->pers.admin && !ent->client->pers.team)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Usage: speclock <team>\n");
@@ -2256,6 +2262,12 @@ void TDM_Specinvite_f (edict_t *ent)
 	int			team;
 	edict_t		*victim;
 	const char	*value;
+
+	if (!((int)g_command_mask->value & COMMAND_SPECLOCK) && !ent->client->pers.admin)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Command '%s' is not allowed on this server.\n", gi.argv(0));
+		return;
+	}
 
 	if (gi.argc() < 3 && ent->client->pers.admin && !ent->client->pers.team)
 	{
@@ -2337,6 +2349,9 @@ Move to spectator or change spetating mode.
 */
 void TDM_Spectate_f (edict_t *ent)
 {
+	if (tdm_match_status == MM_TIMEOUT && !ent->client->pers.team)
+		return;
+
 	if (gi.argc() < 2 || !Q_stricmp (gi.argv(1), "none"))
 	{
 		ent->client->resp.spec_mode = SPEC_NONE;

@@ -267,6 +267,8 @@ void InitGame (void)
 
 	g_allow_vote_config = gi.cvar ("g_allow_vote_config", "1", 0);
 
+	g_command_mask = gi.cvar ("g_command_mask", "-1", 0);
+
 	g_auto_rejoin_match = gi.cvar ("g_auto_rejoin_match", "1", 0);
 	g_auto_rejoin_map = gi.cvar ("g_auto_rejoin_map", "1", 0);
 

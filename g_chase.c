@@ -31,6 +31,13 @@ void DisableChaseCam (edict_t *ent)
 	ent->client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
 
 	ent->client->clientNum = ent - g_edicts - 1;
+
+	// wision: disable freefloat if one of the teams is speclocked and the match is in progress
+	if ((teaminfo[TEAM_A].speclocked || teaminfo[TEAM_B].speclocked) && !ent->client->pers.admin)
+	{
+		gi.centerprintf(ent, "Can't freefloat while teams are locked against spectators.");
+		GetChaseTarget(ent);
+	}
 }
 
 void NextChaseMode (edict_t *ent)
@@ -85,8 +92,8 @@ void UpdateChaseCam(edict_t *ent)
 	targ = ent->client->chase_target;
 
 	// is our chase target gone? or team is speclocked and we are not allowed to spec
-	if (!targ->inuse || !targ->client->pers.team ||
-			(teaminfo[targ->client->pers.team].speclocked && !ent->client->pers.specinvite[targ->client->pers.team]))
+	if (!targ->inuse || !targ->client->pers.team || (teaminfo[targ->client->pers.team].speclocked &&
+				!ent->client->pers.specinvite[targ->client->pers.team] && !ent->client->pers.admin))
 	{
 		ChaseNext(ent);
 		if (ent->client->chase_target == targ)
@@ -237,7 +244,8 @@ void ChaseNext(edict_t *ent)
 		if (!e->inuse)
 			continue;
 
-		if (e->client->pers.team && (!teaminfo[e->client->pers.team].speclocked || ent->client->pers.specinvite[e->client->pers.team]))
+		if (e->client->pers.team && (ent->client->pers.admin || 
+					!teaminfo[e->client->pers.team].speclocked || ent->client->pers.specinvite[e->client->pers.team]))
 			break;
 	} while (e != ent->client->chase_target);
 
@@ -263,7 +271,8 @@ void ChasePrev(edict_t *ent)
 		if (!e->inuse)
 			continue;
 
-		if (e->client->pers.team && (!teaminfo[e->client->pers.team].speclocked || ent->client->pers.specinvite[e->client->pers.team]))
+		if (e->client->pers.team && (ent->client->pers.admin || 
+					!teaminfo[e->client->pers.team].speclocked || ent->client->pers.specinvite[e->client->pers.team]))
 			break;
 	} while (e != ent->client->chase_target);
 
@@ -281,8 +290,8 @@ void GetChaseTarget(edict_t *ent)
 	for (i = 1; i <= game.maxclients; i++)
 	{
 		other = g_edicts + i;
-		if (other->inuse && other->client->pers.team &&
-				(!teaminfo[other->client->pers.team].speclocked || ent->client->pers.specinvite[other->client->pers.team]))
+		if (other->inuse && other->client->pers.team && (ent->client->pers.admin ||
+				!teaminfo[other->client->pers.team].speclocked || ent->client->pers.specinvite[other->client->pers.team]))
 		{
 			ent->client->chase_mode = CHASE_EYES;
 			SetChase (ent, other);
@@ -292,7 +301,7 @@ void GetChaseTarget(edict_t *ent)
 	}
 
 	/* lock spectator's view */
-	if (teaminfo[TEAM_A].speclocked && teaminfo[TEAM_B].speclocked)
+	if (teaminfo[TEAM_A].speclocked && teaminfo[TEAM_B].speclocked && !ent->client->pers.admin)
 	{
 		ent->client->chase_mode = CHASE_LOCK;
 		gi.centerprintf(ent, "Both teams are locked against spectators.");

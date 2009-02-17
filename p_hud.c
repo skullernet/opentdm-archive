@@ -311,6 +311,39 @@ void Cmd_Help_f (edict_t *ent)
 
 //=======================================================================
 
+//displays either current or previous team scores depending on which scoreboard is up
+static void G_SetTeamScoreStats (edict_t *ent)
+{
+	int		first_team;
+
+	if (ent->client->showoldscores)
+	{
+		if (old_matchinfo.scores[TEAM_A] < old_matchinfo.scores[TEAM_B])
+			first_team = TEAM_B;
+		else
+			first_team = TEAM_A;
+
+		ent->client->ps.stats[STAT_FIRST_TEAM_SCORE] = old_matchinfo.scores[first_team];
+		ent->client->ps.stats[STAT_SECOND_TEAM_SCORE] = old_matchinfo.scores[(first_team % 2) + 1];
+	}
+	else
+	{
+		if (teaminfo[TEAM_A].score < teaminfo[TEAM_B].score)
+			first_team = TEAM_B;
+		else
+			first_team = TEAM_A;
+
+		ent->client->ps.stats[STAT_FIRST_TEAM_SCORE] = teaminfo[first_team].score;
+		ent->client->ps.stats[STAT_SECOND_TEAM_SCORE] = teaminfo[(first_team % 2) + 1].score;
+	}
+
+	ent->client->ps.stats[STAT_FIRST_TEAM_NAME_INDEX] = CS_TDM_TEAM_A_NAME + first_team - 1;
+	ent->client->ps.stats[STAT_SECOND_TEAM_NAME_INDEX] = CS_TDM_TEAM_A_NAME + (first_team % 2);
+
+	ent->client->ps.stats[STAT_FIRST_TEAM_STATUS_INDEX] = CS_TDM_TEAM_A_STATUS + first_team - 1;
+	ent->client->ps.stats[STAT_SECOND_TEAM_STATUS_INDEX] = CS_TDM_TEAM_A_STATUS + (first_team % 2);
+}
+
 /*
 ===============
 G_SetStats
@@ -321,7 +354,6 @@ void G_SetStats (edict_t *ent)
 	const gitem_t	*item;
 	int				index, cells;
 	int				power_armor_type;
-	static int		first_team = TEAM_A;
 
 	cells = 0;
 
@@ -477,32 +509,7 @@ void G_SetStats (edict_t *ent)
 	//
 	// frags
 	//
-	if (ent->client->showoldscores)
-	{
-		if (old_matchinfo.scores[TEAM_A] < old_matchinfo.scores[TEAM_B])
-			first_team = TEAM_B;
-		else if (old_matchinfo.scores[TEAM_A] > old_matchinfo.scores[TEAM_B])
-			first_team = TEAM_A;
-
-		ent->client->ps.stats[STAT_FIRST_TEAM_SCORE] = old_matchinfo.scores[first_team];
-		ent->client->ps.stats[STAT_SECOND_TEAM_SCORE] = old_matchinfo.scores[(first_team % 2) + 1];
-	}
-	else
-	{
-		if (teaminfo[TEAM_A].score < teaminfo[TEAM_B].score)
-			first_team = TEAM_B;
-		else if (teaminfo[TEAM_A].score > teaminfo[TEAM_B].score)
-			first_team = TEAM_A;
-
-		ent->client->ps.stats[STAT_FIRST_TEAM_SCORE] = teaminfo[first_team].score;
-		ent->client->ps.stats[STAT_SECOND_TEAM_SCORE] = teaminfo[(first_team % 2) + 1].score;
-	}
-
-	ent->client->ps.stats[STAT_FIRST_TEAM_NAME_INDEX] = CS_TDM_TEAM_A_NAME + first_team - 1;
-	ent->client->ps.stats[STAT_SECOND_TEAM_NAME_INDEX] = CS_TDM_TEAM_A_NAME + (first_team % 2);
-
-	ent->client->ps.stats[STAT_FIRST_TEAM_STATUS_INDEX] = CS_TDM_TEAM_A_STATUS + first_team - 1;
-	ent->client->ps.stats[STAT_SECOND_TEAM_STATUS_INDEX] = CS_TDM_TEAM_A_STATUS + (first_team % 2);
+	G_SetTeamScoreStats (ent);
 
 	// frags for server browser
 	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
@@ -558,12 +565,8 @@ void G_SetSpectatorStats (edict_t *ent)
 		if (cl->ps.stats[STAT_ID_VIEW_INDEX])
 			TDM_GetPlayerIdView (ent);
 
-		// wision: don't show scores in the hud during warmup if specced player brings up oldscoreboard
-		if (tdm_match_status == MM_WARMUP)
-		{
-			cl->ps.stats[STAT_FIRST_TEAM_SCORE] = 0;
-			cl->ps.stats[STAT_SECOND_TEAM_SCORE] = 0;
-		}
+		//team scores are independent in spectator
+		G_SetTeamScoreStats (ent);
 
 		// wision: observers show 0 frags in server browser
 		cl->ps.stats[STAT_FRAGS] = 0;
@@ -571,7 +574,7 @@ void G_SetSpectatorStats (edict_t *ent)
 
 	cl->ps.stats[STAT_SPECTATOR] = 1;
 
-	// layouts are independant in spectator
+	// layouts are independent in spectator
 	cl->ps.stats[STAT_LAYOUTS] = 0;
 
 	if (tdm_match_status == MM_SCOREBOARD || cl->pers.menu.active || ent->client->showscores ||

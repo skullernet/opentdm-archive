@@ -1464,11 +1464,20 @@ void TDM_SetupMatchInfoAndTeamPlayers (void)
 		{
 			if (ent->client->pers.connected)
 			{
-				gi.dprintf ("TDM_SetupMatchInfoAndTeamPlayers: Unclean disconnect of client %d.\n", (int)(ent - g_edicts - 1));
-				memset (&ent->client->pers, 0, sizeof(ent->client->pers));
-				ent->solid = SOLID_NOT;
-				ent->s.modelindex = ent->s.effects = ent->s.sound = 0;
-				gi.unlinkentity (ent);
+				if (!(game.server_features & GMF_WANT_ALL_DISCONNECTS))
+				{
+					gi.dprintf ("TDM_SetupMatchInfoAndTeamPlayers: Unclean disconnect of client %d.\n", (int)(ent - g_edicts - 1));
+					memset (&ent->client->pers, 0, sizeof(ent->client->pers));
+					ent->solid = SOLID_NOT;
+					ent->s.modelindex = ent->s.effects = ent->s.sound = 0;
+					gi.unlinkentity (ent);
+				}
+				else
+				{
+					//the server guarantees they are still connected,
+					//just remove them from any team to prevent rejoining mid-game
+					ent->client->pers.team = TEAM_SPEC;
+				}
 			}
 			continue;
 		}

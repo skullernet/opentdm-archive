@@ -1262,6 +1262,10 @@ void PutClientInServer (edict_t *ent)
 		ent->client->ps.gunindex = 0;
 		gi.linkentity (ent);
 
+		// wision: force pov if there's speclock enabled somewhere
+		if ((teaminfo[TEAM_A].speclocked || teaminfo[TEAM_B].speclocked) && !ent->client->pers.admin)
+			DisableChaseCam (ent);
+
 		// wision: move to intermission if it's end of the match
 		if (tdm_match_status == MM_SCOREBOARD)
 			MoveClientToIntermission (ent);
