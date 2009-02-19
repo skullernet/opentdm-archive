@@ -1437,8 +1437,10 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	
 	const char		*s;
 	const char		*old_name;
+	const char		*old_stats_id;
 	int				playernum;
 	qboolean		name_changed;
+	qboolean		do_config_download;
 
 	//new connection, server is calling us. just save userinfo for later.
 	if (!ent->inuse)
@@ -1467,6 +1469,13 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 	}
 
 	playernum = ent-g_edicts-1;
+
+	old_stats_id = Info_ValueForKey (ent->client->pers.userinfo, "stats_id");
+	s = Info_ValueForKey (userinfo, "stats_id");
+	if (strcmp (old_stats_id, s))
+		do_config_download = true;
+	else
+		do_config_download = false;
 
 	name_changed = false;
 
@@ -1539,6 +1548,9 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 
 	// save off the userinfo in case we want to check something later
 	strncpy (ent->client->pers.userinfo, userinfo, sizeof(ent->client->pers.userinfo)-1);
+
+	if (do_config_download)
+		TDM_DownloadPlayerConfig (ent);
 }
 
 

@@ -783,10 +783,20 @@ void TDM_PlayerConfigDownloaded (tdm_download_t *download, int code, byte *buff,
 		}
 		else
 		{
+			config.loaded = true;
 			download->initiator->client->pers.config = config;
 			gi.cprintf (download->initiator, PRINT_HIGH, "Your opentdm.net player config was loaded successfully.\n");
 			TDM_SetTeamSkins (download->initiator, NULL);
 		}
+	}
+	else
+	{
+		if (code == 404)
+			gi.cprintf (download->initiator, PRINT_HIGH, "No player config for your stats_id was found. Please check your stats_id cvar is set properly.\n");
+		else if (code == 400)
+			gi.cprintf (download->initiator, PRINT_HIGH, "A malformed stats_id was found while trying to download your player config. Please check your stats_id cvar is set properly.\n");
+		else
+			gi.cprintf (download->initiator, PRINT_HIGH, "An unspecified error %d occured while trying to download your player config.\n");
 	}
 
 	//wision: set up the dm_statusbar according the config and send it to the client
@@ -803,14 +813,18 @@ void TDM_DownloadPlayerConfig (edict_t *ent)
 {
 	const char	*stats_id;
 
+	if (ent->client->pers.config.loaded)
+		return;
+
 	stats_id = Info_ValueForKey (ent->client->pers.userinfo, "stats_id");
 	if (!stats_id[0])
 	{
+		//FIXME: is this necessary with the global CS back in place?
 		TDM_SendStatusBarCS (ent);
 		return;
 	}
 
-	//prevent new player from overwriting old request
+	//prevent multiple calls from overwriting old request
 	if (ent->client->pers.download.inuse)
 	{
 		//FIXME: shouldn't get here.
@@ -841,7 +855,8 @@ qboolean TDM_SetupClient (edict_t *ent)
 	ent->client->pers.team = TEAM_SPEC;
 	TDM_TeamsChanged ();
 
-	TDM_DownloadPlayerConfig (ent);
+	//handled in userinfo updates now
+	//TDM_DownloadPlayerConfig (ent);
 
 	if (!TDM_ProcessJoinCode (ent, 0))
 	{

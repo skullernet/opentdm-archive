@@ -1389,6 +1389,8 @@ typedef struct
 	int			id_highlight;
 	int			id_x;
 	int			id_y;
+
+	qboolean	loaded;
 } playerconfig_t;
 
 extern matchmode_t	tdm_match_status;
