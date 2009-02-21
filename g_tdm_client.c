@@ -796,7 +796,7 @@ void TDM_PlayerConfigDownloaded (tdm_download_t *download, int code, byte *buff,
 		else if (code == 400)
 			gi.cprintf (download->initiator, PRINT_HIGH, "A malformed stats_id was found while trying to download your player config. Please check your stats_id cvar is set properly.\n");
 		else
-			gi.cprintf (download->initiator, PRINT_HIGH, "An unspecified error %d occured while trying to download your player config.\n");
+			gi.cprintf (download->initiator, PRINT_HIGH, "An unspecified error %d occured while trying to download your player config.\n", code);
 	}
 
 	//wision: set up the dm_statusbar according the config and send it to the client
