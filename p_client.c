@@ -1090,8 +1090,8 @@ void respawn (edict_t *self)
 	if (self->client->chase_target)
 		DisableChaseCam (self);
 
-	// spectator's don't leave bodies
-	if (self->movetype != MOVETYPE_NOCLIP && self->movetype != MOVETYPE_WALK)
+	// spectator's don't leave bodies, r1: neither do unlinked entities
+	if (self->movetype != MOVETYPE_NOCLIP && self->movetype != MOVETYPE_WALK && self->area.prev)
 		CopyToBodyQue (self);
 
 	self->svflags &= ~SVF_NOCLIENT;
