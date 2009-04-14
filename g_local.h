@@ -807,7 +807,8 @@ extern	cvar_t	*g_idle_time;
 extern	cvar_t	*g_http_enabled;
 extern	cvar_t	*g_http_bind;
 extern	cvar_t	*g_http_proxy;
-extern	cvar_t	*g_http_baseurl;
+extern	cvar_t	*g_http_path;
+extern	cvar_t	*g_http_domain;
 
 extern	cvar_t	*g_debug_spawns;
 

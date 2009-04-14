@@ -2543,6 +2543,9 @@ void TDM_ResetGameState (void)
 		if (ent->inuse && !ent->client->pers.team)
 			TDM_ShowTeamMenu (ent);
 	}
+
+	//re-resolve otdm server in case of DNS change
+	HTTP_ResolveOTDMServer ();
 }
 
 /*

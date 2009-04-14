@@ -31,6 +31,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 #include <curl/curl.h>
 
+#ifdef _WIN32
+#include <Winsock2.h>
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#endif
+
 typedef struct dlhandle_s
 {
 	CURL			*curl;
@@ -50,8 +58,14 @@ typedef struct dlhandle_s
 
 dlhandle_t	downloads[MAX_DOWNLOADS];
 
-static CURLM		*multi = NULL;
-static unsigned		handleCount = 0;
+static CURLM				*multi = NULL;
+static unsigned				handleCount = 0;
+
+static char					otdm_api_ip[16];
+static char					hostHeader[64];
+static struct curl_slist	*http_header_slist;
+
+static time_t				last_dns_lookup;
 
 /*
 ===============
@@ -205,6 +219,35 @@ int EXPORT CURL_Debug (CURL *c, curl_infotype type, char *data, size_t size, voi
 
 /*
 ===============
+HTTP_ResolveOTDMServer
+
+Resolve the g_http_domain and cache it, so we don't do DNS
+lookups at critical times (eg mid match).
+===============
+*/
+void HTTP_ResolveOTDMServer (void)
+{
+	//re-resolve if its been more than one day since we last did it
+	if (time(NULL) - last_dns_lookup > 86400)
+	{
+		struct hostent	*h;
+		h = gethostbyname (g_http_domain->string);
+
+		if (!h)
+		{
+			otdm_api_ip[0] = '\0';
+			gi.dprintf ("WARNING: Could not resolve OpenTDM web API server '%s'. HTTP functions unavailable.\n", g_http_domain->string);
+			return;
+		}
+
+		time (&last_dns_lookup);
+
+		Q_strncpy (otdm_api_ip, inet_ntoa (*(struct in_addr *)h->h_addr_list[0]), sizeof(otdm_api_ip)-1);
+	}
+}
+
+/*
+===============
 HTTP_StartDownload
 
 Actually starts a download by adding it to the curl multi
@@ -213,8 +256,8 @@ handle.
 */
 void HTTP_StartDownload (dlhandle_t *dl)
 {
-	cvar_t	*hostname;
-	char	escapedFilePath[2048];
+	cvar_t				*hostname;
+	char				escapedFilePath[2048];
 
 	hostname = gi.cvar ("hostname", NULL, 0);
 	if (!hostname)
@@ -230,8 +273,9 @@ void HTTP_StartDownload (dlhandle_t *dl)
 
 	HTTP_EscapePath (dl->filePath, escapedFilePath);
 
-	Com_sprintf (dl->URL, sizeof(dl->URL), "%s%s", g_http_baseurl->string, escapedFilePath);
+	Com_sprintf (dl->URL, sizeof(dl->URL), "http://%s%s%s", otdm_api_ip, g_http_path->string, escapedFilePath);
 
+	curl_easy_setopt (dl->curl, CURLOPT_HTTPHEADER, http_header_slist);	
 	curl_easy_setopt (dl->curl, CURLOPT_ENCODING, "");
 	curl_easy_setopt (dl->curl, CURLOPT_DEBUGFUNCTION, CURL_Debug);
 	curl_easy_setopt (dl->curl, CURLOPT_VERBOSE, 1);
@@ -278,6 +322,9 @@ void HTTP_Init (void)
 	curl_global_init (CURL_GLOBAL_NOTHING);
 	multi = curl_multi_init ();
 
+	Com_sprintf (hostHeader, sizeof(hostHeader), "Host: %s", g_http_domain->string);
+	http_header_slist = curl_slist_append (http_header_slist, hostHeader);
+
 	gi.dprintf ("%s initialized.\n", curl_version());
 }
 
@@ -288,6 +335,8 @@ void HTTP_Shutdown (void)
 		curl_multi_cleanup (multi);
 		multi = NULL;
 	}
+
+	curl_slist_free_all (http_header_slist);
 
 	curl_global_cleanup ();
 }
@@ -415,6 +464,13 @@ qboolean HTTP_QueueDownload (tdm_download_t *d)
 		return false;
 	}
 
+	if (!otdm_api_ip[0])
+	{
+		if (d->type == DL_CONFIG)
+			gi.cprintf (d->initiator, PRINT_HIGH, "This server failed to resolve the OpenTDM web API server.\n");
+		return false;
+	}
+
 	for (i = 0; i < MAX_DOWNLOADS; i++)
 	{
 		if (!downloads[i].inuse)
@@ -483,5 +539,8 @@ qboolean HTTP_QueueDownload (tdm_download_t *d)
 	if (d->type == DL_CONFIG)
 		gi.cprintf (d->initiator, PRINT_HIGH, "HTTP functions are not compiled on this server.\n");
 	return false;
+}
+void HTTP_ResolveOTDMServer (void)
+{
 }
 #endif

@@ -117,7 +117,9 @@ cvar_t	*g_idle_time;
 cvar_t	*g_http_enabled;
 cvar_t	*g_http_bind;
 cvar_t	*g_http_proxy;
-cvar_t	*g_http_baseurl;
+
+cvar_t	*g_http_path;
+cvar_t	*g_http_domain;
 
 cvar_t	*g_debug_spawns;
 
