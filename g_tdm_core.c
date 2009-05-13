@@ -469,7 +469,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 {
 	char		entry[1024];
 	char		tmpstr[60];
-	static char	string[1400];
+	static char	string[1024];
 	int			len;
 	int			i, j, k;
 	int			sorted[2][MAX_CLIENTS];
@@ -492,7 +492,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	teamplayer_t	*tmpl;
 	edict_t			*cl_ent;
 	int				team;
-	const int		maxsize = 1300;
+	const int		maxsize = 1000;
 
 	t = time (NULL);
 	ts = localtime (&t);

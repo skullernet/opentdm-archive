@@ -228,6 +228,9 @@ lookups at critical times (eg mid match).
 */
 void HTTP_ResolveOTDMServer (void)
 {
+	if (!g_http_enabled->value)
+		return;
+
 	//re-resolve if its been more than one day since we last did it
 	if (time(NULL) - last_dns_lookup > 86400)
 	{
