@@ -549,7 +549,31 @@ void ParseEntityString (qboolean respawn)
 			//an elevator or something respawned on top of a player? don't do it for match start, since
 			//players will be respawning anyway.
 			if (tdm_match_status < MM_PLAYING && (ent->solid == SOLID_BBOX || ent->solid == SOLID_BSP))
-				KillBox (ent);
+			{
+				edict_t	*touch[MAX_EDICTS];
+				int		count;
+				int		j;
+
+				//r1: fix 00000196, can't killbox during map spawn due to risk of killing half-spawned
+				//map entities. do a pseudo-killbox that only whacks players instead.
+
+				count = gi.BoxEdicts (ent->absmin, ent->absmax, touch, MAX_EDICTS, AREA_SOLID);
+				for (j = 0; j < count; j++)
+				{
+					if (touch[j] == ent)
+						continue;
+
+					//no point killing anything that won't clip (eg corpses)
+					if (touch[j]->solid == SOLID_NOT || touch[j]->enttype == ENT_BODYQUE)
+						continue;
+
+					if (!touch[j]->client)
+						continue;
+
+					if (touch[j]->inuse)
+						T_Damage (touch[j], ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+				}
+			}
 		}
 	}
 
