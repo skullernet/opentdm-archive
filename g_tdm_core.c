@@ -2183,6 +2183,7 @@ void TDM_TeamsChanged (void)
 	UpdateTeamMenu ();
 	UpdateMatchStatus ();
 	TDM_CheckMatchStart ();
+	TDM_CheckVote ();
 }
 
 /*
