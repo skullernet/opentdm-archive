@@ -76,6 +76,8 @@ static void TDM_ApplyVote (void)
 {
 	char value[16];
 
+	vote.applying = true;
+
 	//only some flags cause settings change, restart, kick, abort, etc don't.
 	if (vote.flags &
 		(
@@ -260,6 +262,8 @@ abort:
 		sprintf (value, "%d", vote.spawn_mode);
 		g_1v1_spawn_mode = gi.cvar_set ("g_1v1_spawn_mode", value);
 	}
+
+	vote.applying = false;
 }
 
 /*
@@ -2110,6 +2114,10 @@ void TDM_CheckVote (void)
 	int		vote_yes = 0;
 	int		vote_no = 0;
 	edict_t	*ent;
+
+	//vote is already applying, we're getting called mid-apply so fail
+	if (vote.applying)
+		return;
 
 	if ((vote.flags & VOTE_KICK) && !vote.victim->inuse)
 	{

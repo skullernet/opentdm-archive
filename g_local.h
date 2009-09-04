@@ -1247,6 +1247,7 @@ typedef enum
 typedef struct vote_s
 {
 	qboolean		active;
+	qboolean		applying;
 	unsigned		flags;
 	edict_t			*victim;
 	edict_t			*initiator;
