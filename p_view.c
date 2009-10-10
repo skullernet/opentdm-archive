@@ -874,8 +874,19 @@ void G_SetClientFrame (edict_t *ent)
 	if (ent->s.modelindex != 255)
 		return;		// not in the player model
 
-	if ((level.framenum % (int)(0.1f * SERVER_FPS)) != 0)
-		return;		// not time to advance a frame (anims only run at 10 hz)
+	if (ent->s.frame != ent->client->last_model_frame)
+	{
+		//the frame was changed by a weapon fire, jump or other event that occured between game frames, fix up the animations to run at 10 hz
+		ent->client->next_animation_frame = level.framenum;
+	}
+
+	if (ent->client->next_animation_frame != level.framenum)
+		return;
+
+	//if (ent->s.frame == ent->client->last_model_frame && (level.framenum % (int)(0.1f * SERVER_FPS)) != 0)
+	//	return;		// not time to advance a frame (anims only run at 10 hz), EXCEPT if a weapon_think changed the animation on us!
+
+	ent->client->next_animation_frame = level.framenum + SECS_TO_FRAMES (0.1f);
 
 	client = ent->client;
 
@@ -1122,7 +1133,10 @@ void ClientEndServerFrame (edict_t *ent)
 
 	//no frame advancement during timeout
 	if (tdm_match_status != MM_TIMEOUT)
+	{
 		G_SetClientFrame (ent);
+		ent->client->last_model_frame = ent->s.frame;
+	}
 
 	VectorCopy (ent->velocity, ent->client->oldvelocity);
 	VectorCopy (ent->client->ps.viewangles, ent->client->oldviewangles);
