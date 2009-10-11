@@ -615,14 +615,21 @@ float	PlayersRangeFromSpot (edict_t *spot, edict_t **closest_player)
 	return bestplayerdistance;
 }
 
-int EXPORT RandomSort (const void *a, const void *b)
+void RandomizeArray (void **base, size_t n)
 {
-	int	i;
-
-	i = (genrand_int31 () % 3) - 1;
-
-	return i;
+	if (n > 1)
+	{
+		size_t i;
+		for (i = 0; i < n - 1; i++)
+		{
+			size_t j = i + genrand_int32() / (0xffffffff / (n - i) + 1);
+			void *t = base[j];
+			base[j] = base[i];
+			base[i] = t;
+		}
+	}
 }
+
 
 /*
 ================
@@ -648,7 +655,8 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTelefrag (edict_t *player)
 	edict_t			*occupier;
 
 	memcpy (spawnlist, level.spawns, sizeof(spawnlist));
-	qsort (spawnlist, level.numspawns, sizeof(spawnlist[0]), RandomSort);
+
+	RandomizeArray (spawnlist, level.numspawns);
 
 	//all spots could be taken, so don't while(1)
 	for (i = 0; i < level.numspawns; i++)
