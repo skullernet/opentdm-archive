@@ -358,6 +358,10 @@ qboolean TDM_ProcessJoinCode (edict_t *ent, unsigned value)
 	if (!t || t->client || !t->saved_client || !t->saved_entity)
 		return false;
 
+	//0000201: Joincode rejoin. don't allow bypassing of max players setting.
+	if (teaminfo[t->team].players >= current_matchinfo.max_players_per_team)
+		return false;
+
 	//could be using a joincode while chasing, need to fix it here before we possibly overwrite entity
 	if (ent->client->chase_target)
 		DisableChaseCam (ent);
