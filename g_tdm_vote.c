@@ -505,14 +505,18 @@ static void TDM_AnnounceVote (void)
 
 	if (vote.flags & (VOTE_1V1_SPAWNMODE | VOTE_TDM_SPAWNMODE))
 	{
+		int	spawn_mode;
+
 		if (what[0])
 			strcat (what, ", ");
 
-		if (vote.spawn_mode == 0)
+		spawn_mode = vote.spawn_mode & ~SPAWN_RANDOM_ON_SMALL_MAPS;
+
+		if (spawn_mode == 0)
 			strcat (what, "respawn avoid closest");
-		else if (vote.spawn_mode == 1)
+		else if (spawn_mode == 1)
 			strcat (what, "respawn avoid closest (fixed)");
-		else if (vote.spawn_mode == 2)
+		else if (spawn_mode == 2)
 			strcat (what, "respawn random");
 	}
 

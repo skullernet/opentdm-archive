@@ -844,13 +844,19 @@ char *TDM_SettingsString (void)
 
 	if (TDM_Is1V1())
 	{
+		int		mode;
 		strcat (settings, "1v1 Respawn mode: ");
-		if ((int)g_1v1_spawn_mode->value & 1)
-			strcat (settings, TDM_SetColorText(va ("%s", "avoid closest (bugged)")));
-		else if ((int)g_1v1_spawn_mode->value & 2)
-			strcat (settings, TDM_SetColorText(va ("%s", "avoid closest")));
 
-		if ((int)g_1v1_spawn_mode->value & 4)
+		mode = (int)g_1v1_spawn_mode->value & ~SPAWN_RANDOM_ON_SMALL_MAPS;
+
+		if (mode == 0)
+			strcat (settings, TDM_SetColorText(va ("%s", "avoid closest (bugged)")));
+		else if (mode == 1)
+			strcat (settings, TDM_SetColorText(va ("%s", "avoid closest")));
+		else
+			strcat (settings, TDM_SetColorText(va ("%s", "random")));
+
+		if ((int)g_1v1_spawn_mode->value & SPAWN_RANDOM_ON_SMALL_MAPS)
 			strcat (settings, TDM_SetColorText(va ("%s", " (random on small maps)")));
 	}
 	else

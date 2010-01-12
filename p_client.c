@@ -953,12 +953,16 @@ edict_t *SelectDeathmatchSpawnPoint (edict_t *player)
 	{
 		if (TDM_Is1V1())
 		{
-			if (level.numspawns < 6 && (int)g_1v1_spawn_mode->value & 4)
+			int	mode;
+
+			mode = (int)g_1v1_spawn_mode->value & ~SPAWN_RANDOM_ON_SMALL_MAPS;
+
+			if (level.numspawns < 6 && (int)g_1v1_spawn_mode->value & SPAWN_RANDOM_ON_SMALL_MAPS)
 				return SelectRandomDeathmatchSpawnPoint ();
 
-			if ((int)g_1v1_spawn_mode->value & 1)
+			if (mode == 0)
 				return SelectRandomDeathmatchSpawnPointAvoidingTwoClosestBugged ();
-			else if ((int)g_1v1_spawn_mode->value & 2)
+			else if (mode == 1)
 				return SelectRandomDeathmatchSpawnPointAvoidingTwoClosest ();
 		}
 		else
