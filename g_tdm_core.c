@@ -901,6 +901,7 @@ char *TDM_ScoreBoardString (edict_t *ent)
 	if (maxsize - len > (strlen(serverinfo) + 25))
 	{
 		sprintf (string + strlen(string), "xl 8 yb -37 string2 \"%s\" ", serverinfo);
+		len = strlen(string);
 	}
 
 	// put in spectators if we have enough room

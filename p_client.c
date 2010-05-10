@@ -656,7 +656,7 @@ edict_t *SelectRandomDeathmatchSpawnPointAvoidingTelefrag (edict_t *player)
 
 	memcpy (spawnlist, level.spawns, sizeof(spawnlist));
 
-	RandomizeArray (spawnlist, level.numspawns);
+	RandomizeArray ((void *)spawnlist, level.numspawns);
 
 	//all spots could be taken, so don't while(1)
 	for (i = 0; i < level.numspawns; i++)
