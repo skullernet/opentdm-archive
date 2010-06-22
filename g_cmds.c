@@ -426,7 +426,7 @@ void Cmd_Use_f (edict_t *ent)
 	if (!ent->client->pers.team)
 		return;
 
-	if (tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD)
+	if (tdm_match_status == MM_TIMEOUT || tdm_match_status == MM_SCOREBOARD || (int)g_gamemode->value == GAMEMODE_ITDM)
 		return;
 
 	s = gi.args();

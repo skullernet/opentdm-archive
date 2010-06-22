@@ -2000,7 +2000,7 @@ void TDM_SetCaptain (int team, edict_t *ent)
 	if (ent && g_gamemode->value != GAMEMODE_1V1)
 	{
 		gi.bprintf (PRINT_HIGH, "%s became captain of '%s'\n", ent->client->pers.netname, teaminfo[team].name);
-		gi.cprintf (ent, PRINT_CHAT, "You are the captain of '%s'\n", teaminfo[team].name);
+		//gi.cprintf (ent, PRINT_CHAT, "You are the captain of '%s'\n", teaminfo[team].name);
 	}
 }
 

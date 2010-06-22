@@ -614,6 +614,7 @@ void SpawnEntities (const char *mapname, const char *entities, const char *spawn
 	strncpy (level.mapname, mapname, sizeof(level.mapname)-1);
 
 	level.entity_string = entities;
+	level.spawntime = time (NULL);
 
 	// set client fields on player ents
 	for (i=0 ; i<game.maxclients ; i++)

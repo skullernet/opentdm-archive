@@ -2058,7 +2058,9 @@ void ClientBeginServerFrame (edict_t *ent)
 		FRAMES_TO_SECS(level.framenum - ent->client->last_activity_frame) > g_idle_time->value)
 	{
 		gi.bprintf (PRINT_HIGH, "Removing %s from team '%s' due to inactivity.\n", ent->client->pers.netname, teaminfo[ent->client->pers.team].name);
-		ToggleChaseCam (ent);
+		TDM_LeftTeam (ent, false);
+		TDM_TeamsChanged ();
+		respawn (ent);
 	}
 
 	if (ent->deadflag)

@@ -542,6 +542,14 @@ void TDM_Disconnected (edict_t *ent)
 	{
 		if (vote.active)
 			TDM_RemoveVote ();
+
+		//reset the map if it's been running for over 7 days to workaround time precision bugs in the engine, fixes 0000208
+		if (time (NULL) - level.spawntime > (86400 * 7))
+		{
+			char	command[256];
+			Com_sprintf (command, sizeof(command), "gamemap \"%s\"\n", level.mapname);
+			gi.AddCommandString (command);
+		}
 	}
 	else
 		TDM_CheckVote ();

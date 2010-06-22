@@ -544,6 +544,8 @@ typedef struct
 
 	int				numspawns;
 	edict_t			*spawns[TDM_MAX_MAP_SPAWNPOINTS];
+
+	time_t			spawntime;
 } level_locals_t;
 
 
