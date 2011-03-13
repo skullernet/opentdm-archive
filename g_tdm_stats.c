@@ -1392,6 +1392,13 @@ void TDM_SetupTeamInfoForPlayer (edict_t *ent, teamplayer_t *info)
 {
 	const char *code;
 
+	//clear old link
+	if (ent->client->resp.teamplayerinfo)
+	{
+		//gi.dprintf ("TDM_SetupTeamInfoForPlayer: %p --> %p\n", ent->client->resp.teamplayerinfo, info );
+		ent->client->resp.teamplayerinfo->client = NULL;
+	}
+
 	strcpy (info->name, ent->client->pers.netname);
 	
 	info->client = ent;
@@ -1482,6 +1489,10 @@ void TDM_SetupMatchInfoAndTeamPlayers (void)
 			continue;
 		}
 
+		if (ent->client->resp.teamplayerinfo)
+		{
+			TDM_Error("TDM_SetupMatchInfoAndTeamPlayers: should not have teamplayerinfo");
+		}
 		if (ent->client->pers.team)
 		{
 			TDM_SetupTeamInfoForPlayer (ent, current_matchinfo.teamplayers + i);

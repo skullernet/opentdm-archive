@@ -101,7 +101,8 @@ void JoinedTeam (edict_t *ent, qboolean reconnected, qboolean notify)
 
 	//if we were invited mid-game, reallocate and insert into teamplayers
 	// wision: do not add if a player reconnected and used his joincode
-	if (tdm_match_status != MM_WARMUP && !reconnected && !ent->client->resp.teamplayerinfo)
+	// skuller: force add if player was picked/invited to the different team
+	if (tdm_match_status != MM_WARMUP && !reconnected && (!ent->client->resp.teamplayerinfo || ent->client->resp.teamplayerinfo->team != ent->client->pers.team))
 		TDM_AddPlayerToMatchinfo (ent);
 
 	//wision: set skin for new player

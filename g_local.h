@@ -440,7 +440,7 @@ typedef struct
 #define WEAP_RAILGUN			10
 #define WEAP_BFG				11
 
-#define	TDM_MAX_MAP_SPAWNPOINTS	32
+#define	TDM_MAX_MAP_SPAWNPOINTS	64
 
 typedef struct matchinfo_s matchinfo_t;
 typedef struct teamplayer_s teamplayer_t;

@@ -225,6 +225,8 @@ static void TDM_ApplyVote (void)
 
 	if (vote.flags & VOTE_RESTART)
 	{
+		edict_t *ent;
+
 		//abort the match instead of restarting if either team has no players
 		if (!teaminfo[TEAM_A].players || !teaminfo[TEAM_B].players)
 			goto abort;
@@ -234,6 +236,16 @@ static void TDM_ApplyVote (void)
 		//ugly, but we need to free dynamic memory since the match start allocs a new array
 		gi.TagFree (current_matchinfo.teamplayers);
 		current_matchinfo.teamplayers = NULL;
+
+		//clear stale teamplayerinfo pointers
+		for (ent = g_edicts + 1; ent <= g_edicts + game.maxclients; ent++)
+		{
+			if (ent->inuse)
+			{
+				ent->client->resp.teamplayerinfo = NULL;
+				ent->client->resp.score = 0;
+			}
+		}
 		
 		TDM_BeginCountdown ();
 	}
